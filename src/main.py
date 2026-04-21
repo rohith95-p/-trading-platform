@@ -23,7 +23,15 @@ limiter = Limiter(key_func=get_remote_address)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
-    # Startup
+    # Startup - Create database tables
+    logger.info("Creating database tables...")
+    try:
+        from src.database import Base, engine
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error(f"Failed to create database tables: {str(e)}")
+
     logger.info("Initializing default RBAC roles...")
     try:
         db = next(get_db())
