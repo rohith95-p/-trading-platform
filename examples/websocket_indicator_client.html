@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Indicator WebSocket Client</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        button.primary {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        button.primary:hover {
+            background-color: #45a049;
+        }
+        
+        button.secondary {
+            background-color: #2196F3;
+            color: white;
+        }
+        
+        button.secondary:hover {
+            background-color: #0b7dda;
+        }
+        
+        button.danger {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        button.danger:hover {
+            background-color: #da190b;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .subscription-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        
+        input, select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .log {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px;
+            border-left: 3px solid #4CAF50;
+            padding-left: 10px;
+        }
+        
+        .log-entry.error {
+            border-left-color: #f44336;
+            color: #ff6b6b;
+        }
+        
+        .log-entry.info {
+            border-left-color: #2196F3;
+            color: #64b5f6;
+        }
+        
+        .log-entry.update {
+            border-left-color: #FFC107;
+            color: #ffd54f;
+        }
+        
+        .indicator-value {
+            display: inline-block;
+            background-color: #2d2d2d;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 5px;
+        }
+        
+        .timestamp {
+            color: #888;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔄 Real-time Indicator WebSocket Client</h1>
+    
+    <div class="container">
+        <div id="status" class="status disconnected">
+            Status: Disconnected
+        </div>
+        
+        <div class="controls">
+            <button id="connectBtn" class="primary" onclick="connect()">Connect</button>
+            <button id="disconnectBtn" class="danger" onclick="disconnect()" disabled>Disconnect</button>
+            <button class="secondary" onclick="clearLog()">Clear Log</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Subscribe to Indicators</h2>
+        
+        <div class="subscription-form">
+            <div class="form-group">
+                <label for="symbol">Symbol:</label>
+                <input type="text" id="symbol" value="BTC-USD" placeholder="e.g., BTC-USD">
+            </div>
+            
+            <div class="form-group">
+                <label for="timeframe">Timeframe:</label>
+                <select id="timeframe">
+                    <option value="1m">1 minute</option>
+                    <option value="5m">5 minutes</option>
+                    <option value="15m">15 minutes</option>
+                    <option value="1h" selected>1 hour</option>
+                    <option value="4h">4 hours</option>
+                    <option value="1d">1 day</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="indicators">Indicators (comma-separated):</label>
+                <input type="text" id="indicators" value="EMA_20,RSI_14,MACD" placeholder="e.g., EMA_20,RSI_14">
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="subscribeBtn" class="secondary" onclick="subscribe()" disabled>Subscribe</button>
+            <button id="unsubscribeBtn" class="secondary" onclick="unsubscribe()" disabled>Unsubscribe</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Message Log</h2>
+        <div id="log" class="log">
+            <div class="log-entry info">Ready to connect...</div>
+        </div>
+    </div>
+    
+    <script>
+        let ws = null;
+        let heartbeatInterval = null;
+        
+        function updateStatus(connected) {
+            const statusEl = document.getElementById('status');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const subscribeBtn = document.getElementById('subscribeBtn');
+            const unsubscribeBtn = document.getElementById('unsubscribeBtn');
+            
+            if (connected) {
+                statusEl.textContent = 'Status: Connected';
+                statusEl.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                subscribeBtn.disabled = false;
+                unsubscribeBtn.disabled = false;
+            } else {
+                statusEl.textContent = 'Status: Disconnected';
+                statusEl.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                subscribeBtn.disabled = true;
+                unsubscribeBtn.disabled = true;
+            }
+        }
+        
+        function addLog(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function clearLog() {
+            const logEl = document.getElementById('log');
+            logEl.innerHTML = '<div class="log-entry info">Log cleared</div>';
+        }
+        
+        function connect() {
+            if (ws) {
+                addLog('Already connected', 'error');
+                return;
+            }
+            
+            const wsUrl = 'ws://localhost:8000/api/v1/intelligence/ws/indicators';
+            addLog(`Connecting to ${wsUrl}...`, 'info');
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                addLog('✅ Connected successfully', 'info');
+                updateStatus(true);
+                
+                // Start heartbeat
+                heartbeatInterval = setInterval(() => {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send('ping');
+                        addLog('💓 Sent heartbeat ping', 'info');
+                    }
+                }, 30000);
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'connected') {
+                    addLog(`📡 Welcome message: ${data.message}`, 'info');
+                    addLog(`🆔 Client ID: ${data.client_id}`, 'info');
+                }
+                else if (data.type === 'subscribed') {
+                    addLog(`✅ Subscribed to ${data.subscription.symbol} ${data.subscription.timeframe}`, 'info');
+                    addLog(`📊 Indicators: ${data.subscription.indicators.join(', ')}`, 'info');
+                }
+                else if (data.type === 'unsubscribed') {
+                    addLog(`❌ Unsubscribed successfully`, 'info');
+                }
+                else if (data.type === 'indicator_update') {
+                    addLog(`📈 Indicator Update: ${data.symbol} ${data.timeframe}`, 'update');
+                    
+                    for (const [indicator, value] of Object.entries(data.indicators)) {
+                        if (typeof value === 'object' && value !== null) {
+                            addLog(`  ${indicator}:`, 'update');
+                            for (const [key, val] of Object.entries(value)) {
+                                addLog(`    ${key}: <span class="indicator-value">${val !== null ? val.toFixed(4) : 'N/A'}</span>`, 'update');
+                            }
+                        } else {
+                            addLog(`  ${indicator}: <span class="indicator-value">${value !== null ? value.toFixed(4) : 'N/A'}</span>`, 'update');
+                        }
+                    }
+                }
+                else if (data.type === 'pong') {
+                    addLog('💓 Received heartbeat pong', 'info');
+                }
+                else if (data.type === 'error') {
+                    addLog(`❌ Error: ${data.message}`, 'error');
+                }
+            };
+            
+            ws.onerror = (error) => {
+                addLog(`❌ WebSocket error: ${error}`, 'error');
+            };
+            
+            ws.onclose = () => {
+                addLog('🔌 Disconnected', 'info');
+                updateStatus(false);
+                ws = null;
+                
+                if (heartbeatInterval) {
+                    clearInterval(heartbeatInterval);
+                    heartbeatInterval = null;
+                }
+            };
+        }
+        
+        function disconnect() {
+            if (!ws) {
+                addLog('Not connected', 'error');
+                return;
+            }
+            
+            ws.close();
+            addLog('Disconnecting...', 'info');
+        }
+        
+        function subscribe() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addLog('Not connected', 'error');
+                return;
+            }
+            
+            const symbol = document.getElementById('symbol').value.trim();
+            const timeframe = document.getElementById('timeframe').value;
+            const indicatorsStr = document.getElementById('indicators').value.trim();
+            
+            if (!symbol || !indicatorsStr) {
+                addLog('Please enter symbol and indicators', 'error');
+                return;
+            }
+            
+            const indicators = indicatorsStr.split(',').map(i => i.trim()).filter(i => i);
+            
+            const message = {
+                action: 'subscribe',
+                symbol: symbol,
+                timeframe: timeframe,
+                indicators: indicators
+            };
+            
+            ws.send(JSON.stringify(message));
+            addLog(`📤 Sent subscription request for ${symbol} ${timeframe}`, 'info');
+        }
+        
+        function unsubscribe() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addLog('Not connected', 'error');
+                return;
+            }
+            
+            const symbol = document.getElementById('symbol').value.trim();
+            const timeframe = document.getElementById('timeframe').value;
+            const indicatorsStr = document.getElementById('indicators').value.trim();
+            
+            if (!symbol || !indicatorsStr) {
+                addLog('Please enter symbol and indicators', 'error');
+                return;
+            }
+            
+            const indicators = indicatorsStr.split(',').map(i => i.trim()).filter(i => i);
+            
+            const message = {
+                action: 'unsubscribe',
+                symbol: symbol,
+                timeframe: timeframe,
+                indicators: indicators
+            };
+            
+            ws.send(JSON.stringify(message));
+            addLog(`📤 Sent unsubscribe request for ${symbol} ${timeframe}`, 'info');
+        }
+    </script>
+</body>
+</html>

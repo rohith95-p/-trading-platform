@@ -1,0 +1,9 @@
+# Position Components
+
+Components for tracking open positions.
+
+## Components
+
+- `PositionList` - Table of open positions
+- `PositionCard` - Individual position display with P&L
+- `ClosePositionModal` - Modal for closing positions

@@ -1,0 +1,11 @@
+# Hooks Directory
+
+This directory contains custom React hooks for the trading platform.
+
+## Examples
+
+- `usePortfolio` - Hook for fetching and managing portfolio data
+- `useSignals` - Hook for subscribing to signal feed
+- `useTrades` - Hook for fetching trade history
+- `usePositions` - Hook for managing positions
+- `useWebSocket` - Hook for WebSocket connections

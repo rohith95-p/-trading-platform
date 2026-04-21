@@ -1,0 +1,10 @@
+# Layout Components
+
+Layout components for the application structure.
+
+## Components
+
+- `Header` - Top navigation bar
+- `Sidebar` - Side navigation menu
+- `Footer` - Footer component
+- `Layout` - Main layout wrapper

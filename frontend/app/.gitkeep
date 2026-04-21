@@ -1,0 +1,12 @@
+# App Directory (Next.js 14 App Router)
+
+This directory contains the Next.js 14 App Router pages and layouts.
+
+## Structure
+
+- `layout.tsx` - Root layout
+- `page.tsx` - Home page
+- `dashboard/` - Dashboard pages
+- `auth/` - Authentication pages (login, register)
+- `strategies/` - Strategy management pages
+- `api-keys/` - API key management pages

@@ -1,0 +1,9 @@
+# Trade Components
+
+Components for trade history and execution.
+
+## Components
+
+- `TradeHistory` - Table of historical trades
+- `TradeFilters` - Filter trades by date, asset, exchange
+- `TradeDetails` - Detailed view of a single trade

@@ -1,0 +1,9 @@
+# Signal Components
+
+Components for displaying trading signals from the Intelligence Layer.
+
+## Components
+
+- `SignalFeed` - Real-time signal feed with WebSocket updates
+- `SignalCard` - Individual signal display
+- `SignalFilters` - Filter signals by source, confidence, asset

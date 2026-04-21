@@ -1,0 +1,9 @@
+# Public Directory
+
+This directory contains static assets served by Next.js.
+
+## Structure
+
+- `images/` - Image assets
+- `icons/` - Icon files
+- `favicon.ico` - Favicon

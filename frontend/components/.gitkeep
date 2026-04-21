@@ -1,0 +1,13 @@
+# Components Directory
+
+This directory contains React components for the trading platform dashboard.
+
+## Structure
+
+- `portfolio/` - Portfolio monitoring components
+- `signals/` - Signal feed components
+- `trades/` - Trade history components
+- `positions/` - Position tracking components
+- `backtesting/` - Backtesting UI components
+- `common/` - Shared/reusable components
+- `layout/` - Layout components (header, sidebar, footer)

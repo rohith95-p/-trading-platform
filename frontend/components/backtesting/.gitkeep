@@ -1,0 +1,9 @@
+# Backtesting Components
+
+Components for backtesting interface.
+
+## Components
+
+- `BacktestForm` - Form for configuring backtest parameters
+- `BacktestResults` - Display backtest metrics and equity curve
+- `BacktestTradeLog` - Trade-by-trade log from backtest

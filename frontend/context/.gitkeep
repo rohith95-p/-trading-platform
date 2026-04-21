@@ -1,0 +1,9 @@
+# Context Directory
+
+This directory contains React Context providers.
+
+## Examples
+
+- `AuthContext` - Authentication state management
+- `WebSocketContext` - WebSocket connection management
+- `ThemeContext` - Theme/dark mode management

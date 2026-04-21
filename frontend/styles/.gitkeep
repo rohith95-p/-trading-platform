@@ -1,0 +1,8 @@
+# Styles Directory
+
+This directory contains global styles and CSS modules.
+
+## Structure
+
+- `globals.css` - Global styles
+- `variables.css` - CSS variables (colors, spacing, etc.)

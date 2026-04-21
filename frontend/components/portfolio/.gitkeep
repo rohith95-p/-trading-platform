@@ -1,0 +1,9 @@
+# Portfolio Components
+
+Components for portfolio monitoring and performance tracking.
+
+## Components
+
+- `PortfolioSummary` - Display portfolio value, daily P&L, total return
+- `PerformanceChart` - Equity curve visualization
+- `AssetAllocation` - Portfolio allocation breakdown

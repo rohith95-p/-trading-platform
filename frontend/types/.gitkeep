@@ -1,0 +1,9 @@
+# Types Directory
+
+This directory contains TypeScript type definitions.
+
+## Examples
+
+- `api.ts` - API request/response types
+- `models.ts` - Data model types (User, Strategy, Trade, Position)
+- `components.ts` - Component prop types

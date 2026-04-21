@@ -1,0 +1,13 @@
+# Common Components
+
+Shared/reusable components used across the application.
+
+## Components
+
+- `Button` - Reusable button component
+- `Card` - Card container component
+- `Table` - Data table component
+- `Modal` - Modal dialog component
+- `Input` - Form input component
+- `Select` - Dropdown select component
+- `Loader` - Loading spinner component

@@ -1,0 +1,9 @@
+# Config Directory
+
+This directory contains configuration files.
+
+## Examples
+
+- `api.ts` - API endpoint configuration
+- `constants.ts` - Application constants
+- `env.ts` - Environment variable validation
