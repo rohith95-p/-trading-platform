@@ -3,6 +3,7 @@ RBAC service for role and permission management.
 """
 
 import logging
+import json
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import uuid
@@ -98,7 +99,7 @@ class RBACService:
                 "id": role_id,
                 "name": role.name,
                 "description": role.description,
-                "permissions": role.permissions,
+                "permissions": json.dumps(role.permissions),
                 "created_at": datetime.utcnow(),
             }
         )
