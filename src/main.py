@@ -27,7 +27,30 @@ async def lifespan(app: FastAPI):
     logger.info("Creating database tables...")
     try:
         from src.database import Base, engine
+        from sqlalchemy import text as sql_text
         Base.metadata.create_all(bind=engine)
+        # Create RBAC tables (raw SQL since they use text queries)
+        with engine.connect() as conn:
+            conn.execute(sql_text("""
+                CREATE TABLE IF NOT EXISTS roles (
+                    id VARCHAR PRIMARY KEY,
+                    name VARCHAR UNIQUE NOT NULL,
+                    description VARCHAR,
+                    permissions JSONB,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn.execute(sql_text("""
+                CREATE TABLE IF NOT EXISTS user_roles (
+                    id VARCHAR PRIMARY KEY,
+                    user_id VARCHAR NOT NULL,
+                    role_id VARCHAR NOT NULL REFERENCES roles(id),
+                    assigned_at TIMESTAMP DEFAULT NOW(),
+                    assigned_by VARCHAR,
+                    UNIQUE(user_id, role_id)
+                )
+            """))
+            conn.commit()
         logger.info("Database tables created successfully")
     except Exception as e:
         logger.error(f"Failed to create database tables: {str(e)}")
