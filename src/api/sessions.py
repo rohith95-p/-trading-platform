@@ -33,6 +33,11 @@ def get_session_service(request: Request) -> SessionService:
     """
     # Get database connection from app state
     db = request.app.state.db
+    if db is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Session storage is not configured",
+        )
     return SessionService(db)
 
 

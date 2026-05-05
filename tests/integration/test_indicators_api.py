@@ -62,7 +62,7 @@ class TestIndicatorComputeAPI:
         assert rsi_value is not None
         assert 0 <= rsi_value <= 100
     
-    def test_compute_multiple_indicators(self):
+    def test_compute_multiple_indicators(self, client):
         """Test computing multiple indicators."""
         n = 100
         closes = np.cumsum(np.random.randn(n)) + 100
@@ -112,7 +112,7 @@ class TestIndicatorComputeAPI:
         if all(v is not None for v in bbands.values()):
             assert bbands["lower"] <= bbands["middle"] <= bbands["upper"]
     
-    def test_all_timeframes(self):
+    def test_all_timeframes(self, client):
         """Test all supported timeframes."""
         timeframes = ["1m", "5m", "15m", "1h", "4h", "1d"]
         
@@ -142,7 +142,7 @@ class TestIndicatorComputeAPI:
             data = response.json()
             assert data["timeframe"] == timeframe
     
-    def test_invalid_timeframe(self):
+    def test_invalid_timeframe(self, client):
         """Test invalid timeframe returns error."""
         response = client.post(
             "/api/v1/intelligence/indicators/compute",
@@ -162,7 +162,7 @@ class TestIndicatorComputeAPI:
         assert response.status_code == 400
         assert "Invalid timeframe" in response.json()["detail"]
     
-    def test_invalid_indicator(self):
+    def test_invalid_indicator(self, client):
         """Test invalid indicator name returns error."""
         response = client.post(
             "/api/v1/intelligence/indicators/compute",
@@ -182,7 +182,7 @@ class TestIndicatorComputeAPI:
         assert response.status_code == 400
         assert "Invalid indicators" in response.json()["detail"]
     
-    def test_mismatched_data_lengths(self):
+    def test_mismatched_data_lengths(self, client):
         """Test mismatched data array lengths returns error."""
         response = client.post(
             "/api/v1/intelligence/indicators/compute",
@@ -202,7 +202,7 @@ class TestIndicatorComputeAPI:
         assert response.status_code == 400
         assert "same length" in response.json()["detail"]
     
-    def test_insufficient_data(self):
+    def test_insufficient_data(self, client):
         """Test insufficient data points returns error."""
         response = client.post(
             "/api/v1/intelligence/indicators/compute",
@@ -222,7 +222,7 @@ class TestIndicatorComputeAPI:
         assert response.status_code == 400
         assert "at least 2 data points" in response.json()["detail"]
     
-    def test_response_caching(self):
+    def test_response_caching(self, client):
         """Test that responses are cached correctly."""
         n = 50
         closes = np.cumsum(np.random.randn(n)) + 100
@@ -268,7 +268,7 @@ class TestIndicatorComputeAPI:
         # Cached request should be faster
         assert data2["latency_ms"] < data1["latency_ms"]
     
-    def test_latency_under_100ms(self):
+    def test_latency_under_100ms(self, client):
         """Test that computation completes within 100ms target."""
         n = 100
         closes = np.cumsum(np.random.randn(n)) + 100
@@ -297,7 +297,7 @@ class TestIndicatorComputeAPI:
         # Check latency (allow some margin for test environment)
         assert data["latency_ms"] < 200, f"Latency {data['latency_ms']}ms exceeds target"
     
-    def test_volume_optional_indicators(self):
+    def test_volume_optional_indicators(self, client):
         """Test indicators that don't require volume data."""
         n = 50
         closes = np.cumsum(np.random.randn(n)) + 100
@@ -328,7 +328,7 @@ class TestIndicatorComputeAPI:
         assert "MACD" in data["indicators"]
         assert "BBANDS_20" in data["indicators"]
     
-    def test_volume_required_indicators(self):
+    def test_volume_required_indicators(self, client):
         """Test that volume-dependent indicators fail without volume data."""
         n = 50
         closes = np.cumsum(np.random.randn(n)) + 100
@@ -366,7 +366,7 @@ class TestBatchIndicatorAPI:
         cache_service = get_cache_service()
         cache_service.clear()
     
-    def test_batch_computation(self):
+    def test_batch_computation(self, client):
         """Test batch computation of multiple requests."""
         n = 50
         
@@ -433,7 +433,7 @@ class TestBatchIndicatorAPI:
         assert "MACD" in eth_result["indicators"]
         assert "BBANDS_20" in eth_result["indicators"]
     
-    def test_batch_size_limit(self):
+    def test_batch_size_limit(self, client):
         """Test that batch size is limited."""
         # Create 11 requests (exceeds limit of 10)
         requests = []
@@ -462,7 +462,7 @@ class TestBatchIndicatorAPI:
 class TestIndicatorListAPI:
     """Test indicator listing endpoints."""
     
-    def test_list_available_indicators(self):
+    def test_list_available_indicators(self, client):
         """Test listing all available indicators."""
         response = client.get("/api/v1/intelligence/indicators/available")
         
@@ -493,7 +493,7 @@ class TestIndicatorListAPI:
 class TestCacheManagement:
     """Test cache management endpoints."""
     
-    def test_cache_stats(self):
+    def test_cache_stats(self, client):
         """Test getting cache statistics."""
         response = client.get("/api/v1/intelligence/indicators/cache/stats")
         
@@ -506,7 +506,7 @@ class TestCacheManagement:
         assert "hit_rate" in data
         assert "cache_size" in data
     
-    def test_clear_cache(self):
+    def test_clear_cache(self, client):
         """Test clearing cache."""
         # First, populate cache
         n = 50
@@ -540,7 +540,7 @@ class TestCacheManagement:
         stats = client.get("/api/v1/intelligence/indicators/cache/stats").json()
         assert stats["cache_size"] == 0
     
-    def test_cleanup_cache(self):
+    def test_cleanup_cache(self, client):
         """Test cleaning up expired cache entries."""
         response = client.post("/api/v1/intelligence/indicators/cache/cleanup")
         

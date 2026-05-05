@@ -6,7 +6,7 @@ This module defines the data models for news articles from various sources.
 
 from datetime import datetime
 from typing import Optional, Dict, Any, Literal
-from pydantic import BaseModel, Field, HttpUrl, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 import hashlib
 
 
@@ -23,16 +23,18 @@ class NewsArticleBase(BaseModel):
 
 class NewsArticleCreate(NewsArticleBase):
     """Model for creating a news article."""
-    
-    @validator("title", pre=True, always=True)
+
+    @field_validator("title", mode="before")
+    @classmethod
     def normalize_title(cls, v):
         """Normalize title for consistent hashing."""
         if v is None:
             return v
         # Remove extra whitespace and normalize
         return " ".join(v.split())
-    
-    @validator("content", pre=True, always=True)
+
+    @field_validator("content", mode="before")
+    @classmethod
     def normalize_content(cls, v):
         """Normalize content for consistent hashing."""
         if v is None:
@@ -52,16 +54,17 @@ class NewsArticleCreate(NewsArticleBase):
 
 class NewsArticle(NewsArticleBase):
     """Model for a news article with database fields."""
+    model_config = ConfigDict(from_attributes=True)
+
     id: str = Field(..., description="Unique identifier")
     content_hash: str = Field(..., description="SHA-256 hash for deduplication")
     created_at: datetime = Field(..., description="When the article was ingested")
-    
-    class Config:
-        from_attributes = True
 
 
 class NewsArticleResponse(BaseModel):
     """Response model for news article API."""
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     source: str
     title: str
@@ -70,9 +73,6 @@ class NewsArticleResponse(BaseModel):
     author: Optional[str]
     published_at: datetime
     created_at: datetime
-    
-    class Config:
-        from_attributes = True
 
 
 class NewsArticleList(BaseModel):

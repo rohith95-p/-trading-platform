@@ -84,33 +84,34 @@ describe('AdvancedChart Integration Tests', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    global.fetch = jest.fn((url: string) => {
+    global.fetch = jest.fn((input: RequestInfo | URL) => {
+      const url = input.toString();
       if (url.includes('/api/charting/data')) {
         return Promise.resolve({
           ok: true,
           json: async () => mockChartData,
-        });
+        } as Response);
       }
       if (url.includes('/api/charting/indicators')) {
         return Promise.resolve({
           ok: true,
           json: async () => mockIndicators,
-        });
+        } as Response);
       }
       if (url.includes('/api/charting/orderbook')) {
         return Promise.resolve({
           ok: true,
           json: async () => mockOrderBook,
-        });
+        } as Response);
       }
       if (url.includes('/api/charting/bid-ask')) {
         return Promise.resolve({
           ok: true,
           json: async () => mockBidAsk,
-        });
+        } as Response);
       }
       return Promise.reject(new Error('Unknown endpoint'));
-    });
+    }) as jest.MockedFunction<typeof fetch>;
   });
 
   it('should fetch chart data from API', async () => {

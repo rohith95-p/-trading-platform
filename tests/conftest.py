@@ -6,6 +6,13 @@ This module provides shared fixtures for all tests.
 
 import pytest
 import os
+
+# Set required env vars BEFORE any app imports that validate them at module load time
+# Force-set to ensure invalid values from the shell environment don't break tests
+os.environ["ENCRYPTION_KEY"] = "OhmeXCdnlRP9mtBGxUCGganlwKBnvBm2tHt9TngcVw4="
+os.environ.setdefault("JWT_SECRET_KEY", "test_jwt_secret_key_for_testing_only_not_for_prod")
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool

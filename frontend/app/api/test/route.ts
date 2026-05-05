@@ -3,16 +3,11 @@
  * GET /api/test
  */
 
+import { getServerApiUrl } from '@/lib/runtime'
+
 export async function GET() {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    
-    if (!apiUrl) {
-      return Response.json(
-        { error: "NEXT_PUBLIC_API_URL not configured" },
-        { status: 500 }
-      );
-    }
+    const apiUrl = getServerApiUrl()
 
     const response = await fetch(`${apiUrl}/health`, {
       method: 'GET',
@@ -31,19 +26,19 @@ export async function GET() {
     const data = await response.json();
 
     return Response.json({
-      status: "success",
-      message: "Frontend successfully connected to backend",
+      status: 'success',
+      message: 'Frontend successfully connected to backend',
       backend: data,
       timestamp: new Date().toISOString(),
-    });
+    })
   } catch (error) {
     return Response.json(
       {
-        status: "error",
-        message: "Failed to connect to backend",
+        status: 'error',
+        message: 'Failed to connect to backend',
         error: error instanceof Error ? error.message : String(error),
       },
       { status: 500 }
-    );
+    )
   }
 }

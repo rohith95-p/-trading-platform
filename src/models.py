@@ -4,7 +4,7 @@ Pydantic models for request/response validation
 
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, ConfigDict, Field, EmailStr
 
 # User Models
 class UserBase(BaseModel):
@@ -14,11 +14,10 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
     
 class UserResponse(UserBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     created_at: datetime
-    
-    class Config:
-        from_attributes = True
 
 # API Key Models
 class APIKeyCreate(BaseModel):
@@ -27,13 +26,12 @@ class APIKeyCreate(BaseModel):
     api_secret: str
     
 class APIKeyResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     exchange: str
     masked_key: str  # Only show last 4 characters
     created_at: datetime
-    
-    class Config:
-        from_attributes = True
 
 # Strategy Models
 class StrategyConfig(BaseModel):
@@ -48,13 +46,12 @@ class StrategyCreate(BaseModel):
     config: StrategyConfig
     
 class StrategyResponse(StrategyCreate):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     user_id: str
     is_active: bool
     created_at: datetime
-    
-    class Config:
-        from_attributes = True
 
 # Trade Models
 class TradeCreate(BaseModel):
@@ -66,14 +63,13 @@ class TradeCreate(BaseModel):
     size: float
     
 class TradeResponse(TradeCreate):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     user_id: str
     fee: Optional[float]
     pnl: Optional[float]
     created_at: datetime
-    
-    class Config:
-        from_attributes = True
 
 # Signal Models
 class SignalCreate(BaseModel):
@@ -84,12 +80,11 @@ class SignalCreate(BaseModel):
     rationale: str
     
 class SignalResponse(SignalCreate):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     user_id: str
     created_at: datetime
-    
-    class Config:
-        from_attributes = True
 
 # Indicator Models
 class IndicatorRequest(BaseModel):
@@ -113,13 +108,8 @@ class MarketData(BaseModel):
 
 class IndicatorComputeRequest(BaseModel):
     """Request for computing technical indicators"""
-    symbol: str = Field(..., description="Trading symbol (e.g., BTC-USD)")
-    timeframe: str = Field(..., description="Timeframe: 1m, 5m, 15m, 1h, 4h, 1d")
-    indicators: List[str] = Field(..., description="List of indicator names to compute")
-    market_data: MarketData = Field(..., description="Market data (OHLCV)")
-    
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "symbol": "BTC-USD",
                 "timeframe": "1h",
@@ -128,17 +118,21 @@ class IndicatorComputeRequest(BaseModel):
                     "highs": [100.5, 101.2, 102.0],
                     "lows": [99.5, 100.0, 101.0],
                     "closes": [100.0, 101.0, 101.5],
-                    "volumes": [1000, 1200, 1100]
-                }
+                    "volumes": [1000, 1200, 1100],
+                },
             }
         }
+    )
+
+    symbol: str = Field(..., description="Trading symbol (e.g., BTC-USD)")
+    timeframe: str = Field(..., description="Timeframe: 1m, 5m, 15m, 1h, 4h, 1d")
+    indicators: List[str] = Field(..., description="List of indicator names to compute")
+    market_data: MarketData = Field(..., description="Market data (OHLCV)")
 
 class BatchIndicatorRequest(BaseModel):
     """Request for batch indicator computation"""
-    requests: List[IndicatorComputeRequest] = Field(..., description="List of indicator requests")
-    
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "requests": [
                     {
@@ -149,12 +143,15 @@ class BatchIndicatorRequest(BaseModel):
                             "highs": [100.5, 101.2],
                             "lows": [99.5, 100.0],
                             "closes": [100.0, 101.0],
-                            "volumes": [1000, 1200]
-                        }
+                            "volumes": [1000, 1200],
+                        },
                     }
                 ]
             }
         }
+    )
+
+    requests: List[IndicatorComputeRequest] = Field(..., description="List of indicator requests")
 
 class IndicatorComputeResponse(BaseModel):
     """Response for indicator computation"""

@@ -7,7 +7,7 @@ validation, usage tracking, and expiration policies.
 
 import logging
 from typing import Optional, Tuple, List
-from datetime import datetime, timedelta
+from datetime import timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -22,6 +22,7 @@ from src.api_keys.models import (
     APIKeyUsageStats,
 )
 from src.data.models import APIKey, User, AuditLog
+from src.core.time import utc_now_naive
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +157,7 @@ class APIKeyService:
         if not include_expired:
             # Filter out expired keys
             query = query.filter(
-                (APIKey.expires_at.is_(None)) | (APIKey.expires_at > datetime.utcnow())
+                (APIKey.expires_at.is_(None)) | (APIKey.expires_at > utc_now_naive())
             )
         
         api_keys = query.all()
@@ -261,7 +262,7 @@ class APIKeyService:
         if request.metadata is not None:
             api_key.meta = request.metadata
         
-        api_key.updated_at = datetime.utcnow()
+            api_key.updated_at = utc_now_naive()
         
         db.commit()
         db.refresh(api_key)
@@ -386,7 +387,7 @@ class APIKeyService:
             
             # Update validation status
             api_key.is_valid = is_valid
-            api_key.last_validated_at = datetime.utcnow()
+            api_key.last_validated_at = utc_now_naive()
             api_key.validation_error = validation_error
             db.commit()
             
@@ -406,7 +407,7 @@ class APIKeyService:
             # Update validation status
             api_key.is_valid = False
             api_key.validation_error = str(e)
-            api_key.last_validated_at = datetime.utcnow()
+            api_key.last_validated_at = utc_now_naive()
             db.commit()
             
             return ValidateAPIKeyResponse(
@@ -470,7 +471,7 @@ class APIKeyService:
             api_key.passphrase_nonce = passphrase_nonce
             api_key.passphrase_encrypted = passphrase_encrypted
             api_key.passphrase_version = passphrase_version
-            api_key.updated_at = datetime.utcnow()
+            api_key.updated_at = utc_now_naive()
             
             # Reset validation status
             api_key.is_valid = True
@@ -534,7 +535,7 @@ class APIKeyService:
         
         # Check expiration
         query = query.filter(
-            (APIKey.expires_at.is_(None)) | (APIKey.expires_at > datetime.utcnow())
+                (APIKey.expires_at.is_(None)) | (APIKey.expires_at > utc_now_naive())
         )
         
         api_key = query.first()
@@ -565,7 +566,7 @@ class APIKeyService:
             
             # Track usage
             api_key.usage_count += 1
-            api_key.last_used_at = datetime.utcnow()
+            api_key.last_used_at = utc_now_naive()
             db.commit()
             
             return decrypted_key, decrypted_secret, decrypted_passphrase
@@ -627,7 +628,7 @@ class APIKeyService:
         Returns:
             Number of keys marked as expired
         """
-        now = datetime.utcnow()
+        now = utc_now_naive()
         
         expired_keys = db.query(APIKey).filter(
             APIKey.expires_at.isnot(None),

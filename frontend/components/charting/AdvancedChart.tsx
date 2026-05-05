@@ -11,20 +11,20 @@ import {
   Timeframe,
 } from '@/types/charting';
 
+const DEFAULT_CHART_CONFIG: ChartConfig = {
+  symbol: 'BTC/USD',
+  timeframe: '1h',
+  type: 'candlestick',
+  indicators: ['EMA_20', 'RSI_14'],
+  height: 420,
+  width: 800,
+};
+
 /**
  * AdvancedChart Component
- * Integrates TradingView Lightweight Charts with support for:
- * - Multiple chart types (candlestick, OHLC, line, area)
- * - Technical indicator overlays
- * - Drawing tools (trendlines, support/resistance)
- * - Multiple timeframes
- * - Zoom and pan
- * - Bid-ask spread and order book display
- * 
- * Note: This is a placeholder implementation. In production, integrate with:
- * npm install lightweight-charts
+ * Renders a trading chart shell with technical overlays and market widgets.
  */
-export const AdvancedChart: React.FC<{ config: ChartConfig }> = ({ config }) => {
+export const AdvancedChart: React.FC<{ config?: ChartConfig }> = ({ config = DEFAULT_CHART_CONFIG }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<CandleData[]>([]);
   const [indicators, setIndicators] = useState<IndicatorOverlay[]>([]);

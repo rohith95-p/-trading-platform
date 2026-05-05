@@ -2,14 +2,18 @@
 Authentication API endpoints.
 """
 
+import secrets
+import urllib.parse
+
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 import logging
 
 from src.auth.auth_service import AuthService
 from src.auth.middleware import get_current_user, get_current_user_optional
+from src.auth.oauth_state import build_oauth_state, oauth_state_cookie_name
 from src.auth.models import (
     UserRegistration,
     UserLogin,
@@ -86,7 +90,11 @@ async def login(
     Returns access and refresh tokens upon successful authentication.
     """
     try:
-        return await auth_service.login_user(login_data)
+        return await auth_service.login_user(
+            login_data,
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent"),
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -110,7 +118,8 @@ async def logout(
     Requires authentication.
     """
     try:
-        await auth_service.logout_user(current_user["user_id"])
+        user_id = current_user["user_id"]
+        await auth_service.logout_user(access_token="", user_id=user_id)
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={"message": "Logged out successfully"}
@@ -285,7 +294,16 @@ async def change_password(
     Requires authentication.
     """
     try:
-        # TODO: Verify current password and update to new password
+        success = await auth_service.change_password(
+            user_id=current_user["user_id"],
+            current_password=password_change.current_password,
+            new_password=password_change.new_password,
+        )
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect"
+            )
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={"message": "Password changed successfully"}
@@ -313,21 +331,8 @@ async def get_current_user_profile(
     Requires authentication.
     """
     try:
-        # TODO: Fetch user profile from database
-        return UserProfile(
-            id=current_user["user_id"],
-            email=current_user["email"],
-            full_name="John Doe",
-            avatar_url=None,
-            timezone="UTC",
-            is_active=True,
-            is_premium=False,
-            subscription_tier="free",
-            email_verified=True,
-            two_factor_enabled=False,
-            created_at="2024-01-01T00:00:00Z",
-            last_login_at="2024-01-15T12:00:00Z"
-        )
+        profile = await auth_service.get_user_profile(current_user["user_id"])
+        return profile
     except Exception as e:
         logger.error(f"Get profile error: {str(e)}")
         raise HTTPException(
@@ -382,8 +387,12 @@ async def enable_two_factor_auth(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid 2FA code"
             )
-        
-        # TODO: Enable 2FA in database
+        enabled = await auth_service.enable_two_factor(current_user["user_id"])
+        if not enabled:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="2FA setup is missing. Run /auth/2fa/setup first."
+            )
         
         return JSONResponse(
             status_code=status.HTTP_200_OK,
@@ -450,13 +459,24 @@ async def disable_two_factor_auth(
     Requires authentication.
     """
     try:
-        # TODO: Verify password and disable 2FA
+        password_ok = await auth_service.verify_user_password(
+            email=current_user["email"],
+            password=disable_data.password,
+        )
+        if not password_ok:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password verification failed"
+            )
+
         await auth_service.disable_two_factor(current_user["user_id"])
         
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={"message": "2FA disabled successfully"}
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"2FA disable error: {str(e)}")
         raise HTTPException(
@@ -465,36 +485,113 @@ async def disable_two_factor_auth(
         )
 
 
+def _validate_oauth_state(request: Request, provider: str, state: str | None) -> None:
+    expected_state = request.cookies.get(oauth_state_cookie_name(provider))
+    if not state or not expected_state or not secrets.compare_digest(state, expected_state):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OAuth state",
+        )
+
+
+def _build_social_registration(email: str, full_name: str | None = None) -> UserRegistration:
+    fallback_password = f"{secrets.token_urlsafe(18)}Aa1!"
+    return UserRegistration(
+        email=email,
+        password=fallback_password,
+        full_name=full_name or "",
+    )
+
+
+def _frontend_auth_callback_url(token_response: TokenResponse) -> str:
+    params = urllib.parse.urlencode(
+        {
+            "access_token": token_response.access_token,
+            "refresh_token": token_response.refresh_token,
+            "expires_in": token_response.expires_in,
+            "email": token_response.email,
+            "user_id": token_response.user_id,
+        }
+    )
+    return f"{settings.FRONTEND_BASE_URL}/auth/callback#{params}"
+
+
 @router.get("/oauth/google")
-async def oauth_google_login(request: Request) -> JSONResponse:
+async def oauth_google_login(request: Request) -> RedirectResponse:
     """
     Initiate Google OAuth login.
     
     Redirects to Google OAuth consent screen.
     """
-    # TODO: Implement Google OAuth flow
-    return JSONResponse(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        content={"message": "Google OAuth not yet implemented"}
+    client_id = settings.GOOGLE_CLIENT_ID
+    if not client_id:
+        raise HTTPException(status_code=503, detail="Google OAuth is not configured")
+
+    redirect_uri = f"{settings.API_BASE_URL}/auth/oauth/callback/google"
+    state = build_oauth_state()
+    
+    params = urllib.parse.urlencode({
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "online",
+        "state": state,
+    })
+
+    response = RedirectResponse(
+        url=f"https://accounts.google.com/o/oauth2/v2/auth?{params}",
+        status_code=status.HTTP_302_FOUND,
     )
+    response.set_cookie(
+        key=oauth_state_cookie_name("google"),
+        value=state,
+        max_age=600,
+        httponly=True,
+        secure=settings.is_production(),
+        samesite="lax",
+    )
+    return response
 
 
 @router.get("/oauth/github")
-async def oauth_github_login(request: Request) -> JSONResponse:
+async def oauth_github_login(request: Request) -> RedirectResponse:
     """
     Initiate GitHub OAuth login.
     
     Redirects to GitHub OAuth consent screen.
     """
-    # TODO: Implement GitHub OAuth flow
-    return JSONResponse(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        content={"message": "GitHub OAuth not yet implemented"}
+    client_id = settings.GITHUB_CLIENT_ID
+    if not client_id:
+        raise HTTPException(status_code=503, detail="GitHub OAuth is not configured")
+
+    redirect_uri = f"{settings.API_BASE_URL}/auth/oauth/callback/github"
+    state = build_oauth_state()
+    
+    params = urllib.parse.urlencode({
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "scope": "user:email",
+        "state": state,
+    })
+
+    response = RedirectResponse(
+        url=f"https://github.com/login/oauth/authorize?{params}",
+        status_code=status.HTTP_302_FOUND,
     )
+    response.set_cookie(
+        key=oauth_state_cookie_name("github"),
+        value=state,
+        max_age=600,
+        httponly=True,
+        secure=settings.is_production(),
+        samesite="lax",
+    )
+    return response
 
 
 @router.get("/oauth/callback/google")
-async def oauth_google_callback(request: Request, code: str, state: str = None) -> TokenResponse:
+async def oauth_google_callback(request: Request, code: str, state: str = None) -> RedirectResponse:
     """
     Handle Google OAuth callback.
     
@@ -503,15 +600,56 @@ async def oauth_google_callback(request: Request, code: str, state: str = None) 
     
     Returns access and refresh tokens upon successful authentication.
     """
-    # TODO: Implement Google OAuth callback
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Google OAuth not yet implemented"
-    )
+    try:
+        import httpx
+
+        _validate_oauth_state(request, "google", state)
+        if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+            raise HTTPException(status_code=503, detail="Google OAuth is not configured")
+
+        token_url = "https://oauth2.googleapis.com/token"
+        user_url = "https://www.googleapis.com/oauth2/v2/userinfo"
+
+        async with httpx.AsyncClient() as client:
+            token_res = await client.post(token_url, data={
+                "code": code,
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "redirect_uri": f"{settings.API_BASE_URL}/auth/oauth/callback/google",
+                "grant_type": "authorization_code",
+            })
+            
+            if token_res.status_code != 200:
+                raise HTTPException(status_code=400, detail="Failed to exchange code for tokens")
+            
+            access_token = token_res.json().get("access_token")
+
+            user_res = await client.get(user_url, headers={"Authorization": f"Bearer {access_token}"})
+            user_data = user_res.json()
+
+            token_response = await auth_service.social_login(
+                _build_social_registration(
+                    email=user_data.get("email", ""),
+                    full_name=user_data.get("name", ""),
+                ),
+                "google",
+            )
+            response = RedirectResponse(
+                url=_frontend_auth_callback_url(token_response),
+                status_code=status.HTTP_302_FOUND,
+            )
+            response.delete_cookie(oauth_state_cookie_name("google"))
+            return response
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Google OAuth error: {str(e)}")
+        raise HTTPException(status_code=400, detail="OAuth authentication failed")
 
 
 @router.get("/oauth/callback/github")
-async def oauth_github_callback(request: Request, code: str, state: str = None) -> TokenResponse:
+async def oauth_github_callback(request: Request, code: str, state: str = None) -> RedirectResponse:
     """
     Handle GitHub OAuth callback.
     
@@ -520,8 +658,52 @@ async def oauth_github_callback(request: Request, code: str, state: str = None) 
     
     Returns access and refresh tokens upon successful authentication.
     """
-    # TODO: Implement GitHub OAuth callback
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="GitHub OAuth not yet implemented"
-    )
+    try:
+        import httpx
+
+        _validate_oauth_state(request, "github", state)
+        if not settings.GITHUB_CLIENT_ID or not settings.GITHUB_CLIENT_SECRET:
+            raise HTTPException(status_code=503, detail="GitHub OAuth is not configured")
+
+        token_url = "https://github.com/login/oauth/access_token"
+        user_url = "https://api.github.com/user"
+
+        async with httpx.AsyncClient() as client:
+            token_res = await client.post(token_url, data={
+                "code": code,
+                "client_id": settings.GITHUB_CLIENT_ID,
+                "client_secret": settings.GITHUB_CLIENT_SECRET,
+                "redirect_uri": f"{settings.API_BASE_URL}/auth/oauth/callback/github",
+            }, headers={"Accept": "application/json"})
+            
+            if token_res.status_code != 200:
+                raise HTTPException(status_code=400, detail="Failed to exchange code for tokens")
+            
+            access_token = token_res.json().get("access_token")
+            
+            user_res = await client.get(user_url, headers={
+                "Authorization": f"Bearer {access_token}",
+                "Accept": "application/json"
+            })
+            user_data = user_res.json()
+
+            email = user_data.get("email") or f"github_{user_data.get('id')}@placeholder.com"
+            token_response = await auth_service.social_login(
+                _build_social_registration(
+                    email=email,
+                    full_name=user_data.get("name", ""),
+                ),
+                "github",
+            )
+            response = RedirectResponse(
+                url=_frontend_auth_callback_url(token_response),
+                status_code=status.HTTP_302_FOUND,
+            )
+            response.delete_cookie(oauth_state_cookie_name("github"))
+            return response
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"GitHub OAuth error: {str(e)}")
+        raise HTTPException(status_code=400, detail="OAuth authentication failed")

@@ -1,8 +1,0 @@
-{
-  "specType": "feature",
-  "workflowType": "requirements-first",
-  "featureName": "unified-trading-platform-complete",
-  "createdAt": "2024-01-15T00:00:00Z",
-  "phases": ["Phase 1 MVP", "Phase 1.5 Enhancements", "Phase 2 Advanced"],
-  "status": "in-progress"
-}

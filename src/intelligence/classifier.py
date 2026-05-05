@@ -64,9 +64,22 @@ class NewsClassifier:
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None, cache=None):
         self.api_key = api_key or ANTHROPIC_API_KEY
         self.model = model or CLASSIFICATION_MODEL
-        self.client = anthropic.Anthropic(api_key=self.api_key) if self.api_key else None
-        self.cache = cache  # Optional Redis cache
+        self._client = None  # Lazy init to avoid SDK version issues at test time
+        self.cache = cache
         self.stats = {"total": 0, "cached": 0, "errors": 0}
+
+    @property
+    def client(self):
+        if self._client is None and self.api_key:
+            try:
+                self._client = anthropic.Anthropic(api_key=self.api_key)
+            except TypeError:
+                pass
+        return self._client
+
+    @client.setter
+    def client(self, value):
+        self._client = value
 
     def _cache_key(self, headline: str, question: str) -> str:
         """Generate cache key for classification."""

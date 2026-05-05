@@ -55,18 +55,24 @@ env/
 
 # Testing
 .pytest_cache/
+.hypothesis/
 .coverage
 htmlcov/
 .tox/
+.tmp/
+.ppo_model_cache/
 
 # Node
 node_modules/
 npm-debug.log
 yarn-error.log
+*.tsbuildinfo
 
 # Build
 dist/
 build/
+.next/
+frontend/.next/
 
 # Logs
 *.log

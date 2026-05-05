@@ -11,10 +11,11 @@ This module tracks:
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Dict, Any, Optional
 from collections import defaultdict, deque
 import asyncio
+from src.core.time import utc_now
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ class ClassificationMonitor:
         self.recent_sentiments = deque(maxlen=window_size)
         
         # Start time
-        self.start_time = datetime.utcnow()
+        self.start_time = utc_now()
     
     def record_classification(
         self,
@@ -90,7 +91,7 @@ class ClassificationMonitor:
             
             # Update rolling windows
             self.recent_latencies.append(latency_ms)
-            self.recent_timestamps.append(datetime.utcnow())
+        self.recent_timestamps.append(utc_now())
             self.recent_sentiments.append(sentiment)
             
             # Update signals
@@ -109,7 +110,7 @@ class ClassificationMonitor:
         Returns:
             Dictionary of metrics
         """
-        uptime = (datetime.utcnow() - self.start_time).total_seconds()
+        uptime = (utc_now() - self.start_time).total_seconds()
         
         # Calculate rates
         classifications_per_minute = (self.total_classifications / uptime) * 60 if uptime > 0 else 0
@@ -132,7 +133,7 @@ class ClassificationMonitor:
         # Calculate recent classifications per minute (last 5 minutes)
         recent_rate = 0
         if self.recent_timestamps:
-            five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+        five_minutes_ago = utc_now() - timedelta(minutes=5)
             recent_count = sum(1 for ts in self.recent_timestamps if ts >= five_minutes_ago)
             recent_rate = (recent_count / 5) if recent_count > 0 else 0
         
@@ -195,7 +196,7 @@ class ClassificationMonitor:
             "status": status,
             "warnings": warnings,
             "metrics": metrics,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": utc_now().isoformat(),
         }
     
     def reset(self):
@@ -209,7 +210,7 @@ class ClassificationMonitor:
         self.recent_latencies.clear()
         self.recent_timestamps.clear()
         self.recent_sentiments.clear()
-        self.start_time = datetime.utcnow()
+        self.start_time = utc_now()
         log.info("Classification monitor metrics reset")
 
 

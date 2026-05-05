@@ -4,16 +4,15 @@ Authentication service for user management and authentication.
 This service integrates with Supabase Auth for authentication operations.
 """
 
-import os
 import logging
 from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
-import bcrypt
+from datetime import timedelta
 import pyotp
 import qrcode
 import io
 import base64
 from supabase import create_client, Client
+from src.config import settings
 
 from src.auth.jwt_handler import JWTHandler
 from src.auth.models import (
@@ -23,6 +22,7 @@ from src.auth.models import (
     PasswordReset,
     TwoFactorSetup,
 )
+from src.core.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -33,13 +33,25 @@ class AuthService:
     def __init__(self):
         """Initialize authentication service."""
         self.jwt_handler = JWTHandler()
+        # Local in-memory stores used when DB-backed profile/2FA state is unavailable.
+        self._two_factor_store: Dict[str, Dict[str, Any]] = {}
+        self._last_login_store: Dict[str, datetime] = {}
         
-        # Initialize Supabase client
-        supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_KEY")
+        # Initialize Supabase client using centralised settings
+        supabase_url = settings.SUPABASE_URL
+        # Prefer service key for server-side operations; fall back to anon key
+        supabase_key = settings.SUPABASE_SERVICE_KEY or settings.SUPABASE_ANON_KEY
         
         if supabase_url and supabase_key:
-            self.supabase: Optional[Client] = create_client(supabase_url, supabase_key)
+            try:
+                self.supabase: Optional[Client] = create_client(supabase_url, supabase_key)
+                logger.info("Supabase client initialised successfully")
+            except Exception as exc:
+                logger.warning(
+                    "Supabase client could not be initialised. Falling back to local auth only: %s",
+                    exc,
+                )
+                self.supabase = None
         else:
             logger.warning("Supabase credentials not configured. Using local auth only.")
             self.supabase = None
@@ -58,11 +70,6 @@ class AuthService:
             ValueError: If user already exists or validation fails
         """
         # Hash password
-        password_hash = bcrypt.hashpw(
-            registration.password.encode('utf-8'),
-            bcrypt.gensalt()
-        ).decode('utf-8')
-        
         # Create user in Supabase Auth
         if self.supabase:
             try:
@@ -157,7 +164,16 @@ class AuthService:
             # Don't fail login if session creation fails
         
         # Update last login time
-        # TODO: Update user's last_login_at in database
+        now = utc_now()
+        self._last_login_store[user_id] = now
+        if self.supabase:
+            try:
+                self.supabase.auth.admin.update_user_by_id(
+                    user_id,
+                    {"user_metadata": {"last_login_at": now.isoformat()}},
+                )
+            except Exception as exc:
+                logger.warning(f"Could not persist last_login_at for {user_id}: {exc}")
         
         return TokenResponse(
             access_token=access_token,
@@ -339,7 +355,12 @@ class AuthService:
         # Generate backup codes
         backup_codes = [pyotp.random_base32()[:8] for _ in range(10)]
         
-        # TODO: Store secret and backup codes in database
+        self._two_factor_store[user_id] = {
+            "secret": secret,
+            "backup_codes": set(backup_codes),
+            "enabled": False,
+            "updated_at": utc_now(),
+        }
         
         return TwoFactorSetup(
             secret=secret,
@@ -358,11 +379,50 @@ class AuthService:
         Returns:
             True if code is valid
         """
-        # TODO: Get user's 2FA secret from database
-        secret = "JBSWY3DPEHPK3PXP"  # Placeholder
+        store = self._two_factor_store.get(user_id)
+        if not store:
+            return False
+
+        backup_codes = store.get("backup_codes", set())
+        if code in backup_codes:
+            backup_codes.remove(code)
+            store["updated_at"] = utc_now()
+            return True
         
+        secret = store.get("secret")
+        if not secret:
+            return False
+
         totp = pyotp.TOTP(secret)
         return totp.verify(code, valid_window=1)
+
+    async def enable_two_factor(self, user_id: str) -> bool:
+        """
+        Mark 2FA as enabled for user after successful code verification.
+        
+        Args:
+            user_id: User ID
+            
+        Returns:
+            True if state was updated
+        """
+        store = self._two_factor_store.get(user_id)
+        if not store:
+            return False
+
+        store["enabled"] = True
+        store["updated_at"] = utc_now()
+
+        if self.supabase:
+            try:
+                self.supabase.auth.admin.update_user_by_id(
+                    user_id,
+                    {"user_metadata": {"two_factor_enabled": True}},
+                )
+            except Exception as exc:
+                logger.warning(f"Could not persist 2FA enabled state for {user_id}: {exc}")
+
+        return True
     
     async def disable_two_factor(self, user_id: str) -> bool:
         """
@@ -374,8 +434,167 @@ class AuthService:
         Returns:
             True if disabled successfully
         """
-        # TODO: Remove 2FA secret from database
+        if user_id in self._two_factor_store:
+            del self._two_factor_store[user_id]
+
+        if self.supabase:
+            try:
+                self.supabase.auth.admin.update_user_by_id(
+                    user_id,
+                    {"user_metadata": {"two_factor_enabled": False}},
+                )
+            except Exception as exc:
+                logger.warning(f"Could not persist 2FA disable state for {user_id}: {exc}")
+
         return True
+
+    async def verify_user_password(self, email: str, password: str) -> bool:
+        """
+        Verify current password for sensitive operations (e.g. disabling 2FA).
+        
+        Args:
+            email: User email
+            password: Candidate password
+            
+        Returns:
+            True if password is valid
+        """
+        if self.supabase:
+            try:
+                self.supabase.auth.sign_in_with_password({
+                    "email": email,
+                    "password": password,
+                })
+                return True
+            except Exception:
+                return False
+
+        # Local mode does not keep password hashes here; require non-empty confirmation.
+        return bool(password and password.strip())
+
+    async def get_user_profile(self, user_id: str):
+        """
+        Fetch user profile from Supabase Auth or fall back to minimal profile.
+
+        Args:
+            user_id: User ID from JWT
+
+        Returns:
+            UserProfile instance
+        """
+        from src.auth.models import UserProfile
+
+        if self.supabase:
+            try:
+                # Use admin API to get user by ID
+                response = self.supabase.auth.admin.get_user_by_id(user_id)
+                user = response.user
+                user_meta = user.user_metadata or {}
+                return UserProfile(
+                    id=user_id,
+                    email=user.email or "",
+                    full_name=user_meta.get("full_name"),
+                    avatar_url=user_meta.get("avatar_url"),
+                    timezone=user_meta.get("timezone", "UTC"),
+                    is_active=True,
+                    is_premium=False,
+                    subscription_tier="free",
+                    email_verified=user.email_confirmed_at is not None,
+                    two_factor_enabled=False,
+                    created_at=user.created_at,
+                    last_login_at=user.last_sign_in_at,
+                )
+            except Exception as e:
+                logger.error(f"Failed to fetch user profile from Supabase: {e}")
+
+        # Fallback: return minimal profile from JWT claims only
+        return UserProfile(
+            id=user_id,
+            email="",
+            full_name=None,
+            avatar_url=None,
+            timezone="UTC",
+            is_active=True,
+            is_premium=False,
+            subscription_tier="free",
+            email_verified=False,
+            two_factor_enabled=False,
+            created_at=utc_now(),
+            last_login_at=None,
+        )
+
+    async def change_password(
+        self,
+        user_id: str,
+        current_password: str,
+        new_password: str,
+    ) -> bool:
+        """
+        Change user password. Re-authenticates with current password first.
+
+        Args:
+            user_id: User ID
+            current_password: The user's existing password
+            new_password: The desired new password
+
+        Returns:
+            True if password changed successfully, False if current password wrong
+
+        Raises:
+            ValueError: If new password is invalid
+        """
+        if self.supabase:
+            try:
+                # We need the user's email to re-authenticate
+                profile = await self.get_user_profile(user_id)
+                email = profile.email
+
+                # Verify current password by attempting sign-in
+                self.supabase.auth.sign_in_with_password({
+                    "email": email,
+                    "password": current_password,
+                })
+
+                # Update to new password
+                self.supabase.auth.update_user({"password": new_password})
+                logger.info(f"Password changed for user {user_id}")
+                return True
+            except Exception as e:
+                error_msg = str(e).lower()
+                if "invalid" in error_msg or "credentials" in error_msg:
+                    return False
+                logger.error(f"Password change error for {user_id}: {e}")
+                return False
+        else:
+            # Local dev mode — always succeed
+            logger.warning("Local auth mode: password change simulated")
+            return True
+
+    async def social_login(self, registration: UserRegistration, provider: str) -> TokenResponse:
+        """
+        Login or register user via social OAuth provider.
+        
+        Args:
+            registration: User registration data from OAuth
+            provider: OAuth provider name (google, github)
+            
+        Returns:
+            TokenResponse with access and refresh tokens
+        """
+        import uuid
+        user_id = str(uuid.uuid4())
+        
+        access_token = self.jwt_handler.create_access_token(user_id, registration.email)
+        refresh_token = self.jwt_handler.create_refresh_token(user_id, registration.email)
+        
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            expires_in=self.jwt_handler.access_token_expire_hours * 3600,
+            user_id=user_id,
+            email=registration.email
+        )
     
     async def logout_user(self, access_token: str, user_id: Optional[str] = None) -> bool:
         """

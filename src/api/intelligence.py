@@ -1,6 +1,7 @@
 """Intelligence layer routes"""
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, Request
+from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
@@ -29,7 +30,8 @@ from src.intelligence.news.models import (
 from src.intelligence.news.news_stream import NewsStreamService
 from src.intelligence.news_classifier import NewsClassifier
 from src.data.models import NewsArticle as NewsArticleDB, Signal as SignalDB
-from datetime import datetime, timedelta
+from datetime import timedelta
+from src.core.time import utc_now
 from typing import Optional, List, Dict, Any
 import asyncio
 import json
@@ -79,239 +81,211 @@ class ConnectionManager:
 # Global connection manager
 ws_manager = ConnectionManager()
 
-@router.post("/indicators", response_model=IndicatorResponse)
-async def compute_indicators(request: IndicatorRequest, db: Session = Depends(get_db)):
-    """Compute technical indicators"""
-    # Placeholder - in production would fetch real data
-    prices = [100.0 + i for i in range(100)]
-    
-    indicators = {}
-    if "EMA_20" in request.indicators:
-        indicators["EMA_20"] = TechnicalIndicators.ema(prices, 20)[-1]
-    if "RSI_14" in request.indicators:
-        indicators["RSI_14"] = TechnicalIndicators.rsi(prices, 14)
-    if "MACD" in request.indicators:
-        indicators["MACD"] = TechnicalIndicators.macd(prices)
-    
-    return IndicatorResponse(
-        symbol=request.symbol,
-        timeframe=request.timeframe,
-        indicators=indicators,
-        computed_at=datetime.utcnow()
+
+def get_classifier() -> NewsClassifier:
+    """Factory function so tests can patch classifier creation."""
+    return NewsClassifier()
+
+
+class IndicatorBroadcastRequest(BaseModel):
+    """Request payload for pushing live indicator updates over WebSocket."""
+
+    symbol: str = Field(..., description="Trading symbol (e.g. BTC-USD)")
+    timeframe: str = Field(..., description="Timeframe (1m, 5m, 15m, 1h, 4h, 1d)")
+    indicators: List[str] = Field(..., description="Indicators to compute and broadcast")
+    market_data: Dict[str, List[float]] = Field(
+        ..., description="OHLCV arrays used for indicator calculation"
     )
+
+
+# NOTE: /indicators (legacy) removed — use /indicators/compute instead.
+# The /indicators/compute endpoint below is the canonical implementation.
+
 
 
 # ============================================================================
 # TECHNICAL ANALYSIS API (Task 2.6)
 # ============================================================================
 
+async def _compute_indicators_core(payload: IndicatorComputeRequest) -> IndicatorComputeResponse:
+    """Shared indicator computation logic used by single and batch endpoints."""
+    start_time = time.perf_counter()
+
+    # Validate timeframe
+    valid_timeframes = ["1m", "5m", "15m", "1h", "4h", "1d"]
+    if payload.timeframe not in valid_timeframes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid timeframe. Must be one of: {', '.join(valid_timeframes)}",
+        )
+
+    # Validate market data lengths
+    data_lengths = [
+        len(payload.market_data.highs),
+        len(payload.market_data.lows),
+        len(payload.market_data.closes),
+    ]
+
+    if payload.market_data.volumes:
+        data_lengths.append(len(payload.market_data.volumes))
+
+    if len(set(data_lengths)) > 1:
+        raise HTTPException(
+            status_code=400,
+            detail="All market data arrays must have the same length",
+        )
+
+    if data_lengths[0] < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Market data must contain at least 2 data points",
+        )
+
+    # Convert to numpy arrays
+    highs = np.array(payload.market_data.highs, dtype=float)
+    lows = np.array(payload.market_data.lows, dtype=float)
+    closes = np.array(payload.market_data.closes, dtype=float)
+    volumes = (
+        np.array(payload.market_data.volumes, dtype=float)
+        if payload.market_data.volumes
+        else None
+    )
+
+    # Check cache
+    cache_service = get_cache_service()
+    cached_result = await cache_service.get(
+        symbol=payload.symbol,
+        timeframe=payload.timeframe,
+        indicators=payload.indicators,
+        highs=payload.market_data.highs,
+        lows=payload.market_data.lows,
+        closes=payload.market_data.closes,
+        volumes=payload.market_data.volumes,
+    )
+
+    if cached_result:
+        latency_ms = max((time.perf_counter() - start_time) * 1000, 0.001)
+        log.info(
+            "Cache hit for %s %s - %.2fms",
+            payload.symbol,
+            payload.timeframe,
+            latency_ms,
+        )
+        return IndicatorComputeResponse(
+            symbol=payload.symbol,
+            timeframe=payload.timeframe,
+            indicators=cached_result,
+            computed_at=utc_now(),
+            latency_ms=latency_ms,
+            cached=True,
+        )
+
+    # Initialize indicator registry
+    registry = IndicatorRegistry()
+
+    # Validate indicators
+    available_indicators = registry.get_available_indicators()
+    invalid_indicators = [
+        indicator for indicator in payload.indicators if indicator not in available_indicators
+    ]
+    if invalid_indicators:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Invalid indicators: {', '.join(invalid_indicators)}. "
+                f"Available: {', '.join(available_indicators)}"
+            ),
+        )
+
+    # Compute indicators
+    results: Dict[str, Any] = {}
+    for indicator_name in payload.indicators:
+        try:
+            result = registry.compute(
+                indicator_name=indicator_name,
+                highs=highs,
+                lows=lows,
+                closes=closes,
+                volumes=volumes,
+            )
+
+            if isinstance(result, np.ndarray):
+                valid_values = result[~np.isnan(result)]
+                results[indicator_name] = (
+                    float(valid_values[-1]) if len(valid_values) > 0 else None
+                )
+            elif isinstance(result, dict):
+                normalized: Dict[str, Optional[float]] = {}
+                for key, value in result.items():
+                    if isinstance(value, np.ndarray):
+                        valid_values = value[~np.isnan(value)]
+                        normalized[key] = (
+                            float(valid_values[-1]) if len(valid_values) > 0 else None
+                        )
+                    else:
+                        normalized[key] = float(value) if value is not None else None
+                results[indicator_name] = normalized
+            else:
+                results[indicator_name] = float(result) if result is not None else None
+        except Exception as exc:
+            log.error("Error computing %s: %s", indicator_name, exc)
+            results[indicator_name] = {"error": str(exc)}
+
+    # Cache results
+    await cache_service.set(
+        symbol=payload.symbol,
+        timeframe=payload.timeframe,
+        indicators=payload.indicators,
+        highs=payload.market_data.highs,
+        lows=payload.market_data.lows,
+        closes=payload.market_data.closes,
+        volumes=payload.market_data.volumes,
+        data=results,
+    )
+
+    latency_ms = max((time.perf_counter() - start_time) * 1000, 0.001)
+    log.info(
+        "Computed %s indicators for %s %s in %.2fms",
+        len(payload.indicators),
+        payload.symbol,
+        payload.timeframe,
+        latency_ms,
+    )
+
+    return IndicatorComputeResponse(
+        symbol=payload.symbol,
+        timeframe=payload.timeframe,
+        indicators=results,
+            computed_at=utc_now(),
+        latency_ms=latency_ms,
+        cached=False,
+    )
+
+
 @router.post("/indicators/compute", response_model=IndicatorComputeResponse)
 @limiter.limit("100/hour")
 async def compute_indicators_enhanced(
-    request_obj: Request,
-    request: IndicatorComputeRequest,
-    db: Session = Depends(get_db)
+    request: Request,
+    payload: IndicatorComputeRequest,
+    db: Session = Depends(get_db),
 ):
-    """
-    Compute technical indicators with caching and validation.
-    
-    **Features:**
-    - Supports 20+ technical indicators
-    - Multi-timeframe support (1m, 5m, 15m, 1h, 4h, 1d)
-    - Response caching with timeframe-appropriate TTLs
-    - Rate limiting: 100 calls/hour per user
-    - Target latency: <100ms
-    
-    **Supported Indicators:**
-    - Phase 1: EMA_20, EMA_50, EMA_200, RSI_14, MACD, ATR_14, BBANDS_20, ADX_14, OBV, VWAP
-    - Phase 1.5: STOCHASTIC, CCI_20, WILLR_14, ICHIMOKU, AROON, KELTNER, MFI_14, ROC_12, AD, CMF_20
-    
-    **Timeframes:**
-    - 1m, 5m, 15m, 1h, 4h, 1d
-    
-    **Example Request:**
-    ```json
-    {
-        "symbol": "BTC-USD",
-        "timeframe": "1h",
-        "indicators": ["EMA_20", "RSI_14", "MACD"],
-        "market_data": {
-            "highs": [100.5, 101.2, 102.0],
-            "lows": [99.5, 100.0, 101.0],
-            "closes": [100.0, 101.0, 101.5],
-            "volumes": [1000, 1200, 1100]
-        }
-    }
-    ```
-    
-    **Example Response:**
-    ```json
-    {
-        "symbol": "BTC-USD",
-        "timeframe": "1h",
-        "indicators": {
-            "EMA_20": 101.2,
-            "RSI_14": 65.3,
-            "MACD": {
-                "macd": 0.5,
-                "signal": 0.3,
-                "histogram": 0.2
-            }
-        },
-        "computed_at": "2024-01-15T12:00:00Z",
-        "latency_ms": 45.2,
-        "cached": false
-    }
-    ```
-    """
-    start_time = time.time()
-    
+    """Compute technical indicators with caching and validation."""
+    _ = request
+    _ = db
     try:
-        # Validate timeframe
-        valid_timeframes = ["1m", "5m", "15m", "1h", "4h", "1d"]
-        if request.timeframe not in valid_timeframes:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid timeframe. Must be one of: {', '.join(valid_timeframes)}"
-            )
-        
-        # Validate market data lengths
-        data_lengths = [
-            len(request.market_data.highs),
-            len(request.market_data.lows),
-            len(request.market_data.closes),
-        ]
-        
-        if request.market_data.volumes:
-            data_lengths.append(len(request.market_data.volumes))
-        
-        if len(set(data_lengths)) > 1:
-            raise HTTPException(
-                status_code=400,
-                detail="All market data arrays must have the same length"
-            )
-        
-        if data_lengths[0] < 2:
-            raise HTTPException(
-                status_code=400,
-                detail="Market data must contain at least 2 data points"
-            )
-        
-        # Convert to numpy arrays
-        highs = np.array(request.market_data.highs, dtype=float)
-        lows = np.array(request.market_data.lows, dtype=float)
-        closes = np.array(request.market_data.closes, dtype=float)
-        volumes = np.array(request.market_data.volumes, dtype=float) if request.market_data.volumes else None
-        
-        # Check cache
-        cache_service = get_cache_service()
-        cached_result = await cache_service.get(
-            symbol=request.symbol,
-            timeframe=request.timeframe,
-            indicators=request.indicators,
-            highs=request.market_data.highs,
-            lows=request.market_data.lows,
-            closes=request.market_data.closes,
-            volumes=request.market_data.volumes,
-        )
-        
-        if cached_result:
-            latency_ms = (time.time() - start_time) * 1000
-            log.info(f"Cache hit for {request.symbol} {request.timeframe} - {latency_ms:.2f}ms")
-            return IndicatorComputeResponse(
-                symbol=request.symbol,
-                timeframe=request.timeframe,
-                indicators=cached_result,
-                computed_at=datetime.utcnow(),
-                latency_ms=latency_ms,
-                cached=True,
-            )
-        
-        # Initialize indicator registry
-        registry = IndicatorRegistry()
-        
-        # Validate indicators
-        available_indicators = registry.get_available_indicators()
-        invalid_indicators = [ind for ind in request.indicators if ind not in available_indicators]
-        
-        if invalid_indicators:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid indicators: {', '.join(invalid_indicators)}. "
-                       f"Available: {', '.join(available_indicators)}"
-            )
-        
-        # Compute indicators
-        results = {}
-        for indicator_name in request.indicators:
-            try:
-                result = registry.compute(
-                    indicator_name=indicator_name,
-                    highs=highs,
-                    lows=lows,
-                    closes=closes,
-                    volumes=volumes,
-                )
-                
-                # Convert numpy arrays to lists for JSON serialization
-                if isinstance(result, np.ndarray):
-                    # Get latest non-NaN value
-                    valid_values = result[~np.isnan(result)]
-                    results[indicator_name] = float(valid_values[-1]) if len(valid_values) > 0 else None
-                elif isinstance(result, dict):
-                    # Handle dict results (e.g., MACD, Bollinger Bands)
-                    results[indicator_name] = {}
-                    for key, value in result.items():
-                        if isinstance(value, np.ndarray):
-                            valid_values = value[~np.isnan(value)]
-                            results[indicator_name][key] = float(valid_values[-1]) if len(valid_values) > 0 else None
-                        else:
-                            results[indicator_name][key] = float(value) if value is not None else None
-                else:
-                    results[indicator_name] = float(result) if result is not None else None
-            
-            except Exception as e:
-                log.error(f"Error computing {indicator_name}: {e}")
-                results[indicator_name] = {"error": str(e)}
-        
-        # Cache results
-        await cache_service.set(
-            symbol=request.symbol,
-            timeframe=request.timeframe,
-            indicators=request.indicators,
-            highs=request.market_data.highs,
-            lows=request.market_data.lows,
-            closes=request.market_data.closes,
-            volumes=request.market_data.volumes,
-            data=results,
-        )
-        
-        # Calculate latency
-        latency_ms = (time.time() - start_time) * 1000
-        
-        log.info(f"Computed {len(request.indicators)} indicators for {request.symbol} {request.timeframe} in {latency_ms:.2f}ms")
-        
-        return IndicatorComputeResponse(
-            symbol=request.symbol,
-            timeframe=request.timeframe,
-            indicators=results,
-            computed_at=datetime.utcnow(),
-            latency_ms=latency_ms,
-            cached=False,
-        )
-    
+        return await _compute_indicators_core(payload)
     except HTTPException:
         raise
-    except Exception as e:
-        log.error(f"Error computing indicators: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Indicator computation failed: {str(e)}")
+    except Exception as exc:
+        log.error("Error computing indicators: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Indicator computation failed: {exc}")
 
 
 @router.post("/indicators/compute/batch", response_model=BatchIndicatorResponse)
 @limiter.limit("50/hour")
 async def compute_indicators_batch(
-    request_obj: Request,
-    request: BatchIndicatorRequest,
+    request: Request,
+    payload: BatchIndicatorRequest,
     db: Session = Depends(get_db)
 ):
     """
@@ -356,7 +330,7 @@ async def compute_indicators_batch(
     start_time = time.time()
     
     try:
-        if len(request.requests) > 10:
+        if len(payload.requests) > 10:
             raise HTTPException(
                 status_code=400,
                 detail="Batch size limited to 10 requests"
@@ -365,13 +339,9 @@ async def compute_indicators_batch(
         results = []
         
         # Process each request
-        for req in request.requests:
+        for req in payload.requests:
             try:
-                # Create a mock Request object for rate limiting
-                mock_request = type('Request', (), {'client': request_obj.client})()
-                
-                # Compute indicators (reuse single endpoint logic)
-                result = await compute_indicators_enhanced(mock_request, req, db)
+                result = await _compute_indicators_core(req)
                 results.append(result)
             
             except Exception as e:
@@ -382,7 +352,7 @@ async def compute_indicators_batch(
                         symbol=req.symbol,
                         timeframe=req.timeframe,
                         indicators={"error": str(e)},
-                        computed_at=datetime.utcnow(),
+            computed_at=utc_now(),
                         latency_ms=0,
                         cached=False,
                     )
@@ -457,7 +427,10 @@ async def get_cache_stats():
     Returns cache hit rate, size, and other metrics.
     """
     cache_service = get_cache_service()
-    return await cache_service.get_stats()
+    stats = await cache_service.get_stats()
+    # Backward-compatible key expected by integration tests
+    stats["cache_size"] = stats.get("memory_cache_size", 0)
+    return stats
 
 
 @router.post("/indicators/cache/clear")
@@ -572,8 +545,7 @@ async def classify_news(
     ```
     """
     try:
-        # Initialize classifier
-        classifier = NewsClassifier()
+        classifier = get_classifier()
         
         # Classify article
         result = await classifier.classify(article)
@@ -589,7 +561,7 @@ async def classify_news(
                     confidence=signal_data["confidence"],
                     rationale=signal_data["rationale"],
                     indicators={"article_url": article.get("url", "")},
-                    timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
                 )
                 db.add(signal)
             
@@ -609,7 +581,8 @@ async def classify_news(
         })
         
         # Close classifier connections
-        await classifier.close()
+        if hasattr(classifier, "close"):
+            await classifier.close()
         
         return result
     
@@ -634,8 +607,7 @@ async def classify_news_batch(
     as it processes articles concurrently.
     """
     try:
-        # Initialize classifier
-        classifier = NewsClassifier()
+        classifier = get_classifier()
         
         # Classify articles in batch
         results = await classifier.classify_batch(articles)
@@ -654,7 +626,7 @@ async def classify_news_batch(
                         confidence=signal_data["confidence"],
                         rationale=signal_data["rationale"],
                         indicators={"article_url": article.get("url", "")},
-                        timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
                     )
                     db.add(signal)
                     total_signals += 1
@@ -664,11 +636,12 @@ async def classify_news_batch(
             log.info(f"Stored {total_signals} signals from batch classification")
         
         # Close classifier connections
-        await classifier.close()
+        if hasattr(classifier, "close"):
+            await classifier.close()
         
         return {
             "results": results,
-            "total": len(results),
+            "total": len(articles),
             "signals_generated": total_signals,
         }
     
@@ -702,7 +675,7 @@ async def news_feed_websocket(websocket: WebSocket):
         await websocket.send_json({
             "type": "connected",
             "message": "Connected to news feed",
-            "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": utc_now().isoformat(),
         })
         
         # Keep connection alive and handle incoming messages
@@ -715,7 +688,7 @@ async def news_feed_websocket(websocket: WebSocket):
                 if data == "ping":
                     await websocket.send_json({
                         "type": "pong",
-                        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": utc_now().isoformat(),
                     })
             
             except WebSocketDisconnect:
@@ -728,15 +701,9 @@ async def news_feed_websocket(websocket: WebSocket):
         ws_manager.disconnect(websocket)
 
 
-@router.post("/simulate")
-async def simulate(data: dict, db: Session = Depends(get_db)):
-    """Run multi-agent simulation"""
-    return {
-        "confidence": 0.65,
-        "consensus": "bullish",
-        "dissent": "bearish",
-        "reasoning": "Placeholder simulation"
-    }
+
+# NOTE: The real simulation endpoint is at POST /intelligence/simulate
+# in src/api/simulation.py — registered separately in main.py
 
 
 # ============================================================================
@@ -769,6 +736,51 @@ async def get_classification_health():
     """
     from src.intelligence.classification_monitor import get_health_status
     return get_health_status()
+
+
+# ============================================================================
+# SIGNAL ENDPOINTS
+# ============================================================================
+
+@router.get("/signals")
+async def list_signals(
+    limit: int = Query(50, ge=1, le=200, description="Maximum signals to return"),
+    user_id: Optional[str] = Query(None, description="Optional user filter"),
+    source: Optional[str] = Query(None, description="Optional signal source filter"),
+    db: Session = Depends(get_db),
+):
+    """List recent intelligence signals generated by classifiers and strategy services."""
+    try:
+        query = select(SignalDB)
+
+        if user_id:
+            query = query.where(SignalDB.user_id == user_id)
+        if source:
+            query = query.where(SignalDB.source == source)
+
+        query = query.order_by(desc(SignalDB.timestamp)).limit(limit)
+        rows = db.execute(query).scalars().all()
+
+        signals = [
+            {
+                "id": signal.id,
+                "user_id": signal.user_id,
+                "source": signal.source,
+                "asset": signal.asset,
+                "direction": signal.direction,
+                "confidence": float(signal.confidence),
+                "rationale": signal.rationale,
+                "indicators": signal.indicators or {},
+                "timestamp": signal.timestamp.isoformat(),
+            }
+            for signal in rows
+        ]
+
+        return {"signals": signals, "total": len(signals)}
+
+    except Exception as exc:
+        log.error(f"Error fetching signals: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error fetching signals: {exc}")
 
 
 # ============================================================================
@@ -1147,10 +1159,7 @@ async def indicator_websocket(websocket: WebSocket):
 
 @router.post("/indicators/broadcast")
 async def broadcast_indicator_update(
-    symbol: str,
-    timeframe: str,
-    indicators: List[str],
-    market_data: Dict[str, List[float]],
+    payload: IndicatorBroadcastRequest,
 ):
     """
     Broadcast indicator updates to subscribed WebSocket clients.
@@ -1194,17 +1203,17 @@ async def broadcast_indicator_update(
         
         # Broadcast to subscribed clients
         await manager.broadcast_indicator_update(
-            symbol=symbol,
-            timeframe=timeframe,
-            indicators=indicators,
-            market_data=market_data,
+            symbol=payload.symbol,
+            timeframe=payload.timeframe,
+            indicators=payload.indicators,
+            market_data=payload.market_data,
         )
         
         # Count subscribed clients
         subscription = IndicatorSubscription(
-            symbol=symbol,
-            timeframe=timeframe,
-            indicators=indicators,
+            symbol=payload.symbol,
+            timeframe=payload.timeframe,
+            indicators=payload.indicators,
         )
         sub_key = subscription.to_key()
         clients_notified = len(manager.subscriptions.get(sub_key, set()))

@@ -11,17 +11,41 @@ from typing import List, Dict, Any, Optional
 
 class IndicatorCache:
     """Simple cache for indicator results."""
-    def __init__(self):
+    def __init__(self, redis_client=None, ttl_seconds=300):
         self.cache = {}
+        self.redis = redis_client
+        self.ttl = ttl_seconds
     
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key_or_symbol: str, timeframe: str = None, indicator: str = None) -> Optional[Any]:
+        """Get cached value. Accepts either a single key or (symbol, timeframe, indicator)."""
+        if timeframe is not None and indicator is not None:
+            key = self._make_key(key_or_symbol, timeframe, indicator)
+        else:
+            key = key_or_symbol
         return self.cache.get(key)
     
-    def set(self, key: str, value: Any):
-        self.cache[key] = value
+    def set(self, key_or_symbol: str, timeframe_or_value=None, indicator: str = None, value=None):
+        """Set cached value. Accepts either (key, value) or (symbol, timeframe, indicator, value)."""
+        if indicator is not None and value is not None:
+            key = self._make_key(key_or_symbol, timeframe_or_value, indicator)
+            self.cache[key] = value
+        else:
+            self.cache[key_or_symbol] = timeframe_or_value
     
     def clear(self):
         self.cache.clear()
+    
+    def generate_key(self, symbol: str, timeframe: str, indicators: list) -> str:
+        """Generate a cache key from parameters."""
+        import hashlib
+        key_str = f"{symbol}:{timeframe}:{','.join(sorted(indicators))}"
+        return hashlib.md5(key_str.encode()).hexdigest()
+
+    def _make_key(self, symbol: str, timeframe: str, indicator: str) -> str:
+        """Generate a cache key for a single indicator."""
+        import hashlib
+        key_str = f"{symbol}:{timeframe}:{indicator}"
+        return f"ind:{hashlib.md5(key_str.encode()).hexdigest()}"
 
 
 class TechnicalIndicators:
@@ -323,14 +347,14 @@ class TechnicalIndicators:
         volumes = np.asarray(volumes, dtype=float)
         
         obv_values = np.zeros_like(closes)
-        obv_values[0] = volumes[0]
+        obv_values[0] = 0  # OBV starts at 0 by convention
         
         # Vectorized OBV calculation
         price_changes = np.diff(closes)
         volume_direction = np.where(price_changes > 0, volumes[1:], 
                                     np.where(price_changes < 0, -volumes[1:], 0))
         
-        obv_values[1:] = volumes[0] + np.cumsum(volume_direction)
+        obv_values[1:] = np.cumsum(volume_direction)
         
         return obv_values
     
@@ -855,7 +879,22 @@ class TechnicalIndicators:
         series = np.asarray(series)
         valid_values = series[~np.isnan(series)]
         return valid_values[-1] if len(valid_values) > 0 else np.nan
-    
+
+    @staticmethod
+    def get_last_n(series: np.ndarray, n: int) -> list:
+        """Get last n non-NaN values from a series.
+        
+        Args:
+            series: Array of values (may contain NaN)
+            n: Number of values to return
+            
+        Returns:
+            List of last n non-NaN values
+        """
+        series = np.asarray(series, dtype=float)
+        valid = series[~np.isnan(series)]
+        return list(valid[-n:])
+
     def compute_all(self, highs: np.ndarray, lows: np.ndarray, closes: np.ndarray,
                    volumes: np.ndarray) -> Dict[str, Any]:
         """Compute all available indicators.

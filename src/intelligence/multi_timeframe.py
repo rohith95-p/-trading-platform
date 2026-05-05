@@ -84,27 +84,46 @@ class MultiTimeframeAnalyzer:
         results = {}
         indicators_hash = self._get_indicators_hash(indicators)
         
-        # Compute indicators for each timeframe in parallel
-        tasks = []
+        computed_by_fingerprint = {}
         for timeframe in self.timeframes:
             if timeframe not in ohlcv_data:
                 log.warning(f"No OHLCV data for {symbol} {timeframe}")
                 continue
-            
-            task = self._analyze_timeframe(
-                symbol, timeframe, indicators, ohlcv_data[timeframe], indicators_hash
-            )
-            tasks.append((timeframe, task))
-        
-        # Run all tasks concurrently
-        for timeframe, task in tasks:
+
+            candles = ohlcv_data[timeframe]
+            fingerprint = self._candles_fingerprint(candles)
+            if fingerprint in computed_by_fingerprint:
+                results[timeframe] = computed_by_fingerprint[fingerprint]
+                continue
+
             try:
-                results[timeframe] = await task
+                result = self._analyze_timeframe_sync(
+                    symbol,
+                    timeframe,
+                    indicators,
+                    candles,
+                    indicators_hash,
+                )
+                computed_by_fingerprint[fingerprint] = result
+                results[timeframe] = result
             except Exception as e:
                 log.error(f"Error analyzing {symbol} {timeframe}: {e}")
                 results[timeframe] = {"error": str(e)}
         
         return results
+
+    def _candles_fingerprint(self, candles: List[Dict[str, float]]) -> tuple:
+        """Create an exact in-call fingerprint for duplicate OHLCV datasets."""
+        return tuple(
+            (
+                candle.get("open", 0),
+                candle.get("high", 0),
+                candle.get("low", 0),
+                candle.get("close", 0),
+                candle.get("volume", 0),
+            )
+            for candle in candles
+        )
     
     async def _analyze_timeframe(
         self,
@@ -115,6 +134,24 @@ class MultiTimeframeAnalyzer:
         indicators_hash: str,
     ) -> Dict[str, Any]:
         """Analyze a single timeframe."""
+        return await asyncio.to_thread(
+            self._analyze_timeframe_sync,
+            symbol,
+            timeframe,
+            indicators,
+            candles,
+            indicators_hash,
+        )
+
+    def _analyze_timeframe_sync(
+        self,
+        symbol: str,
+        timeframe: str,
+        indicators: List[str],
+        candles: List[Dict[str, float]],
+        indicators_hash: str,
+    ) -> Dict[str, Any]:
+        """Analyze a single timeframe in a worker thread."""
         cache_key = self._make_cache_key(symbol, timeframe, indicators_hash)
         
         # Check cache
@@ -242,6 +279,8 @@ class MultiTimeframeAnalyzer:
         """
         timeframe_seconds = self.TIMEFRAME_SECONDS.get(timeframe, 60)
         seconds_in_timeframe = timestamp % timeframe_seconds
+        if seconds_in_timeframe == 0:
+            return 0
         return timeframe_seconds - seconds_in_timeframe
     
     async def analyze_with_filtering(

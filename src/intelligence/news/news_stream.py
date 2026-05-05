@@ -7,7 +7,7 @@ handles deduplication, and stores articles in the database.
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import timezone
 from typing import Optional, List
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,7 @@ from .deduplication import NewsDeduplicator
 from .sources.rss import RSSFeedHandler
 from .sources.twitter import TwitterHandler
 from .sources.telegram import TelegramHandler
+from src.core.time import utc_now_naive
 
 log = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ class NewsStreamService:
                 meta=article.metadata,  # Use 'meta' attribute which maps to 'metadata' column
                 content_hash=content_hash,
                 published_at=article.published_at,
-                created_at=datetime.utcnow(),
+                created_at=utc_now_naive(),
             )
             
             self.db.add(db_article)
@@ -226,13 +227,13 @@ class NewsStreamService:
             # Get articles in last hour
             last_hour = self.db.execute(
                 select(func.count(NewsArticleDB.id))
-                .where(NewsArticleDB.created_at >= datetime.utcnow() - timedelta(hours=1))
+                .where(NewsArticleDB.created_at >= utc_now_naive() - timedelta(hours=1))
             ).scalar() or 0
             
             # Get articles in last 24 hours
             last_24h = self.db.execute(
                 select(func.count(NewsArticleDB.id))
-                .where(NewsArticleDB.created_at >= datetime.utcnow() - timedelta(hours=24))
+                .where(NewsArticleDB.created_at >= utc_now_naive() - timedelta(hours=24))
             ).scalar() or 0
             
             # Get last ingestion time

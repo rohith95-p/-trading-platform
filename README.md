@@ -1,149 +1,95 @@
 # Unified Trading Intelligence Platform
 
-A comprehensive trading platform with news classification, technical analysis, multi-agent simulation, DRL agents, backtesting, and advanced portfolio management.
+> Multi-exchange, multi-intelligence trading platform combining technical analysis, news classification, multi-agent simulation, and deep reinforcement learning.
+
+## Status: ~82% Complete
+
+| Layer | Status |
+|-------|--------|
+| 21 Technical Indicators + WebSocket | ✅ Production-ready |
+| News Classification (Claude API) | ✅ Complete |
+| Multi-Agent Simulation (10 agents) | ✅ Complete |
+| PPO DRL Agent + Guardrails | ✅ Complete |
+| 7 Exchange Connectors (paper trading) | ✅ Complete |
+| Risk Management (Kelly, circuit breaker) | ✅ Complete |
+| Vectorized Backtester | ✅ Complete |
+| Auth + RBAC + API Key Encryption | ✅ Complete |
+| Frontend Components | ✅ Built |
+| Frontend Dashboard (wired) | ⚠️ In progress |
+| Railway Backend Deployment | ✅ Live |
+| Supabase Database | ✅ Connected |
 
 ## Quick Start
 
-### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- Docker & Docker Compose (optional)
+### Backend
 
-### Setup
-
-1. **Clone the repository**
 ```bash
-git clone <repo-url>
-cd trading-platform
-```
-
-2. **Setup Backend**
-```bash
-# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
+venv\Scripts\activate  # Windows
 pip install -r requirements.txt
-
-# Copy environment file
-cp .env.example .env
-
-# Start services with Docker
-docker-compose up -d
+cp .env.example .env.local  # Fill in your keys
+uvicorn src.main:app --reload
 ```
 
-3. **Setup Frontend**
-```bash
-# Install dependencies
-npm install
+API docs: http://localhost:8000/docs
 
-# Start development server
+### Frontend
+
+```bash
+cd frontend
+npm install
 npm run dev
 ```
 
-4. **Access the application**
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+Dashboard: http://localhost:3000
 
-## Project Structure
+## Architecture
 
 ```
-trading-platform/
-├── src/                    # Backend source code
-│   ├── main.py            # FastAPI application
-│   ├── config.py          # Configuration
-│   ├── models.py          # Pydantic models
-│   ├── interfaces/        # Core interfaces
-│   ├── intelligence/      # Intelligence layer
-│   ├── execution/         # Execution layer
-│   ├── backtesting/       # Backtesting engine
-│   └── utils/             # Utilities
-├── frontend/              # Frontend source code
-│   ├── app/               # Next.js app
-│   ├── components/        # React components
-│   ├── pages/             # Next.js pages
-│   └── styles/            # Tailwind CSS
-├── tests/                 # Test files
-├── docs/                  # Documentation
-├── docker-compose.yml     # Docker Compose configuration
-├── requirements.txt       # Python dependencies
-├── package.json          # Node dependencies
-└── README.md             # This file
+src/
+├── api/           # FastAPI routers (auth, trading, intelligence, backtesting, simulation, drl, webhooks)
+├── intelligence/  # 21 indicators, news classifier, WebSocket streaming
+├── exchanges/     # 7 connectors: Kalshi, Polymarket, Alpaca, Hyperliquid, dYdX, Kraken, Binance
+├── risk/          # RiskManager, PositionSizer (Kelly), CircuitBreaker, AdvancedAnalytics
+├── simulation/    # SimulationEngine (10 agents, 5 rounds), ConsensusBuilder
+├── drl/           # PPOAgent, ConstitutionalGuardrails, TradingEnvironment
+├── backtesting/   # PandasBacktester, metrics, advanced filters
+├── portfolio/     # MultiStrategyPortfolio
+├── auth/          # JWT, sessions, RBAC
+└── borrowed/      # Original code from reference repos (preserved before repo deletion)
 ```
 
-## Development
+## Key Files
 
-### Running Tests
+- `PROJECT_DEEP_ANALYSIS.md` — Complete project analysis, every file explained
+- `PLACEHOLDERS_AND_TODOS.md` — What still needs real values/implementation
+- `CLEANUP_PLAN.md` — Files awaiting deletion approval
+- `.env.local` — Your actual secrets (gitignored)
+- `.env.railway.example` — Template for Railway env vars
+
+## Tests
+
 ```bash
-# Unit tests
-pytest tests/unit/ -v
-
-# Property-based tests
-pytest tests/property/ -v
-
-# All tests with coverage
-pytest --cov=src --cov-report=html
+pytest tests/unit/ -q          # 88+ unit tests
+pytest tests/integration/ -q   # Integration tests
+pytest tests/e2e/ -q           # E2E user flow tests
 ```
 
-### Code Quality
-```bash
-# Linting
-pylint src/
+## Deployment
 
-# Type checking
-mypy src/
+- **Backend**: Railway (already deployed)
+- **Database**: Supabase (already connected)
+- **Frontend**: Vercel (pending)
 
-# Formatting
-black src/
-```
+See `docs/RAILWAY_DEPLOYMENT_GUIDE.md` for details.
 
-## Documentation
+## Reference Repos (Borrowed From)
 
-- [Specification](./docs/SPECIFICATION.md)
-- [API Documentation](http://localhost:8000/docs)
-- [Architecture](./docs/ARCHITECTURE.md)
-- [Deployment Guide](./docs/DEPLOYMENT.md)
+| Repo | What We Used |
+|------|-------------|
+| Fiduciary-Sentinel-Core | PPO agent architecture, constitutional guardrails, trading env |
+| hyperliquid-trading-agent | Risk manager (7-check validation chain) |
+| polymarket-pipeline | Claude classification prompt, news aggregator |
+| MiroFish | Parallel simulation runner pattern |
 
-## Features
-
-### Phase 1 MVP
-- ✅ News classification with Claude API
-- ✅ 20+ technical indicators
-- ✅ 3 exchange connectors (Kalshi, Polymarket, Alpaca)
-- ✅ Risk management with position limits
-- ✅ PPO reinforcement learning agent
-- ✅ Vectorized backtesting
-- ✅ React dashboard with real-time updates
-
-### Phase 1.5 Enhancements
-- ✅ 4 new exchange connectors (Hyperliquid, dYdX, Kraken, Binance)
-- ✅ 10+ additional technical indicators
-- ✅ Multi-timeframe analysis
-- ✅ Advanced charting with TradingView
-- ✅ Portfolio analytics
-- ✅ Risk analytics (VaR, CVaR, Sharpe)
-- ✅ Webhook support
-- ✅ Strategy management
-
-## Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Run tests and linting
-4. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details
-
-## Support
-
-For issues and questions, please open an issue on GitHub.
-
----
-
-**Status**: Phase 1 MVP - In Development
-**Timeline**: 24 weeks (6 months)
-**Target**: Industrial-level trading platform
+Original code preserved in `src/borrowed/` before repos are deleted.

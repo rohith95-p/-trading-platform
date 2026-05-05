@@ -36,7 +36,8 @@ class APIKeyEncryption:
         Initialize encryption with master key.
         
         Args:
-            master_key: Base64-encoded 32-byte master key. If None, reads from ENCRYPTION_KEY env var.
+            master_key: 32-byte master key encoded as hex (64 chars) or base64.
+                        If None, reads from ENCRYPTION_KEY env var via settings.
             
         Raises:
             ValueError: If master key is invalid or missing
@@ -44,12 +45,15 @@ class APIKeyEncryption:
         if master_key is None:
             master_key = os.getenv("ENCRYPTION_KEY", "")
         
-        if not master_key:
+        if not master_key or master_key.startswith("change-this"):
             raise ValueError("ENCRYPTION_KEY environment variable is required")
         
         try:
-            # Decode base64 master key
-            self.master_key = base64.b64decode(master_key)
+            # Accept hex (64-char) or base64 (44-char) encoding
+            if len(master_key) == 64 and all(c in '0123456789abcdefABCDEF' for c in master_key):
+                self.master_key = bytes.fromhex(master_key)
+            else:
+                self.master_key = base64.b64decode(master_key)
             
             if len(self.master_key) != 32:
                 raise ValueError("Master key must be 32 bytes for AES-256")
@@ -66,6 +70,7 @@ class APIKeyEncryption:
         }
         
         logger.info(f"Encryption initialized with key version {self.CURRENT_KEY_VERSION}")
+
     
     def encrypt(self, plaintext: str, key_version: Optional[int] = None) -> Tuple[bytes, bytes, int]:
         """

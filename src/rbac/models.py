@@ -4,7 +4,7 @@ Pydantic models for RBAC.
 
 from typing import List, Dict, Optional
 from datetime import datetime
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class Permission(BaseModel):
@@ -34,16 +34,18 @@ class Role(BaseModel):
     permissions: List[str] = Field(default_factory=list, description="List of permissions in 'resource:action' format")
     created_at: Optional[datetime] = None
     
-    @validator("name")
-    def validate_name(cls, v):
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
         """Validate role name."""
         allowed_roles = ["admin", "trader", "viewer"]
         if v.lower() not in allowed_roles:
             raise ValueError(f"Role name must be one of: {', '.join(allowed_roles)}")
         return v.lower()
-    
-    @validator("permissions")
-    def validate_permissions(cls, v):
+
+    @field_validator("permissions")
+    @classmethod
+    def validate_permissions(cls, v: List[str]) -> List[str]:
         """Validate permission format."""
         for perm in v:
             if perm != "*" and ":" not in perm:
@@ -57,8 +59,9 @@ class RoleCreate(BaseModel):
     description: Optional[str] = Field(None, description="Role description")
     permissions: List[str] = Field(default_factory=list, description="List of permissions")
     
-    @validator("name")
-    def validate_name(cls, v):
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
         """Validate role name."""
         allowed_roles = ["admin", "trader", "viewer"]
         if v.lower() not in allowed_roles:
@@ -71,8 +74,9 @@ class RoleUpdate(BaseModel):
     description: Optional[str] = None
     permissions: Optional[List[str]] = None
     
-    @validator("permissions")
-    def validate_permissions(cls, v):
+    @field_validator("permissions")
+    @classmethod
+    def validate_permissions(cls, v: Optional[List[str]]) -> Optional[List[str]]:
         """Validate permission format."""
         if v is not None:
             for perm in v:
@@ -83,14 +87,13 @@ class RoleUpdate(BaseModel):
 
 class RoleResponse(BaseModel):
     """Response model for role."""
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     name: str
     description: Optional[str]
     permissions: List[str]
     created_at: datetime
-    
-    class Config:
-        from_attributes = True
 
 
 class UserRole(BaseModel):

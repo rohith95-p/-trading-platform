@@ -5,7 +5,7 @@ RBAC service for role and permission management.
 import logging
 import json
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from src.core.time import utc_now
 import uuid
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -100,7 +100,7 @@ class RBACService:
                 "name": role.name,
                 "description": role.description,
                 "permissions": json.dumps(role.permissions),
-                "created_at": datetime.utcnow(),
+                "created_at": utc_now(),
             }
         )
         self.db.commit()
@@ -296,7 +296,7 @@ class RBACService:
             {
                 "user_id": user_id,
                 "role_id": role_id,
-                "assigned_at": datetime.utcnow(),
+                "assigned_at": utc_now(),
                 "assigned_by": assigned_by,
             }
         )
@@ -523,7 +523,7 @@ class RBACService:
                     "details": {"role_id": role_id, "target_user_id": user_id},
                     "ip_address": None,
                     "user_agent": None,
-                    "created_at": datetime.utcnow(),
+                    "created_at": utc_now(),
                 }
             )
             self.db.commit()

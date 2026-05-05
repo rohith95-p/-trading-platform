@@ -1,14 +1,8 @@
-"""
-Exchange Connectors
+"""Exchange connector exports.
 
-Implements ExchangeConnector interface for various exchanges.
+Connectors are imported lazily so optional exchange SDK dependencies do not
+break application startup when that exchange is not configured.
 """
-
-from .hyperliquid import HyperliquidConnector
-from .dydx import dYdXConnector
-from .kraken import KrakenConnector
-from .binance import BinanceConnector
-from .kalshi import KalshiConnector
 
 __all__ = [
     "HyperliquidConnector",
@@ -16,4 +10,28 @@ __all__ = [
     "KrakenConnector",
     "BinanceConnector",
     "KalshiConnector",
+    "PolymarketConnector",
+    "AlpacaConnector",
 ]
+
+_CONNECTOR_MODULES = {
+    "HyperliquidConnector": ".hyperliquid",
+    "dYdXConnector": ".dydx",
+    "KrakenConnector": ".kraken",
+    "BinanceConnector": ".binance",
+    "KalshiConnector": ".kalshi",
+    "PolymarketConnector": ".polymarket",
+    "AlpacaConnector": ".alpaca",
+}
+
+
+def __getattr__(name: str):
+    if name not in _CONNECTOR_MODULES:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    from importlib import import_module
+
+    module = import_module(_CONNECTOR_MODULES[name], __name__)
+    value = getattr(module, name)
+    globals()[name] = value
+    return value

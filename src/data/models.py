@@ -11,7 +11,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID, JSONB, INET
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from src.core.time import utc_now_naive
 import uuid
 import enum
 
@@ -30,8 +30,8 @@ class User(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
     
     # Quota limits
     max_strategies = Column(Integer, default=10, nullable=False)
@@ -85,8 +85,8 @@ class APIKey(Base):
     usage_count = Column(Integer, default=0, nullable=False)
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
     expires_at = Column(DateTime, nullable=True)
     
     # Metadata (renamed from 'metadata' to avoid SQLAlchemy reserved name)
@@ -116,8 +116,8 @@ class Strategy(Base):
     type = Column(String(50), nullable=False)  # 'directional', 'grid', 'market-making', 'arbitrage'
     config = Column(JSON, nullable=False)  # Strategy configuration as JSON
     is_active = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
     
     # Relationships
     user = relationship("User", back_populates="strategies")
@@ -148,7 +148,7 @@ class Trade(Base):
     size = Column(DECIMAL(20, 8), nullable=False)
     fee = Column(DECIMAL(20, 8), default=0, nullable=False)
     pnl = Column(DECIMAL(20, 8), nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    timestamp = Column(DateTime, default=utc_now_naive, nullable=False, index=True)
     
     # Relationships
     user = relationship("User", back_populates="trades")
@@ -180,7 +180,7 @@ class Position(Base):
     current_price = Column(DECIMAL(20, 8), nullable=True)
     unrealized_pnl = Column(DECIMAL(20, 8), nullable=True)
     realized_pnl = Column(DECIMAL(20, 8), default=0, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
     
     # Relationships
     user = relationship("User", back_populates="positions")
@@ -208,7 +208,7 @@ class Signal(Base):
     confidence = Column(DECIMAL(3, 2), nullable=False)  # 0.00 to 1.00
     rationale = Column(Text, nullable=True)
     indicators = Column(JSON, nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    timestamp = Column(DateTime, default=utc_now_naive, nullable=False, index=True)
     
     # Relationships
     user = relationship("User", back_populates="signals")
@@ -233,7 +233,7 @@ class AuditLog(Base):
     action = Column(String(255), nullable=False)
     details = Column(JSON, nullable=True)
     ip_address = Column(String(45), nullable=True)  # IPv4 or IPv6
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    timestamp = Column(DateTime, default=utc_now_naive, nullable=False, index=True)
     
     # Relationships
     user = relationship("User", back_populates="audit_logs")
@@ -262,7 +262,7 @@ class NewsArticle(Base):
     meta = Column("metadata", JSON, default={}, nullable=False)  # Use JSON for SQLite compatibility
     content_hash = Column(Text, nullable=False, index=True)
     published_at = Column(DateTime, nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False, index=True)
     
     # Indexes
     __table_args__ = (

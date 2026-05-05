@@ -6,11 +6,12 @@ This module handles deduplication of news articles based on content hash and URL
 
 import logging
 from typing import Optional, Set
-from datetime import datetime, timedelta
+from datetime import timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
 from .models import NewsArticleCreate
+from src.core.time import utc_now_naive
 
 log = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class NewsDeduplicator:
             from src.data.models import NewsArticle as NewsArticleDB
             
             # Load articles from last 7 days
-            cutoff = datetime.utcnow() - timedelta(days=7)
+            cutoff = utc_now_naive() - timedelta(days=7)
             
             recent_articles = self.db.execute(
                 select(NewsArticleDB.url, NewsArticleDB.content_hash)
@@ -127,7 +128,7 @@ class NewsDeduplicator:
             
             last_24h = self.db.execute(
                 select(func.count(NewsArticleDB.id))
-                .where(NewsArticleDB.created_at >= datetime.utcnow() - timedelta(hours=24))
+                .where(NewsArticleDB.created_at >= utc_now_naive() - timedelta(hours=24))
             ).scalar()
             
             return {

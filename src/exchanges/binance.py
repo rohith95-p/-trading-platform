@@ -355,36 +355,61 @@ class BinanceConnector(ExchangeConnector):
     
     # Private methods
     
+    # Endpoints that require HMAC signature regardless of HTTP method
+    PRIVATE_ENDPOINTS = {
+        "/fapi/v1/order",
+        "/fapi/v2/account",
+        "/fapi/v2/positionRisk",
+        "/api/v3/order",
+        "/api/v3/account",
+        "/api/v3/openOrders",
+        "/api/v3/allOrders",
+        "/api/v3/myTrades",
+    }
+
+    def _sign_params(self, params: Dict) -> Dict:
+        """Add HMAC-SHA256 signature to a params dict. Mutates and returns it."""
+        params.setdefault("timestamp", int(time.time() * 1000))
+        query_string = urlencode(params)
+        signature = hmac.new(
+            self.secret.encode(),
+            query_string.encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        params["signature"] = signature
+        return params
+
     async def _request(
         self,
         method: str,
         endpoint: str,
         params: Optional[Dict] = None,
         retry_count: int = 0,
+        signed: bool = False,
     ) -> Dict:
         """
         Make HTTP request to Binance API with rate limiting and retry logic.
-        
+
         Args:
             method: HTTP method (GET, POST, DELETE)
             endpoint: API endpoint
             params: Request parameters
             retry_count: Current retry attempt
-        
+            signed: Force signing even if not in PRIVATE_ENDPOINTS list
+
         Returns:
             Response JSON
         """
         try:
             if not self.session:
                 raise Exception("Not connected to Binance")
-            
+
             # Check rate limit
             current_time = time.time()
             if current_time - self.weight_reset_time >= self.RATE_LIMIT_WINDOW:
                 self.weight_used = 0
                 self.weight_reset_time = current_time
-            
-            # Estimate weight (simplified)
+
             estimated_weight = 1
             if self.weight_used + estimated_weight > self.RATE_LIMIT_WEIGHT:
                 sleep_time = self.RATE_LIMIT_WINDOW - (current_time - self.weight_reset_time)
@@ -393,21 +418,22 @@ class BinanceConnector(ExchangeConnector):
                     await asyncio.sleep(sleep_time)
                     self.weight_used = 0
                     self.weight_reset_time = time.time()
-            
+
             url = f"{self.base_url}{endpoint}"
-            headers = {}
-            
-            if method in ["POST", "DELETE"]:
-                params = params or {}
-                query_string = urlencode(params)
-                signature = hmac.new(
-                    self.secret.encode(),
-                    query_string.encode(),
-                    hashlib.sha256,
-                ).hexdigest()
-                params["signature"] = signature
+            headers: Dict = {}
+            params = params or {}
+
+            # Determine if this request needs a signature
+            needs_signing = (
+                signed
+                or method in ("POST", "DELETE")
+                or endpoint in self.PRIVATE_ENDPOINTS
+            )
+
+            if needs_signing:
+                self._sign_params(params)
                 headers["X-MBX-APIKEY"] = self.api_key
-            
+
             async with self.session.request(
                 method,
                 url,
@@ -415,27 +441,28 @@ class BinanceConnector(ExchangeConnector):
                 headers=headers,
                 timeout=aiohttp.ClientTimeout(total=30),
             ) as response:
-                # Update weight used
-                weight_used = int(response.headers.get("X-MBX-Used-Weight", 1))
-                self.weight_used += weight_used
-                
+                # Update weight used from Binance response header
+                weight_header = response.headers.get("X-MBX-Used-Weight-1M") \
+                    or response.headers.get("X-MBX-Used-Weight", "1")
+                self.weight_used += int(weight_header)
+
                 if response.status == 200:
                     return await response.json()
                 else:
                     error_text = await response.text()
                     raise Exception(f"HTTP {response.status}: {error_text}")
-        
+
         except asyncio.TimeoutError:
             if retry_count < self.MAX_RETRIES:
                 logger.warning(f"Request timeout, retrying ({retry_count + 1}/{self.MAX_RETRIES})")
                 await asyncio.sleep(self.RETRY_DELAY * (retry_count + 1))
-                return await self._request(method, endpoint, params, retry_count + 1)
+                return await self._request(method, endpoint, params, retry_count + 1, signed)
             else:
                 raise
         except Exception as e:
             if retry_count < self.MAX_RETRIES:
                 logger.warning(f"Request failed, retrying ({retry_count + 1}/{self.MAX_RETRIES}): {e}")
                 await asyncio.sleep(self.RETRY_DELAY * (retry_count + 1))
-                return await self._request(method, endpoint, params, retry_count + 1)
+                return await self._request(method, endpoint, params, retry_count + 1, signed)
             else:
                 raise

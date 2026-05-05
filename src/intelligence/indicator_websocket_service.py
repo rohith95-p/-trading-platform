@@ -17,7 +17,7 @@ import json
 import logging
 import time
 from typing import Dict, List, Set, Optional, Any
-from datetime import datetime
+from src.core.time import utc_now
 from fastapi import WebSocket, WebSocketDisconnect
 from dataclasses import dataclass, asdict
 import numpy as np
@@ -171,7 +171,7 @@ class IndicatorWebSocketManager:
             "type": "connected",
             "client_id": client_id,
             "message": "Connected to indicator stream",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": utc_now().isoformat(),
         })
         
         return client
@@ -360,7 +360,7 @@ class IndicatorWebSocketManager:
                     "symbol": symbol,
                     "timeframe": timeframe,
                     "indicators": results,
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": utc_now().isoformat(),
                 }
                 
                 for client_id in list(self.subscriptions[sub_key]):
@@ -407,7 +407,7 @@ class IndicatorWebSocketManager:
         
         await self.send_to_client(client_id, {
             "type": "pong",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": utc_now().isoformat(),
         })
     
     def get_stats(self) -> Dict[str, Any]:

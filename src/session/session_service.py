@@ -14,6 +14,7 @@ from src.session.models import (
     SessionListResponse,
     SessionValidationResult,
 )
+from src.core.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ class SessionService:
             token_hash = self.hash_token(token)
             
             # Calculate expiration time
-            now = datetime.utcnow()
+            now = utc_now()
             expires_at = now + timedelta(hours=self.ABSOLUTE_EXPIRATION_HOURS)
             
             # Prepare session data
@@ -139,7 +140,7 @@ class SessionService:
                 )
             
             session = result.data[0]
-            now = datetime.utcnow()
+            now = utc_now()
             
             # Check absolute expiration
             expires_at = datetime.fromisoformat(session["expires_at"].replace("Z", "+00:00"))
@@ -359,7 +360,7 @@ class SessionService:
                 raise ValueError("Session not found or inactive")
             
             # Calculate new expiration
-            now = datetime.utcnow()
+            now = utc_now()
             new_expires_at = now + timedelta(hours=self.ABSOLUTE_EXPIRATION_HOURS)
             
             # Update session

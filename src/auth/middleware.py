@@ -41,6 +41,10 @@ async def get_current_user(
         return {
             "user_id": payload["sub"],
             "email": payload["email"],
+            "email_verified": payload.get("email_verified", False),
+            "is_premium": payload.get("is_premium", False),
+            "subscription_tier": payload.get("subscription_tier", "free"),
+            "two_factor_enabled": payload.get("two_factor_enabled", False),
         }
     except Exception as e:
         logger.warning(f"Authentication failed: {str(e)}")
@@ -72,9 +76,26 @@ async def get_current_user_optional(
         return {
             "user_id": payload["sub"],
             "email": payload["email"],
+            "email_verified": payload.get("email_verified", False),
+            "is_premium": payload.get("is_premium", False),
+            "subscription_tier": payload.get("subscription_tier", "free"),
+            "two_factor_enabled": payload.get("two_factor_enabled", False),
         }
     except Exception:
         return None
+
+
+def _extract_current_user(args: tuple, kwargs: dict) -> Optional[dict]:
+    """Find current_user from wrapped call arguments."""
+    candidate = kwargs.get("current_user")
+    if isinstance(candidate, dict):
+        return candidate
+
+    for arg in args:
+        if isinstance(arg, dict) and "user_id" in arg:
+            return arg
+
+    return None
 
 
 def auth_required(func: Callable) -> Callable:
@@ -123,7 +144,19 @@ def require_verified_email(func: Callable) -> Callable:
     """
     @wraps(func)
     async def wrapper(*args, **kwargs):
-        # TODO: Check if user's email is verified
+        current_user = _extract_current_user(args, kwargs)
+        if not current_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required",
+            )
+
+        if not bool(current_user.get("email_verified", False)):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Email verification required",
+            )
+
         return await func(*args, **kwargs)
     return wrapper
 
@@ -140,6 +173,21 @@ def require_premium(func: Callable) -> Callable:
     """
     @wraps(func)
     async def wrapper(*args, **kwargs):
-        # TODO: Check if user has premium subscription
+        current_user = _extract_current_user(args, kwargs)
+        if not current_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required",
+            )
+
+        has_premium = bool(current_user.get("is_premium", False)) or (
+            str(current_user.get("subscription_tier", "free")).lower() not in {"free", "basic"}
+        )
+        if not has_premium:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Premium subscription required",
+            )
+
         return await func(*args, **kwargs)
     return wrapper

@@ -17,6 +17,11 @@ from typing import Optional
 
 import httpx
 
+try:
+    import feedparser
+except ImportError:
+    feedparser = None  # type: ignore
+
 log = logging.getLogger(__name__)
 
 
@@ -222,9 +227,9 @@ class RSSFallback:
         """Poll RSS feeds periodically and emit new headlines."""
         while True:
             try:
-                # Import feedparser for RSS parsing
-                import feedparser
-                
+                if feedparser is None:
+                    await asyncio.sleep(self.interval)
+                    continue
                 # Default RSS feeds for trading/crypto news
                 feeds = [
                     "https://feeds.bloomberg.com/markets/news.rss",
@@ -238,7 +243,11 @@ class RSSFallback:
                 for feed_url in feeds:
                     try:
                         feed = feedparser.parse(feed_url)
-                        for entry in feed.entries[:10]:  # Last 10 entries
+                        entries = getattr(feed, "entries", None)
+                        if entries is None and isinstance(feed, dict):
+                            entries = feed.get("entries", [])
+
+                        for entry in (entries or [])[:10]:  # Last 10 entries
                             headline = entry.get("title", "")
                             url = entry.get("link", "")
                             summary = entry.get("summary", "")

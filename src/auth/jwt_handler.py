@@ -2,12 +2,14 @@
 JWT token handler for authentication.
 """
 
-import os
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
+from uuid import uuid4
 import jwt
 from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
 import logging
+from src.config import settings
+from src.core.time import utc_from_timestamp, utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -17,12 +19,18 @@ class JWTHandler:
     
     def __init__(self):
         """Initialize JWT handler with configuration."""
-        self.secret_key = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
-        self.algorithm = os.getenv("JWT_ALGORITHM", "HS256")
-        self.access_token_expire_hours = int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
-        self.refresh_token_expire_days = int(os.getenv("JWT_REFRESH_EXPIRATION_DAYS", "30"))
+        self.secret_key = settings.JWT_SECRET
+        self.algorithm = settings.JWT_ALGORITHM
+        self.access_token_expire_hours = settings.JWT_EXPIRATION_HOURS
+        self.refresh_token_expire_days = settings.JWT_REFRESH_EXPIRATION_DAYS
+        self.issuer = settings.JWT_ISSUER
+        self.audience = settings.JWT_AUDIENCE
+        self.leeway_seconds = settings.JWT_LEEWAY_SECONDS
         
-        if self.secret_key == "your-secret-key-change-in-production":
+        if self.secret_key in {
+            "your-secret-key-change-in-production",
+            "change-this-in-production-use-railway-env-var",
+        }:
             logger.warning("Using default JWT secret key. Change this in production!")
     
     def create_access_token(
@@ -42,15 +50,19 @@ class JWTHandler:
         Returns:
             JWT access token string
         """
-        now = datetime.utcnow()
+        now = utc_now()
         expires_at = now + timedelta(hours=self.access_token_expire_hours)
-        
+
         payload = {
             "sub": user_id,
             "email": email,
             "type": "access",
             "iat": now,
+            "nbf": now,
             "exp": expires_at,
+            "iss": self.issuer,
+            "aud": self.audience,
+            "jti": str(uuid4()),
         }
         
         if additional_claims:
@@ -74,15 +86,19 @@ class JWTHandler:
         Returns:
             JWT refresh token string
         """
-        now = datetime.utcnow()
+        now = utc_now()
         expires_at = now + timedelta(days=self.refresh_token_expire_days)
-        
+
         payload = {
             "sub": user_id,
             "email": email,
             "type": "refresh",
             "iat": now,
+            "nbf": now,
             "exp": expires_at,
+            "iss": self.issuer,
+            "aud": self.audience,
+            "jti": str(uuid4()),
         }
         
         token = jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
@@ -107,7 +123,10 @@ class JWTHandler:
             payload = jwt.decode(
                 token,
                 self.secret_key,
-                algorithms=[self.algorithm]
+                algorithms=[self.algorithm],
+                issuer=self.issuer,
+                audience=self.audience,
+                leeway=self.leeway_seconds,
             )
             
             # Verify token type
@@ -175,7 +194,7 @@ class JWTHandler:
             payload = self.decode_token_without_verification(token)
             exp_timestamp = payload.get("exp")
             if exp_timestamp:
-                return datetime.fromtimestamp(exp_timestamp)
+                return utc_from_timestamp(exp_timestamp)
             return None
         except Exception as e:
             logger.error(f"Error getting token expiration: {str(e)}")
@@ -193,5 +212,5 @@ class JWTHandler:
         """
         expiration = self.get_token_expiration(token)
         if expiration:
-            return datetime.utcnow() > expiration
+            return utc_now() > expiration
         return True
