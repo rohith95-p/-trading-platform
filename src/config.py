@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
     API_BASE_URL: str = "https://ultracore-api.up.railway.app"
-    FRONTEND_BASE_URL: str = "http://localhost:3000"
+    FRONTEND_BASE_URL: str = "http://localhost:3001"
 
     # Database
     DATABASE_URL: str = "postgresql://user:password@localhost/trading_db"
@@ -90,6 +90,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = Field(
         default_factory=lambda: [
             "http://localhost:3000",
+            "http://localhost:3001",
             "https://trading-platform.vercel.app",
         ]
     )
@@ -111,6 +112,7 @@ class Settings(BaseSettings):
         if value is None:
             return [
                 "http://localhost:3000",
+                "http://localhost:3001",
                 "https://trading-platform.vercel.app",
             ]
         if isinstance(value, str):

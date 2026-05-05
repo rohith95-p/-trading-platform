@@ -13,6 +13,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ class APIKeyEncryption:
             ValueError: If master key is invalid or missing
         """
         if master_key is None:
-            master_key = os.getenv("ENCRYPTION_KEY", "")
+            master_key = settings.ENCRYPTION_KEY
         
         if not master_key or master_key.startswith("change-this"):
             raise ValueError("ENCRYPTION_KEY environment variable is required")

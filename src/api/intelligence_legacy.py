@@ -144,7 +144,7 @@ async def indicators_legacy(
     _ = user_id
     started = time.perf_counter()
     result = _compute_legacy_indicators(payload)
-            result["computed_at"] = utc_now().isoformat()
+    result["computed_at"] = utc_now().isoformat()
     result["latency_ms"] = max(0.0, (time.perf_counter() - started) * 1000)
     return result
 
@@ -159,7 +159,7 @@ async def indicators_batch_legacy(
     results: List[Dict[str, Any]] = []
     for request in payload.requests:
         computed = _compute_legacy_indicators(request)
-            computed["computed_at"] = utc_now().isoformat()
+        computed["computed_at"] = utc_now().isoformat()
         computed["latency_ms"] = 0.0
         results.append(computed)
     return {
