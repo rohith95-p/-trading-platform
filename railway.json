@@ -5,6 +5,7 @@
     "buildEnvironment": "V3"
   },
   "deploy": {
+    "startCommand": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
     "runtime": "V2",
     "numReplicas": 1,
     "sleepApplication": false,
