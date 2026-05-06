@@ -23,13 +23,40 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
     API_BASE_URL: str = "https://ultracore-api.up.railway.app"
-    FRONTEND_BASE_URL: str = "http://localhost:3001"
+    # On Railway this is auto-populated via a service reference variable;
+    # locally it falls back to the standard Next.js dev port.
+    FRONTEND_BASE_URL: str = Field(
+        default="http://localhost:3000",
+        description="Base URL of the frontend service. On Railway, set this to "
+                    "${{trading-platform-frontend.RAILWAY_PUBLIC_DOMAIN}} or the "
+                    "full https:// URL of the frontend service.",
+    )
 
-    # Database
-    DATABASE_URL: str = "postgresql://user:password@localhost/trading_db"
+    # Database — on Railway, set DATABASE_URL to
+    # ${{Postgres.DATABASE_URL}} (Railway service reference syntax).
+    DATABASE_URL: str = Field(
+        default="postgresql://user:password@localhost:5432/trading_db",
+        description="PostgreSQL connection string. On Railway use the service "
+                    "reference: ${{Postgres.DATABASE_URL}}",
+    )
 
-    # Redis
-    REDIS_URL: str = "redis://localhost:6379"
+    # Redis — on Railway, set REDIS_URL to
+    # ${{Redis.REDIS_URL}} (Railway service reference syntax).
+    REDIS_URL: str = Field(
+        default="redis://localhost:6379",
+        description="Redis connection string. On Railway use the service "
+                    "reference: ${{Redis.REDIS_URL}}",
+    )
+
+    # Railway-injected domain variables (populated automatically by Railway)
+    RAILWAY_PUBLIC_DOMAIN: Optional[str] = Field(
+        default=None,
+        description="Public domain for this service, injected by Railway at runtime.",
+    )
+    RAILWAY_PRIVATE_DOMAIN: Optional[str] = Field(
+        default=None,
+        description="Private (internal) domain for this service, injected by Railway at runtime.",
+    )
 
     # JWT
     JWT_SECRET: str = "change-this-in-production-use-railway-env-var"
@@ -86,7 +113,9 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_JSON: bool = False
 
-    # CORS
+    # CORS — comma-separated list of allowed origins.
+    # On Railway, also set RAILWAY_PUBLIC_DOMAIN and FRONTEND_BASE_URL so that
+    # Railway service domains are automatically included (see effective_cors_origins).
     CORS_ORIGINS: list[str] = Field(
         default_factory=lambda: [
             "http://localhost:3000",
@@ -119,6 +148,39 @@ class Settings(BaseSettings):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
 
+    def effective_cors_origins(self) -> list[str]:
+        """Return the full list of CORS origins, augmented with Railway domains.
+
+        In addition to whatever is set in CORS_ORIGINS, this method appends:
+        - The FRONTEND_BASE_URL (so the linked frontend service is always allowed,
+          even if CORS_ORIGINS was not explicitly updated after a frontend redeploy).
+        - https://<RAILWAY_PUBLIC_DOMAIN> — the public Railway domain for this
+          backend service (useful when the frontend calls the API via its public URL).
+        - https://<RAILWAY_PRIVATE_DOMAIN> — the private Railway domain for
+          internal service-to-service communication.
+
+        Duplicates are removed while preserving order.
+        """
+        origins: list[str] = list(self.CORS_ORIGINS)
+
+        # Always include the configured frontend URL
+        if self.FRONTEND_BASE_URL and self.FRONTEND_BASE_URL not in origins:
+            origins.append(self.FRONTEND_BASE_URL)
+
+        # Include Railway public domain (https only — Railway terminates TLS)
+        if self.RAILWAY_PUBLIC_DOMAIN:
+            public = f"https://{self.RAILWAY_PUBLIC_DOMAIN}"
+            if public not in origins:
+                origins.append(public)
+
+        # Include Railway private domain (http — internal traffic is unencrypted)
+        if self.RAILWAY_PRIVATE_DOMAIN:
+            private = f"http://{self.RAILWAY_PRIVATE_DOMAIN}"
+            if private not in origins:
+                origins.append(private)
+
+        return origins
+
     def is_production(self) -> bool:
         return self.ENVIRONMENT.strip().lower() == "production"
 
@@ -139,6 +201,7 @@ class Settings(BaseSettings):
             },
             "DATABASE_URL": {
                 "postgresql://user:password@localhost/trading_db",
+                "postgresql://user:password@localhost:5432/trading_db",
                 "postgresql://user:password@localhost:5432/trading_platform",
                 "postgresql://user:password@host:port/database",
             },

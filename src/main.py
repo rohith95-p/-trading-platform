@@ -271,10 +271,17 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Add CORS middleware — origins controlled via CORS_ORIGINS env var
+# Build the effective CORS origin list.
+# This merges CORS_ORIGINS with FRONTEND_BASE_URL and any Railway-injected
+# domain variables (RAILWAY_PUBLIC_DOMAIN, RAILWAY_PRIVATE_DOMAIN) so that
+# the frontend service and Railway internal routing are always permitted,
+# even when CORS_ORIGINS was not explicitly updated after a redeploy.
+_effective_cors_origins = settings.effective_cors_origins()
+logger.info("CORS allowed origins: %s", _effective_cors_origins)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=_effective_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
