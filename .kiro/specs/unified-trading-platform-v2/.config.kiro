@@ -1,0 +1,10 @@
+{
+  "specType": "feature",
+  "workflowType": "design-first",
+  "featureName": "unified-trading-platform-v2",
+  "version": "2.0",
+  "created": "2026-04-21",
+  "status": "in-progress",
+  "completion": "25%",
+  "notes": "Consolidated from Phase 1 + Phase 1.5 + Complete specs. Reorganized architecture with completed tasks marked."
+}
