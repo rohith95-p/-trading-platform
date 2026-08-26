@@ -13,13 +13,17 @@ os.environ["ENCRYPTION_KEY"] = "OhmeXCdnlRP9mtBGxUCGganlwKBnvBm2tHt9TngcVw4="
 os.environ.setdefault("JWT_SECRET", "test_jwt_secret_key_for_testing_only_not_for_prod")
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
-from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-from src.data.models import Base
-from src.data.database import get_db
-from src.main import app
-from fastapi.testclient import TestClient
+try:
+    from sqlalchemy import create_engine, event
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+    from src.data.models import Base
+    from src.data.database import get_db
+    from src.main import app
+    from fastapi.testclient import TestClient
+    _HAS_DB = True
+except (ImportError, ModuleNotFoundError):
+    _HAS_DB = False
 
 # Use in-memory SQLite for tests with UUID support
 SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"

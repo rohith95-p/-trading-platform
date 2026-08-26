@@ -11,6 +11,13 @@ description: Pre-trade market analysis workflow and position sizing for XAUUSD (
 - User asks to create a trading plan for Gold
 - User asks to check what's moving Gold
 
+## The "Tomorrow's Plan" Daily Workflow
+When the user asks for "tomorrow's plan" or a daily plan, you must execute the "Global Macro Tracker" workflow:
+1. Fetch 5-day closing prices for the following 6 assets using Yahoo Finance (yfinance):
+   - Gold (GC=F), Silver (SI=F), DXY (DX-Y.NYB), 10Y Yield (^TNX), Crude Oil (CL=F), VIX (^VIX).
+2. Generate or update `c:\projects\ultra_core\docs\plans\DAILY_MARKET_ANALYSIS.md` containing the macro correlations and findings.
+3. Generate or update `c:\projects\ultra_core\docs\plans\DAILY_BATTLE_PLAN.md` with the mathematical strategy setups for both buy and sell directions based on Smart Money Concepts (SMC) and macro gating.
+
 ## Pre-Trade Market Research Checklist
 
 Always research ALL of the following before creating a trading plan:
@@ -60,23 +67,25 @@ Always research ALL of the following before creating a trading plan:
 - London-NY Overlap: 18:30 - 21:30 IST (HIGHEST volatility)
 - Stop trading by: 23:00 IST (for small accounts)
 
-## Position Sizing for Small Accounts ($100-$500)
+## Position Sizing & Institutional Risk Management
 
 ### Exness Symbol Convention
-- Gold symbol: **XAUUSDm** (note lowercase "m" suffix for Standard accounts)
-- 24/7 Gold: **XAUUSD247m**
+- Gold symbol: **XAUUSDm** (Standard accounts: 0.01 lot = 1 ounce)
+- For strict $5 risk limits, users MUST use a **Cent Account** (`XAUUSDc`).
 
-### Lot Size Rules
-| Account Size | Max Lot | Max Risk/Trade | Max Daily Loss |
-|---|---|---|---|
-| $100 | 0.01 | $5 (5%) | $15 (15%) |
-| $200 | 0.02 | $10 (5%) | $30 (15%) |
-| $500 | 0.05 | $25 (5%) | $75 (15%) |
+### The Volatility (ATR) Reality vs Account Size
+Institutions use Average True Range (ATR) to place stop losses outside of market noise. 
+- On a 15m timeframe, Gold's ATR often requires a $20-$30 stop loss distance. 
+- With a minimum 0.01 lot size on a Standard account, this equals a **$20-$30 monetary risk per trade**.
+- Trying to force a fixed $5 stop loss on Gold (50 pips) results in an extremely poor win rate (~37%) due to being stopped out by random volatility. 
 
-### With 1:200 Leverage (Exness)
-- 0.01 lots XAUUSD = ~$23 margin at $4,600/oz
-- Per $1 gold movement at 0.01 lots = $0.01 profit/loss
-- To risk $5: set stop loss ~500 pips ($5) away with 0.01 lots
+| Account Size | Broker Type | Max Lot | Est. Risk/Trade (ATR) | Verdict |
+|---|---|---|---|---|
+| $100 | Standard (m) | 0.01 | ~$25 (25%) | **High Risk** |
+| $100 | Cent (c) | 0.10 | ~$5 (5%) | **Optimal** |
+| $500 | Standard (m) | 0.01 | ~$25 (5%) | **Optimal** |
+
+**Rule of Thumb:** Never use fixed dollar amount stops on volatile assets. Size the position based on the required ATR stop.
 
 ## Strategy Selection by Market Condition
 
@@ -106,3 +115,6 @@ Always research ALL of the following before creating a trading plan:
 3. **Account drops 15% → STOP trading for the day**
 4. **No trading during high-impact news release moment** (wait 2-5 min after)
 5. **Close all positions before sleeping** on small accounts
+
+## Learned Rules
+1. **Timeframe Compression Rule for Small Accounts:** When trading Gold with <$200, NEVER use timeframes higher than M5 (5-minute) for ATR-based momentum strategies. The H1/M15 ATR distances create unacceptable dollar risks at minimum lot sizes. Always scale down to M5 to compress the ATR and keep dollar risk within a $12 cap limit.

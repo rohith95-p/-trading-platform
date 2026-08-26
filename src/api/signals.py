@@ -34,7 +34,7 @@ def analyze_signal(req: SignalRequest):
     if len(req.history) < 200:
         raise HTTPException(status_code=400, detail="Need at least 200 historical candles")
 
-    df = pd.DataFrame([h.dict() for h in req.history])
+    df = pd.DataFrame([h.model_dump() for h in req.history])
     indicators = compute_all_indicators(df)
     
     latest_close = df['close'].iloc[-1]
