@@ -1,0 +1,56 @@
+{
+  "data_hash": "b72ba7b8e968872e",
+  "results": {
+    "NOASIA-1_emastack_native": {
+      "note": "EMA stack, no-Asia, 3.0/1.5 (compare vs MOD-2's 24h)",
+      "in_sample": {
+        "trades": 974,
+        "win_rate": 40.143737166324435,
+        "profit_factor": 1.221236020369648,
+        "expectancy_r": 0.15952648396469435,
+        "net_pl": 1767.4819999996962,
+        "start_balance": 105.74,
+        "end_balance": 1873.2219999996962,
+        "min_balance": 41.102000000000075,
+        "max_dd_pct_of_peak": 79.62576619156133,
+        "daily_limit_breaches": 60,
+        "trading_days": 276,
+        "ruined": false
+      }
+    },
+    "NOASIA-2_emastack_tight": {
+      "note": "EMA stack, no-Asia, 1.5/1.5 (compare vs MOD-3's 24h near-miss)",
+      "in_sample": {
+        "trades": 1825,
+        "win_rate": 56.602739726027394,
+        "profit_factor": 1.1791416226802514,
+        "expectancy_r": 0.10051498693504324,
+        "net_pl": 1896.638999999513,
+        "start_balance": 105.74,
+        "end_balance": 2002.378999999513,
+        "min_balance": 65.5240000000001,
+        "max_dd_pct_of_peak": 42.706868037246856,
+        "daily_limit_breaches": 17,
+        "trading_days": 282,
+        "ruined": false
+      }
+    },
+    "NOASIA-3_hhll_structure": {
+      "note": "HH/HL structure, no-Asia, 3.0/1.5 (compare vs MOD-1's near-ruin)",
+      "in_sample": {
+        "trades": 1110,
+        "win_rate": 39.189189189189186,
+        "profit_factor": 1.1352088755955818,
+        "expectancy_r": 0.12447802681549947,
+        "net_pl": 1233.2049999996807,
+        "start_balance": 105.74,
+        "end_balance": 1338.9449999996807,
+        "min_balance": 19.774999999999395,
+        "max_dd_pct_of_peak": 81.29846794023132,
+        "daily_limit_breaches": 31,
+        "trading_days": 356,
+        "ruined": false
+      }
+    }
+  }
+}

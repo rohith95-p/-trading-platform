@@ -1,0 +1,255 @@
+{
+  "data_hash": "b72ba7b8e968872e",
+  "results": {
+    "XAU-049": {
+      "name": "Range rejection wick [LONDON 3.0/1.5]",
+      "config": {
+        "tp_atr": 3.0,
+        "sl_atr": 1.5,
+        "session": [
+          11.5,
+          15.5
+        ]
+      },
+      "in_sample": {
+        "trades": 127,
+        "win_rate": 38.582677165354326,
+        "profit_factor": 1.1561482344151386,
+        "expectancy_r": 0.15608090753834583,
+        "net_pl": 142.12299999997413,
+        "start_balance": 105.74,
+        "end_balance": 247.86299999997414,
+        "min_balance": 61.87699999999927,
+        "max_dd_pct_of_peak": 75.32755967048742,
+        "daily_limit_breaches": 43,
+        "trading_days": 111,
+        "ruined": false
+      }
+    },
+    "XAU-006": {
+      "name": "EMA stack continuation [ALL 1.5/1.5]",
+      "config": {
+        "tp_atr": 1.5,
+        "sl_atr": 1.5,
+        "session": [
+          11.5,
+          21.5
+        ]
+      },
+      "in_sample": {
+        "trades": 1495,
+        "win_rate": 55.05016722408027,
+        "profit_factor": 1.1664621340070795,
+        "expectancy_r": 0.09740114452086544,
+        "net_pl": 1398.7639999995977,
+        "start_balance": 105.74,
+        "end_balance": 1504.5039999995977,
+        "min_balance": 74.30299999999964,
+        "max_dd_pct_of_peak": 53.67795427636075,
+        "daily_limit_breaches": 25,
+        "trading_days": 235,
+        "ruined": false
+      }
+    },
+    "XAU-003": {
+      "name": "EMA stack continuation [NY 3.0/1.5]",
+      "config": {
+        "tp_atr": 3.0,
+        "sl_atr": 1.5,
+        "session": [
+          17.5,
+          21.5
+        ]
+      },
+      "in_sample": {
+        "trades": 509,
+        "win_rate": 37.524557956778,
+        "profit_factor": 1.1206597905475086,
+        "expectancy_r": 0.11367531042428958,
+        "net_pl": 472.14899999984846,
+        "start_balance": 105.74,
+        "end_balance": 577.8889999998485,
+        "min_balance": 54.59100000000058,
+        "max_dd_pct_of_peak": 75.26639671605517,
+        "daily_limit_breaches": 68,
+        "trading_days": 206,
+        "ruined": false
+      }
+    },
+    "XAU-075": {
+      "name": "Opening range break [NY 3.0/1.5]",
+      "config": {
+        "tp_atr": 3.0,
+        "sl_atr": 1.5,
+        "session": [
+          17.5,
+          21.5
+        ]
+      },
+      "in_sample": {
+        "trades": 492,
+        "win_rate": 40.040650406504064,
+        "profit_factor": 1.1919540559268886,
+        "expectancy_r": 0.18687919251981702,
+        "net_pl": 736.8309999998578,
+        "start_balance": 105.74,
+        "end_balance": 842.5709999998578,
+        "min_balance": 36.90400000000113,
+        "max_dd_pct_of_peak": 79.61960723673968,
+        "daily_limit_breaches": 48,
+        "trading_days": 300,
+        "ruined": false
+      }
+    },
+    "XAU-092": {
+      "name": "Fair value gap [NY 3.0/1.5]",
+      "config": {
+        "tp_atr": 3.0,
+        "sl_atr": 1.5,
+        "session": [
+          17.5,
+          21.5
+        ]
+      },
+      "in_sample": {
+        "trades": 420,
+        "win_rate": 38.80952380952381,
+        "profit_factor": 1.150307595476987,
+        "expectancy_r": 0.147651060898882,
+        "net_pl": 504.6079999998947,
+        "start_balance": 105.74,
+        "end_balance": 610.3479999998947,
+        "min_balance": 71.12199999999734,
+        "max_dd_pct_of_peak": 72.2034189771217,
+        "daily_limit_breaches": 38,
+        "trading_days": 270,
+        "ruined": false
+      }
+    },
+    "XAU-005": {
+      "name": "EMA stack continuation [ALL 3.0/1.5]",
+      "config": {
+        "tp_atr": 3.0,
+        "sl_atr": 1.5,
+        "session": [
+          11.5,
+          21.5
+        ]
+      },
+      "in_sample": {
+        "trades": 838,
+        "win_rate": 39.618138424821005,
+        "profit_factor": 1.2451152737977687,
+        "expectancy_r": 0.1801546511116508,
+        "net_pl": 1562.7789999997462,
+        "start_balance": 105.74,
+        "end_balance": 1668.5189999997463,
+        "min_balance": 55.32999999999923,
+        "max_dd_pct_of_peak": 61.847180382325625,
+        "daily_limit_breaches": 52,
+        "trading_days": 242,
+        "ruined": false
+      }
+    },
+    "XAU-002": {
+      "name": "EMA stack continuation [LONDON 1.5/1.5]",
+      "config": {
+        "tp_atr": 1.5,
+        "sl_atr": 1.5,
+        "session": [
+          11.5,
+          15.5
+        ]
+      },
+      "in_sample": {
+        "trades": 513,
+        "win_rate": 54.19103313840156,
+        "profit_factor": 1.0896428396333189,
+        "expectancy_r": 0.08278054098597101,
+        "net_pl": 257.81199999987575,
+        "start_balance": 105.74,
+        "end_balance": 363.55199999987576,
+        "min_balance": 53.305999999957066,
+        "max_dd_pct_of_peak": 87.5852110626014,
+        "daily_limit_breaches": 49,
+        "trading_days": 173,
+        "ruined": false
+      }
+    },
+    "XAU-026": {
+      "name": "HH/HL structure [NY 3.0/1.5]",
+      "config": {
+        "tp_atr": 3.0,
+        "sl_atr": 1.5,
+        "session": [
+          17.5,
+          21.5
+        ]
+      },
+      "in_sample": {
+        "trades": 498,
+        "win_rate": 38.95582329317269,
+        "profit_factor": 1.1279359663401727,
+        "expectancy_r": 0.15841260532146567,
+        "net_pl": 490.88799999986304,
+        "start_balance": 105.74,
+        "end_balance": 596.627999999863,
+        "min_balance": 76.76499999999874,
+        "max_dd_pct_of_peak": 51.19934253142285,
+        "daily_limit_breaches": 37,
+        "trading_days": 243,
+        "ruined": false
+      }
+    },
+    "XAU-062": {
+      "name": "Squeeze breakout [NY 3.0/1.5]",
+      "config": {
+        "tp_atr": 3.0,
+        "sl_atr": 1.5,
+        "session": [
+          17.5,
+          21.5
+        ]
+      },
+      "in_sample": {
+        "trades": 203,
+        "win_rate": 42.364532019704434,
+        "profit_factor": 1.299590701803673,
+        "expectancy_r": 0.267342321992882,
+        "net_pl": 434.63899999994055,
+        "start_balance": 105.74,
+        "end_balance": 540.3789999999406,
+        "min_balance": 37.60300000000073,
+        "max_dd_pct_of_peak": 68.14465914963138,
+        "daily_limit_breaches": 35,
+        "trading_days": 142,
+        "ruined": false
+      }
+    },
+    "XAU-004": {
+      "name": "EMA stack continuation [NY 1.5/1.5]",
+      "config": {
+        "tp_atr": 1.5,
+        "sl_atr": 1.5,
+        "session": [
+          17.5,
+          21.5
+        ]
+      },
+      "in_sample": {
+        "trades": 767,
+        "win_rate": 53.45501955671447,
+        "profit_factor": 1.0815264458706821,
+        "expectancy_r": 0.06395411886279603,
+        "net_pl": 370.99399999980005,
+        "start_balance": 105.74,
+        "end_balance": 476.73399999980006,
+        "min_balance": 51.05700000000229,
+        "max_dd_pct_of_peak": 73.7358380332642,
+        "daily_limit_breaches": 67,
+        "trading_days": 199,
+        "ruined": false
+      }
+    }
+  }
+}

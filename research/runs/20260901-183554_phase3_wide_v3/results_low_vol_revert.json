@@ -1,0 +1,80 @@
+{
+  "data_hash": "293e23125651c4a5",
+  "results": {
+    "low_vol_revert|ASIA|SL1.5|TP2.0": {
+      "n": 7,
+      "wr": 42.857142857142854,
+      "pf": 1.1066605630578112,
+      "exp_r": -0.0013217286330496744,
+      "net": 3.7279999999968823,
+      "end_bal": 109.46799999999688,
+      "min_bal": 102.48099999999725,
+      "max_dd_pct": 14.296004008518903,
+      "avg_stop_usd": 9.125857142857447,
+      "avg_risk_pct": 8.630468264476496
+    },
+    "low_vol_revert|ASIA|SL1.5|TP3.0": {
+      "n": 7,
+      "wr": 42.857142857142854,
+      "pf": 1.6599622339206805,
+      "exp_r": 0.28438800328496494,
+      "net": 23.06699999999728,
+      "end_bal": 128.8069999999973,
+      "min_bal": 105.74,
+      "max_dd_pct": 13.259299859401457,
+      "avg_stop_usd": 9.125857142857447,
+      "avg_risk_pct": 8.630468264476496
+    },
+    "low_vol_revert|ASIA|SL1.5|TP4.5": {
+      "n": 7,
+      "wr": 42.857142857142854,
+      "pf": 2.4899290455479703,
+      "exp_r": 0.7129594318563729,
+      "net": 52.075999999996384,
+      "end_bal": 157.8159999999964,
+      "min_bal": 105.74,
+      "max_dd_pct": 12.276869442423264,
+      "avg_stop_usd": 9.125857142857447,
+      "avg_risk_pct": 8.630468264476496
+    },
+    "low_vol_revert|ASIA|SL2.0|TP3.0": {
+      "n": 7,
+      "wr": 42.857142857142854,
+      "pf": 1.2456844726897434,
+      "exp_r": 0.07041278897439678,
+      "net": 11.442999999997937,
+      "end_bal": 117.18299999999795,
+      "min_bal": 103.64599999999812,
+      "max_dd_pct": 17.66873992167815,
+      "avg_stop_usd": 12.16800000000025,
+      "avg_risk_pct": 11.507471155665074
+    },
+    "low_vol_revert|ASIA|SL2.0|TP4.0": {
+      "n": 7,
+      "wr": 42.857142857142854,
+      "pf": 1.6608983167295746,
+      "exp_r": 0.28468806296644744,
+      "net": 30.78199999999788,
+      "end_bal": 136.5219999999979,
+      "min_bal": 105.74,
+      "max_dd_pct": 16.773877304778356,
+      "avg_stop_usd": 12.16800000000025,
+      "avg_risk_pct": 11.507471155665074
+    },
+    "low_vol_revert|LATE|SL1.5|TP2.0": null,
+    "low_vol_revert|LATE|SL1.5|TP3.0": null,
+    "low_vol_revert|LATE|SL1.5|TP4.5": null,
+    "low_vol_revert|LATE|SL2.0|TP3.0": null,
+    "low_vol_revert|LATE|SL2.0|TP4.0": null,
+    "low_vol_revert|LONDON|SL1.5|TP2.0": null,
+    "low_vol_revert|LONDON|SL1.5|TP3.0": null,
+    "low_vol_revert|LONDON|SL1.5|TP4.5": null,
+    "low_vol_revert|LONDON|SL2.0|TP3.0": null,
+    "low_vol_revert|LONDON|SL2.0|TP4.0": null,
+    "low_vol_revert|NY|SL1.5|TP2.0": null,
+    "low_vol_revert|NY|SL1.5|TP3.0": null,
+    "low_vol_revert|NY|SL1.5|TP4.5": null,
+    "low_vol_revert|NY|SL2.0|TP3.0": null,
+    "low_vol_revert|NY|SL2.0|TP4.0": null
+  }
+}

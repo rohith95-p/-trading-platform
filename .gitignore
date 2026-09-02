@@ -90,3 +90,13 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# --- rohith-2 cleanup (2026-09-03) ---
+# Regenerable from MT5 via scripts/fetch_history.py -- do not bloat the repo
+research/data/*.npy
+*.npy
+# Backtest scratch output
+logs/*.log
+# Per-trade backtest dumps -- regenerable by re-running the script; keep manifests/summaries
+research/runs/**/trades*.json
+research/runs/**/*trades*.json

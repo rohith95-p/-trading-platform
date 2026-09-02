@@ -1,0 +1,58 @@
+{
+  "ASIA": {
+    "trades": 338,
+    "win_rate": 41.124260355029584,
+    "profit_factor": 0.9491399033823573,
+    "expectancy_r": 0.028201148091500067,
+    "net_pl": -110.08199999999897,
+    "start_balance": 105.74,
+    "end_balance": -4.341999999998961,
+    "min_balance": -4.341999999998961,
+    "max_dd_pct_of_peak": 100.91791994520361,
+    "daily_limit_breaches": 55,
+    "trading_days": 177,
+    "ruined": true
+  },
+  "LONDON": {
+    "trades": 224,
+    "win_rate": 35.267857142857146,
+    "profit_factor": 0.9239329118419357,
+    "expectancy_r": 0.05629251212953083,
+    "net_pl": -113.73300000003064,
+    "start_balance": 105.74,
+    "end_balance": -7.993000000030634,
+    "min_balance": -7.993000000030634,
+    "max_dd_pct_of_peak": 101.63127109754781,
+    "daily_limit_breaches": 66,
+    "trading_days": 181,
+    "ruined": true
+  },
+  "NY": {
+    "trades": 492,
+    "win_rate": 40.040650406504064,
+    "profit_factor": 1.1919540559268886,
+    "expectancy_r": 0.18687919251981702,
+    "net_pl": 736.8309999998578,
+    "start_balance": 105.74,
+    "end_balance": 842.5709999998578,
+    "min_balance": 36.90400000000113,
+    "max_dd_pct_of_peak": 79.61960723673968,
+    "daily_limit_breaches": 48,
+    "trading_days": 300,
+    "ruined": false
+  },
+  "24H": {
+    "trades": 1432,
+    "win_rate": 41.270949720670394,
+    "profit_factor": 1.1489763437866742,
+    "expectancy_r": 0.12197247482803665,
+    "net_pl": 1819.6789999995704,
+    "start_balance": 105.74,
+    "end_balance": 1925.4189999995706,
+    "min_balance": 24.43799999999986,
+    "max_dd_pct_of_peak": 76.88859466616242,
+    "daily_limit_breaches": 59,
+    "trading_days": 389,
+    "ruined": false
+  }
+}

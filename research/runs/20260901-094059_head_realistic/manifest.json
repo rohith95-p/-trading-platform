@@ -1,0 +1,267 @@
+{
+  "run_id": "20260901-094059_head_realistic",
+  "generated_utc": "2026-09-01 09:40:59",
+  "symbol": "XAUUSDm",
+  "config_name": "head",
+  "cost_scenario": "realistic",
+  "cost_model": {
+    "spread_source": "bar",
+    "fixed_spread_points": 260.0,
+    "spread_multiplier": 1.0,
+    "slippage_points": 20.0,
+    "commission_per_lot_roundtrip": 0.0,
+    "swap_long_points": -515.5,
+    "swap_short_points": 0.0,
+    "enable_swap": true,
+    "rollover_hour_utc": 0.0,
+    "triple_swap_weekday": null
+  },
+  "strategies": [
+    "morning_momentum"
+  ],
+  "window": {
+    "start": null,
+    "end": null
+  },
+  "engine_config": {
+    "symbol": "XAUUSDm",
+    "starting_balance": 105.74,
+    "risk_pct": 0.15,
+    "history_bars": 250,
+    "m5_history_bars": 100,
+    "d1_history_bars": 50,
+    "loop_interval_sec": 60,
+    "resignal_interval_sec": 300,
+    "dedup_per_candle": false,
+    "max_concurrent": 3,
+    "max_same_direction": 2,
+    "enable_pyramiding": true,
+    "enable_consolidation_exit": true,
+    "enable_trailing": true,
+    "enable_d1_bias_gate": true,
+    "spread_gate_points": 350.0,
+    "spread_gate_blocks_management": true,
+    "lot_cap": null,
+    "daily_loss_limit_mode": "atr_price",
+    "daily_loss_limit_pct": 0.06,
+    "load_macro_rules": false,
+    "warmup_bars": 260,
+    "min_tradeable_balance": 5.0,
+    "leverage": 200.0,
+    "enforce_margin": true,
+    "margin_call_level_pct": 100.0,
+    "sizing_mode": "live",
+    "tp_atr_mult": null,
+    "trail_activation_atr": null,
+    "trail_distance_atr": null,
+    "sl_atr_mult_override": null,
+    "fixed_lots": 0.01
+  },
+  "data_hash": "293e23125651c4a5",
+  "data_manifests": {
+    "M15": {
+      "sha256": "9e942ec66c01128f1a7e120212749fd5f83fde3a0b7b2fec87b4610c160dd3fd",
+      "bars": 100000,
+      "first": "2022-06-07 11:15:00",
+      "last": "2026-08-31 15:30:00"
+    },
+    "M5": {
+      "sha256": "a98a667f9e9f11bb341ee0a5cbf5aec84c555785dbf7fc0c3dd9d3edde1423d1",
+      "bars": 100000,
+      "first": "2025-04-02 11:40:00",
+      "last": "2026-08-31 15:40:00"
+    },
+    "M1": {
+      "sha256": "4d396e38b85ada86586eb0efc0946776da1fc602e95ebd8f05920f1e369c745d",
+      "bars": 100000,
+      "first": "2026-05-20 14:52:00",
+      "last": "2026-08-31 15:44:00"
+    },
+    "D1": {
+      "sha256": "14f97311c791c48433504bb65da02a9860757903c4dec738afde86468b6570ad",
+      "bars": 1507,
+      "first": "2021-10-27 00:00:00",
+      "last": "2026-08-31 00:00:00"
+    }
+  },
+  "diagnostics": {
+    "signals_generated": 4743,
+    "signals_deduped": 0,
+    "entries_blocked_caps": 12,
+    "entries_blocked_spread": 1739,
+    "entries_blocked_d1_bias": 3469,
+    "duplicate_entries": 25,
+    "pyramid_entries": 30,
+    "ambiguous_bars": 7,
+    "management_skipped_spread": 1739,
+    "daily_shutdowns": 48,
+    "bars_without_m1": 93061,
+    "entries_blocked_insufficient_equity": 0,
+    "entries_blocked_margin": 3252,
+    "same_candle_refires": 0,
+    "swap_nights_charged": 0,
+    "swap_paid": 0.0
+  },
+  "stats": {
+    "trades": 169,
+    "wins": 87,
+    "losses": 82,
+    "scratches": 0,
+    "win_rate": 51.48,
+    "gross_profit": 1063.86,
+    "gross_loss": 1161.88,
+    "net_pl": -98.02,
+    "profit_factor": 0.916,
+    "expectancy": -0.58,
+    "avg_win": 12.23,
+    "avg_loss": 14.17,
+    "median_win": 9.54,
+    "median_loss": 14.23,
+    "payoff_ratio": 0.863,
+    "breakeven_win_rate": 53.67,
+    "win_rate_margin": -2.19,
+    "total_r": 0.411,
+    "expectancy_r": 0.0024,
+    "avg_win_r": 0.955,
+    "avg_loss_r": 1.008,
+    "max_drawdown": 205.36,
+    "max_drawdown_pct": 96.38,
+    "max_drawdown_duration_days": 118.0,
+    "recovery_factor": -0.477,
+    "max_consec_wins": 7,
+    "max_consec_losses": 11,
+    "avg_mae_r": -0.885,
+    "avg_mfe_r": 0.945,
+    "mfe_capture": 0.003,
+    "avg_minutes_open": 3.2,
+    "median_minutes_open": 2.0,
+    "avg_minutes_to_mfe": 2.2,
+    "duplicate_trades": 25,
+    "duplicate_pl": -128.06,
+    "pyramid_trades": 30,
+    "pyramid_pl": -27.6,
+    "ambiguous_trades": 129,
+    "exit_reasons": {
+      "SL": 152,
+      "TP": 17
+    },
+    "by_session": {
+      "LONDON_OPEN": {
+        "trades": 157,
+        "wins": 80,
+        "net_pl": -105.35,
+        "gross_profit": 969.58,
+        "gross_loss": 1074.93,
+        "win_rate": 51.0,
+        "profit_factor": 0.902
+      },
+      "LONDON_NY_OVERLAP": {
+        "trades": 11,
+        "wins": 7,
+        "net_pl": 24.07,
+        "gross_profit": 94.28,
+        "gross_loss": 70.21,
+        "win_rate": 63.6,
+        "profit_factor": 1.343
+      },
+      "NY_MORNING": {
+        "trades": 1,
+        "wins": 0,
+        "net_pl": -16.74,
+        "gross_profit": 0.0,
+        "gross_loss": 16.74,
+        "win_rate": 0.0,
+        "profit_factor": 0.0
+      }
+    },
+    "by_month": {
+      "2022-06": {
+        "trades": 31,
+        "wins": 17,
+        "net_pl": -21.84,
+        "gross_profit": 183.74,
+        "gross_loss": 205.57,
+        "win_rate": 54.8,
+        "profit_factor": 0.894
+      },
+      "2022-07": {
+        "trades": 48,
+        "wins": 26,
+        "net_pl": -21.18,
+        "gross_profit": 337.95,
+        "gross_loss": 359.13,
+        "win_rate": 54.2,
+        "profit_factor": 0.941
+      },
+      "2022-08": {
+        "trades": 48,
+        "wins": 29,
+        "net_pl": 103.36,
+        "gross_profit": 367.24,
+        "gross_loss": 263.88,
+        "win_rate": 60.4,
+        "profit_factor": 1.392
+      },
+      "2022-09": {
+        "trades": 27,
+        "wins": 14,
+        "net_pl": -53.6,
+        "gross_profit": 169.1,
+        "gross_loss": 222.7,
+        "win_rate": 51.9,
+        "profit_factor": 0.759
+      },
+      "2022-10": {
+        "trades": 15,
+        "wins": 1,
+        "net_pl": -104.76,
+        "gross_profit": 5.83,
+        "gross_loss": 110.6,
+        "win_rate": 6.7,
+        "profit_factor": 0.053
+      }
+    },
+    "by_strategy": {
+      "MORNING_MOMENTUM": {
+        "trades": 169,
+        "wins": 87,
+        "net_pl": -98.02,
+        "gross_profit": 1063.86,
+        "gross_loss": 1161.88,
+        "win_rate": 51.5,
+        "profit_factor": 0.916
+      }
+    },
+    "start_balance": 105.74,
+    "end_balance": 7.72,
+    "return_pct": -92.7
+  },
+  "confidence": {
+    "bootstrap_expectancy": {
+      "mean": -0.5789,
+      "p05": -2.4096,
+      "p50": -0.6112,
+      "p95": 1.2782,
+      "prob_negative": 0.695
+    },
+    "monte_carlo": {
+      "median_max_dd": 244.06,
+      "p95_max_dd": 351.15,
+      "worst_max_dd": 483.16,
+      "median_final": 7.72,
+      "p05_final": 7.72,
+      "prob_50pct_drawdown": 1.0,
+      "prob_final_below_start": 1.0
+    },
+    "outlier_dependence": {
+      "net_pl": -98.02,
+      "drop_best_1": -134.89,
+      "drop_worst_1": -64.48,
+      "drop_best_3": -204.61,
+      "drop_worst_3": -10.66,
+      "drop_best_5": -264.49,
+      "drop_worst_5": 36.95,
+      "top3_share_of_gross_profit": 10.0
+    }
+  }
+}

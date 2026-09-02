@@ -1,0 +1,12 @@
+{
+  "candidate": "XV2-025",
+  "family": "session_reversal",
+  "session": [
+    21.5,
+    26.5
+  ],
+  "tp_atr": 2.6,
+  "sl_atr": 0.55,
+  "bias": "both",
+  "stats": null
+}

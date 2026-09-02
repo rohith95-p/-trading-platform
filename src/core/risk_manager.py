@@ -3,7 +3,7 @@ RiskManager -- THE INTELLIGENT HEART.
 
 Zero hardcoded limits. Every single threshold scales with ATR(14).
   - Dynamic session multiplier (IST-based: 1.5x London/NY, 2.0x Asia)
-  - Dynamic daily drawdown cap (1.5 * D1 ATR)
+  - Daily drawdown cap as a fraction of balance, including floating P/L
   - ATR-based SL/TP/trailing/consolidation
   - Pyramiding gate (add to winners at 0.5x ATR profit)
 """
@@ -26,12 +26,35 @@ IST = timezone(timedelta(hours=5, minutes=30))
 # ATR multipliers (never hardcoded dollar values)
 # ---------------------------------------------------------------------------
 TP_ATR_MULTIPLIER = 3.0         # TP = 3.0x ATR (always 1:2 R:R)
-TRAIL_ACTIVATION_ATR = 1.5      # Trail activates at 1.5x ATR profit
-TRAIL_DISTANCE_ATR = 0.5        # Trail distance = 0.5x ATR behind price
+TRAIL_ACTIVATION_ATR = 0.7      # Trail activates at 0.7x ATR profit
+TRAIL_DISTANCE_ATR = 0.3        # Trail distance = 0.3x ATR behind price
 CONSOLIDATION_SHRINK_PCT = 0.30 # Close if ATR shrinks >30% over 3 candles
-DAILY_DRAWDOWN_ATR_MULT = 1.5   # Daily loss limit = 1.5x D1 ATR
 PYRAMID_THRESHOLD_ATR = 0.5     # Add to winner at 0.5x ATR profit
-MAX_CONCURRENT_POSITIONS = 2    # Max open positions (leverage guard)
+
+# ---------------------------------------------------------------------------
+# Account-level risk
+# ---------------------------------------------------------------------------
+# CRIT-4: the daily loss limit used to be `1.5 * D1_ATR`, comparing account
+# currency (P/L in USD) against a price quantity (USD per ounce). The two are
+# dimensionally unrelated. With gold's daily ATR near $50 it evaluated to a flat
+# -$75 regardless of account size: ~70% of a $105 account, 0.75% of a $10,000
+# one. It is now a fraction of balance, which is what it was always meant to be.
+DAILY_LOSS_LIMIT_PCT = 0.06     # Halt for the day after -6% of balance
+
+# RISK PER TRADE. Backtesting on 17 months of broker data shows this is the
+# single largest threat to the account: at 0.15 the minimum tradeable position
+# on XAUUSDm already risks 15-20% of a $105 balance, and three losses in a row
+# is roughly -45%. Left at the documented value pending an explicit decision --
+# see account_growth_rule.md. 0.02 or lower is the defensible setting, and it
+# only becomes reachable above roughly $800 of balance because the broker's
+# 0.01 lot floor sets a hard minimum risk of ~$15.84 per trade at current ATR.
+DEFAULT_RISK_PCT = 0.15
+
+MAX_SPREAD_POINTS = 350         # ~$0.35 on XAUUSDm (digits=3, point=0.001)
+
+# NOTE: the enforced concurrent-position limit lives in ExecutionHandler and is
+# 3, not 2. The constant that used to sit here was never read by anything and
+# has been removed rather than left to contradict the code.
 
 # Session definitions (IST hours)
 # London Open (GOLDEN):   11:30 - 15:30 IST  -> mult 1.5
@@ -175,11 +198,18 @@ class RiskManager:
         is_buy: bool,
         m15_rates: np.ndarray,
         multiplier: Optional[float] = None,
+        tp_multiplier: Optional[float] = None,
     ) -> Optional[StopLevels]:
         """Calculate dynamic ATR-based SL, TP, trailing params.
 
         Returns a StopLevels dataclass with all calculated values.
         The multiplier is auto-detected from the current IST session if not provided.
+
+        tp_multiplier: per-call override for the take-profit distance, same
+        idea as `multiplier` for the stop. None (default) keeps the module
+        constant `TP_ATR_MULTIPLIER` -- existing callers are unaffected.
+        Added for portfolio strategies whose validated config uses a
+        different TP than the shared default (rohith phase 3, 2026-09-01).
         """
         curr_atr = self.get_latest_atr(m15_rates)
         if curr_atr is None or curr_atr == 0:
@@ -190,7 +220,7 @@ class RiskManager:
             multiplier = self.get_session_multiplier()
 
         sl_dist = multiplier * curr_atr
-        tp_dist = TP_ATR_MULTIPLIER * curr_atr
+        tp_dist = (tp_multiplier if tp_multiplier is not None else TP_ATR_MULTIPLIER) * curr_atr
         trail_activation = TRAIL_ACTIVATION_ATR * curr_atr
         trail_distance = TRAIL_DISTANCE_ATR * curr_atr
 
@@ -222,7 +252,7 @@ class RiskManager:
     # ------------------------------------------------------------------
 
     def calculate_dynamic_lot_size(
-        self, entry_price: float, sl_price: float, risk_pct: float = 0.15
+        self, entry_price: float, sl_price: float, risk_pct: float = DEFAULT_RISK_PCT
     ) -> float:
         """Calculate the exact lot size based on account balance and SL distance.
         
@@ -276,31 +306,59 @@ class RiskManager:
     # C. Dynamic daily drawdown cap
     # ------------------------------------------------------------------
 
-    def check_daily_drawdown(self, d1_rates: np.ndarray, todays_pl: float) -> bool:
-        """Check if today's losses have breached the dynamic daily limit.
+    def check_daily_drawdown(
+        self,
+        d1_rates: Optional[np.ndarray] = None,
+        todays_pl: float = 0.0,
+        floating_pl: float = 0.0,
+        balance: Optional[float] = None,
+    ) -> bool:
+        """Check whether today's loss has breached the daily limit.
 
-        Daily loss limit = 1.5 * D1 ATR(14).
-        Returns True if trading is still allowed, False if shut down.
+        Limit is DAILY_LOSS_LIMIT_PCT of account balance, and it counts open
+        positions. The previous version compared account currency against a
+        price-unit ATR (CRIT-4), ignored unrealised loss entirely, and returned
+        True when the D1 fetch failed -- so it could sit at -40% floating and
+        keep opening trades.
+
+        Args:
+            d1_rates: Unused; retained so existing call sites keep working.
+            todays_pl: Realised P/L since midnight IST.
+            floating_pl: Unrealised P/L on open positions.
+            balance: Account balance; read from the terminal when omitted.
+
+        Returns:
+            True if trading may continue, False to shut down for the day.
         """
-        daily_atr = self.get_latest_atr(d1_rates)
-        if daily_atr is None:
-            log.warning("Cannot calculate D1 ATR. Allowing trades as fallback.")
-            return True
+        if balance is None:
+            account = mt5.account_info()
+            if account is None:
+                # Fail CLOSED. An unknown balance is not a licence to trade.
+                log.error("account_info() unavailable -- halting trading for safety.")
+                return False
+            balance = float(account.balance)
 
-        daily_loss_limit = DAILY_DRAWDOWN_ATR_MULT * daily_atr
+        if balance <= 0:
+            log.error(f"Balance is ${balance:.2f}. Halting.")
+            return False
 
-        if todays_pl < 0 and abs(todays_pl) >= daily_loss_limit:
+        total_pl = todays_pl + floating_pl
+        daily_loss_limit = DAILY_LOSS_LIMIT_PCT * balance
+
+        if total_pl < 0 and abs(total_pl) >= daily_loss_limit:
             log.warning(
-                f"DAILY DRAWDOWN HIT: Today's P/L ${todays_pl:.2f} "
-                f">= limit -${daily_loss_limit:.2f} (1.5 * D1_ATR ${daily_atr:.2f}). "
+                f"DAILY DRAWDOWN HIT: today's P/L ${total_pl:.2f} "
+                f"(realised ${todays_pl:.2f} + floating ${floating_pl:.2f}) "
+                f">= limit -${daily_loss_limit:.2f} "
+                f"({DAILY_LOSS_LIMIT_PCT:.0%} of ${balance:.2f}). "
                 f"SHUTTING DOWN until midnight IST."
             )
             return False
 
-        remaining = daily_loss_limit - abs(min(todays_pl, 0))
         log.debug(
-            f"Drawdown check: P/L=${todays_pl:.2f}, "
-            f"Limit=-${daily_loss_limit:.2f}, Remaining=${remaining:.2f}"
+            f"Drawdown check: total P/L=${total_pl:.2f}, "
+            f"limit=-${daily_loss_limit:.2f}, "
+            f"remaining=${daily_loss_limit - abs(min(total_pl, 0)):.2f}"
         )
         return True
 
@@ -351,7 +409,14 @@ class RiskManager:
     # ------------------------------------------------------------------
 
     def should_exit_consolidation(self, rates: np.ndarray) -> bool:
-        """Return True if ATR has shrunk >30% over the last 3 candles."""
+        """Return True if ATR has shrunk >30% over the last 3 candles.
+
+        MED-13: across 17 months and 1,688 backtested trades this never returned
+        True, so it is presently dead code. It is also position-independent --
+        if it ever did fire, main_loop would close every open position at once.
+        Left in place rather than silently removed, but it should not be counted
+        as an active risk control.
+        """
         atr = self.calc_atr(rates)
         valid = atr[~np.isnan(atr)]
         if len(valid) < 4:
@@ -367,7 +432,7 @@ class RiskManager:
     # Spread filter
     # ------------------------------------------------------------------
 
-    def is_spread_ok(self, max_spread: int = 350) -> bool:
+    def is_spread_ok(self, max_spread: int = MAX_SPREAD_POINTS) -> bool:
         """Return True if the current spread is within acceptable limits."""
         info = mt5.symbol_info(self.symbol)
         if info is None:

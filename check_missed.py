@@ -1,11 +1,13 @@
-import MetaTrader5 as mt5
+import MetaTrader5 as _mt5
+from typing import Any
+mt5: Any = _mt5
 from datetime import datetime, timezone, timedelta
 import logging
 
 from src.core.data_fetcher import DataFetcher
-from src.strategies.morning_momentum import MorningMomentum
-from src.strategies.ema_pullback import EMAPullback
-from src.strategies.asian_sweep import AsianSweep
+from src.strategies.archive.morning_momentum import MorningMomentum
+from src.strategies.archive.ema_pullback import EMAPullback
+from src.strategies.archive.asian_sweep import AsianSweep
 from src.strategies.supertrend_ema import SupertrendEMA
 
 IST = timezone(timedelta(hours=5, minutes=30))

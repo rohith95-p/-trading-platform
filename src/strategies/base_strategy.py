@@ -103,3 +103,30 @@ class BaseStrategy(ABC):
             end_idx = min(start_idx + len(valid_sig), len(full_sig))
             full_sig[start_idx:end_idx] = valid_sig[: end_idx - start_idx]
         return macd_line, full_sig
+
+    @staticmethod
+    def atr(highs: np.ndarray, lows: np.ndarray, closes: np.ndarray, period: int = 14) -> np.ndarray:
+        """Average True Range."""
+        highs = np.asarray(highs, dtype=float)
+        lows = np.asarray(lows, dtype=float)
+        closes = np.asarray(closes, dtype=float)
+        
+        tr = np.maximum(
+            highs - lows,
+            np.maximum(
+                np.abs(highs - np.roll(closes, 1)),
+                np.abs(lows - np.roll(closes, 1))
+            )
+        )
+        tr[0] = highs[0] - lows[0]
+        
+        atr = np.zeros_like(closes)
+        if len(closes) < period:
+            atr[:] = np.nan
+            return atr
+            
+        atr[period-1] = np.mean(tr[:period])
+        for i in range(period, len(closes)):
+            atr[i] = (atr[i-1] * (period - 1) + tr[i]) / period
+        atr[:period-1] = np.nan
+        return atr

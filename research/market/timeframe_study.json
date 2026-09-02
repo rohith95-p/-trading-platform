@@ -1,0 +1,202 @@
+{
+  "M15": {
+    "bars": 33234,
+    "window": "2025-04-03..2026-08-29",
+    "autocorr": {
+      "lag_1": 0.00073,
+      "lag_2": 0.00017,
+      "lag_4": -0.01874,
+      "lag_8": -0.00795
+    },
+    "follow_through_4": {
+      "trigger_move_atr": 1.0,
+      "lookahead_bars": 4,
+      "n": 5006,
+      "continuation_rate": 0.4826,
+      "mean_forward_atr": -0.0159,
+      "median_forward_atr": -0.0538
+    },
+    "follow_through_16": {
+      "trigger_move_atr": 1.0,
+      "lookahead_bars": 16,
+      "n": 1754,
+      "continuation_rate": 0.5063,
+      "mean_forward_atr": 0.0428,
+      "median_forward_atr": 0.0477
+    },
+    "barriers": [
+      {
+        "tp_atr": 1.5,
+        "sl_atr": 1.5,
+        "wins": 1507,
+        "losses": 1492,
+        "timeouts": 1,
+        "observed_win_rate": 0.5025,
+        "random_walk_win_rate": 0.5,
+        "excess": 0.0025,
+        "expectancy_R": 0.005
+      },
+      {
+        "tp_atr": 3.0,
+        "sl_atr": 1.5,
+        "wins": 1051,
+        "losses": 1938,
+        "timeouts": 11,
+        "observed_win_rate": 0.3516,
+        "random_walk_win_rate": 0.3333,
+        "excess": 0.0183,
+        "expectancy_R": 0.0549
+      }
+    ]
+  },
+  "H1": {
+    "bars": 8315,
+    "window": "2025-04-03..2026-08-29",
+    "autocorr": {
+      "lag_1": -0.01797,
+      "lag_2": -0.013,
+      "lag_4": 0.00983,
+      "lag_8": 0.02292
+    },
+    "follow_through_4": {
+      "trigger_move_atr": 1.0,
+      "lookahead_bars": 4,
+      "n": 1256,
+      "continuation_rate": 0.4944,
+      "mean_forward_atr": 0.0577,
+      "median_forward_atr": -0.02
+    },
+    "follow_through_16": {
+      "trigger_move_atr": 1.0,
+      "lookahead_bars": 16,
+      "n": 434,
+      "continuation_rate": 0.5138,
+      "mean_forward_atr": 0.1863,
+      "median_forward_atr": 0.177
+    },
+    "barriers": [
+      {
+        "tp_atr": 1.5,
+        "sl_atr": 1.5,
+        "wins": 1552,
+        "losses": 1448,
+        "timeouts": 0,
+        "observed_win_rate": 0.5173,
+        "random_walk_win_rate": 0.5,
+        "excess": 0.0173,
+        "expectancy_R": 0.0347
+      },
+      {
+        "tp_atr": 3.0,
+        "sl_atr": 1.5,
+        "wins": 1093,
+        "losses": 1900,
+        "timeouts": 7,
+        "observed_win_rate": 0.3652,
+        "random_walk_win_rate": 0.3333,
+        "excess": 0.0319,
+        "expectancy_R": 0.0956
+      }
+    ]
+  },
+  "H4": {
+    "bars": 7456,
+    "window": "full history",
+    "autocorr": {
+      "lag_1": 0.02074,
+      "lag_2": -0.01035,
+      "lag_4": 0.01154,
+      "lag_8": -0.00891
+    },
+    "follow_through_4": {
+      "trigger_move_atr": 1.0,
+      "lookahead_bars": 4,
+      "n": 1149,
+      "continuation_rate": 0.5065,
+      "mean_forward_atr": 0.0679,
+      "median_forward_atr": 0.0252
+    },
+    "follow_through_16": {
+      "trigger_move_atr": 1.0,
+      "lookahead_bars": 16,
+      "n": 392,
+      "continuation_rate": 0.5255,
+      "mean_forward_atr": 0.4014,
+      "median_forward_atr": 0.262
+    },
+    "barriers": [
+      {
+        "tp_atr": 1.5,
+        "sl_atr": 1.5,
+        "wins": 1505,
+        "losses": 1495,
+        "timeouts": 0,
+        "observed_win_rate": 0.5017,
+        "random_walk_win_rate": 0.5,
+        "excess": 0.0017,
+        "expectancy_R": 0.0033
+      },
+      {
+        "tp_atr": 3.0,
+        "sl_atr": 1.5,
+        "wins": 1134,
+        "losses": 1864,
+        "timeouts": 2,
+        "observed_win_rate": 0.3783,
+        "random_walk_win_rate": 0.3333,
+        "excess": 0.0449,
+        "expectancy_R": 0.1348
+      }
+    ]
+  },
+  "D1": {
+    "bars": 1507,
+    "window": "full history",
+    "autocorr": {
+      "lag_1": 0.00028,
+      "lag_2": -0.07784,
+      "lag_4": 0.03608,
+      "lag_8": -0.027
+    },
+    "follow_through_4": {
+      "trigger_move_atr": 1.0,
+      "lookahead_bars": 4,
+      "n": 213,
+      "continuation_rate": 0.493,
+      "mean_forward_atr": 0.0943,
+      "median_forward_atr": -0.0262
+    },
+    "follow_through_16": {
+      "trigger_move_atr": 1.0,
+      "lookahead_bars": 16,
+      "n": 70,
+      "continuation_rate": 0.5286,
+      "mean_forward_atr": 0.3316,
+      "median_forward_atr": 0.0897
+    },
+    "barriers": [
+      {
+        "tp_atr": 1.5,
+        "sl_atr": 1.5,
+        "wins": 734,
+        "losses": 425,
+        "timeouts": 0,
+        "observed_win_rate": 0.6333,
+        "random_walk_win_rate": 0.5,
+        "excess": 0.1333,
+        "expectancy_R": 0.2666
+      },
+      {
+        "tp_atr": 3.0,
+        "sl_atr": 1.5,
+        "wins": 573,
+        "losses": 586,
+        "timeouts": 0,
+        "observed_win_rate": 0.4944,
+        "random_walk_win_rate": 0.3333,
+        "excess": 0.1611,
+        "expectancy_R": 0.4832
+      }
+    ]
+  }
+}

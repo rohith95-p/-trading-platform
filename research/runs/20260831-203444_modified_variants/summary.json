@@ -1,0 +1,56 @@
+{
+  "data_hash": "b72ba7b8e968872e",
+  "results": {
+    "MOD-1_hhll_24h_3.0_1.5": {
+      "name": "HH/HL structure [24h 3.0/1.5]",
+      "in_sample": {
+        "trades": 7,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "expectancy_r": -1.0012442626916098,
+        "net_pl": -114.91700000000037,
+        "start_balance": 105.74,
+        "end_balance": -9.177000000000376,
+        "min_balance": -9.177000000000376,
+        "max_dd_pct_of_peak": 108.678834878003,
+        "daily_limit_breaches": 6,
+        "trading_days": 6,
+        "ruined": true
+      }
+    },
+    "MOD-2_emastack_24h_3.0_1.5": {
+      "name": "EMA stack [24h 3.0/1.5] (sanity check vs live EMA_STACK)",
+      "in_sample": {
+        "trades": 1436,
+        "win_rate": 44.01114206128134,
+        "profit_factor": 1.3192505700786108,
+        "expectancy_r": 0.20302256591399223,
+        "net_pl": 3769.0169999995614,
+        "start_balance": 105.74,
+        "end_balance": 3874.7569999995617,
+        "min_balance": 71.73699999999984,
+        "max_dd_pct_of_peak": 32.15717798373384,
+        "daily_limit_breaches": 9,
+        "trading_days": 316,
+        "ruined": false
+      }
+    },
+    "MOD-3_xau006_24h": {
+      "name": "EMA stack [24h 1.5/1.5] (widen the best fixed-TP performer)",
+      "in_sample": {
+        "trades": 2751,
+        "win_rate": 59.43293347873501,
+        "profit_factor": 1.2211207327946139,
+        "expectancy_r": 0.11092521004027601,
+        "net_pl": 3537.184999999275,
+        "start_balance": 105.74,
+        "end_balance": 3642.924999999275,
+        "min_balance": 10.047999999999988,
+        "max_dd_pct_of_peak": 91.12030188145674,
+        "daily_limit_breaches": 14,
+        "trading_days": 328,
+        "ruined": false
+      }
+    }
+  }
+}
