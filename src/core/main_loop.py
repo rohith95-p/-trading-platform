@@ -9,6 +9,12 @@ PHILOSOPHY:
   - portfolio_v4: four session-specialist legs (Asia/London/NY).
   - Direction gated by the D1 EMA20 bias; sessions in IST.
 
+Resilience (src/core/resilience.py -- does not affect trading):
+  - single-instance lockfile
+  - kill switch: create a file named STOP in the project root -> flatten + halt
+  - heartbeat file (logs/heartbeat), loop-state persistence (logs/loop_state.json)
+  - startup safety check (right account, tradeable), MT5 auto-reconnect
+
 Run:
     python -m src.core.main_loop
 """
@@ -25,6 +31,7 @@ mt5: Any = _mt5
 from src.core.data_fetcher import DataFetcher
 from src.core.risk_manager import RiskManager
 from src.core.execution_handler import ExecutionHandler, FIXED_LOT_SIZE
+from src.core import resilience
 # MorningMomentum (grade H), EMAPullback (grade E), AsianSweep (grade E) were
 # archived to src/strategies/archive/ on 2026-09-01 (rohith phase 3): all three
 # scored below the random-entry control (HYP-020) and MorningMomentum's 83%
@@ -99,11 +106,36 @@ def _calc_ema(closes: np.ndarray, period: int) -> np.ndarray:
     return ema
 
 
+def _close_all_positions(fetcher, executor, reason: str) -> None:
+    """Flatten every open position on the symbol (kill switch)."""
+    for pos in fetcher.get_positions():
+        if executor.close_position(pos):
+            log.warning(f"KILL SWITCH: closed #{pos.ticket} ({reason})")
+        else:
+            log.error(f"KILL SWITCH: FAILED to close #{pos.ticket} -- close it manually.")
+
+
 def run():
     """Main entry point."""
 
+    # Single-instance guard -- refuse to start if another main_loop is alive.
+    if not resilience.acquire_lock():
+        return
+
+    try:
+        _run_guarded()
+    finally:
+        resilience.release_lock()
+
+
+def _run_guarded():
     if not mt5.initialize():
         log.error("MT5 initialisation failed. Exiting.")
+        return
+
+    # Startup safety: right account, tradeable connection, symbol present.
+    if not resilience.startup_safety_check(mt5, SYMBOL):
+        log.error("Startup safety check FAILED. Not trading. Fix the above and restart.")
         return
 
     # --- Modules ---
@@ -127,6 +159,19 @@ def run():
     # refuse to act on it twice.
     last_fired_candle: dict = {s.name: None for s in strategies}
 
+    # Restore loop state so a restart mid-candle can't re-fire a signal.
+    _saved = resilience.load_state()
+    if _saved.get("last_fired_candle"):
+        for name, candle in _saved["last_fired_candle"].items():
+            if name in last_fired_candle:
+                last_fired_candle[name] = candle
+    if _saved.get("drawdown_shutdown") and _saved.get("shutdown_date") == str(datetime.now(IST).date()):
+        drawdown_shutdown = True
+        shutdown_date = datetime.now(IST).date()
+        log.info("STATE: daily drawdown shutdown restored for today.")
+
+    mt5_fail_count = 0
+
     log.info("=" * 60)
     log.info("Ultra Core v3 -- Final Boss Engine")
     log.info(f"Symbol: {SYMBOL}")
@@ -135,13 +180,24 @@ def run():
     log.info(f"Daily loss cap: 6% of balance | Session: IST-adaptive")
     log.info(f"Trailing: {'ON' if ENABLE_TRAILING else 'OFF'} | "
              f"Pyramiding: {'ON' if ENABLE_PYRAMIDING else 'OFF'}")
+    log.info(f"Resilience: lock={resilience.LOCK_FILE} | kill switch=create '{resilience.STOP_FILE}'")
     log.info("=" * 60)
     print(f"\n[{_ist_now()}] >>> Ultra Core v3 is LIVE.\n")
 
     while True:
         try:
             now_ist = datetime.now(IST)
-            now_utc = datetime.now(timezone.utc)
+            resilience.heartbeat()
+            resilience.save_state(last_fired_candle, drawdown_shutdown, shutdown_date)
+
+            # ----------------------------------------------------------
+            # Kill switch: STOP file in the project root -> flatten + halt
+            # ----------------------------------------------------------
+            if resilience.kill_switch_active():
+                log.warning("KILL SWITCH ACTIVE (STOP file present). Flattening and halting.")
+                print(f"[{_ist_now()}] KILL SWITCH -- closing all positions, halting.")
+                _close_all_positions(fetcher, executor, "STOP file")
+                break
 
             # ----------------------------------------------------------
             # Reset drawdown shutdown at midnight IST
@@ -200,7 +256,9 @@ def run():
             m15_rates = fetcher.get_m15_rates(250)
             m5_rates = fetcher.get_m5_rates(100)
 
-            if m15_rates is None or len(m15_rates) < 200:
+            got_data = m15_rates is not None and len(m15_rates) >= 200
+            mt5_fail_count = resilience.note_fetch_result(mt5, got_data, mt5_fail_count)
+            if not got_data:
                 _time.sleep(LOOP_INTERVAL)
                 continue
 

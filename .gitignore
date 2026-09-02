@@ -100,3 +100,6 @@ logs/*.log
 # Per-trade backtest dumps -- regenerable by re-running the script; keep manifests/summaries
 research/runs/**/trades*.json
 research/runs/**/*trades*.json
+
+# kill switch (local only)
+STOP
