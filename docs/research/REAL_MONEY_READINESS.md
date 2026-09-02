@@ -246,6 +246,13 @@ ladder require the full validation cycle.
 
 *A bot that silently dies at 3 a.m. is worse than no bot.*
 
+> **Status 2026-09-03 (rohith-2):** IV.2, IV.3, IV.5, IV.7 and the kill switch
+> (III.6) are **implemented and tested** — `src/core/resilience.py`, hooked into
+> `main_loop._run_guarded()`. `scripts/watchdog.py` exists (IV.1) but is not
+> auto-started and has **no alert channel** yet. IV.4 (external heartbeat
+> monitor), IV.6 (weekend/rollover/maintenance), IV.8 (structured logging) and
+> IV.9 (daily report) are still to do.
+
 ### IV.1 Watchdog + auto-restart
 - A separate supervisor (Windows Task Scheduler entry, or a tiny `watchdog.py`)
   that checks `main_loop` is alive every 60 s, restarts it on death, and
