@@ -1,6 +1,12 @@
 # MetaTrader MCP Troubleshooting
 
-When diagnosing MetaTrader MCP trade execution failures, check these in order:
+> **Note:** the live bot (`src.core.main_loop`) executes through the
+> **`MetaTrader5` Python package directly**, not through MCP. MCP is used only
+> for ad-hoc queries and the `mt5-trade-auditor` skill. Execution failures in
+> the bot show up in `logs/main_loop.log`, not as MCP errors — but the error
+> codes below are the same.
+
+When diagnosing MetaTrader trade execution failures, check these in order:
 
 1. **Error 10027 (AutoTrading disabled by client):** The Algo Trading button in MT5 toolbar is turned off. User must re-enable it. Note: It auto-disables when switching accounts if "Disable algorithmic trading when the account has been changed" is checked in Tools > Options > Expert Advisors.
 
