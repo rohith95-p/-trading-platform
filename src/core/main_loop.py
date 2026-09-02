@@ -28,7 +28,7 @@ from src.core.execution_handler import ExecutionHandler, FIXED_LOT_SIZE
 # MorningMomentum (grade H), EMAPullback (grade E), AsianSweep (grade E) were
 # archived to src/strategies/archive/ on 2026-09-01 (rohith phase 3): all three
 # scored below the random-entry control (HYP-020) and MorningMomentum's 83%
-# claim was never reproducible (HYP-006). See docs/STRATEGY_REGISTRY.md.
+# claim was never reproducible (HYP-006). See docs/research/STRATEGY_REGISTRY.md.
 # EMAStack (rohith phase 2, HYP-027) superseded 2026-09-01 by the 4-leg
 # portfolio below -- kept in src/strategies/ema_stack.py for reference but
 # no longer imported here.
