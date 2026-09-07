@@ -37,6 +37,7 @@ import numpy as np
 from src.backtesting.costs import CostModel
 from src.backtesting.data import BarSet, SymbolSpec
 from src.research.market_study import time_of_day_atr
+import src.core.market_hours as market_hours
 
 log = logging.getLogger(__name__)
 
@@ -182,6 +183,35 @@ class EngineConfig:
     enable_consolidation_exit: bool = True
     enable_trailing: bool = True
     enable_d1_bias_gate: bool = True
+    # Direction gate variant (rohith-2 research). "d1_ema20" reproduces HEAD.
+    #   "d1_ema20"     : daily close vs D1 EMA20 (current live)
+    #   "d1_ema10"     : faster daily
+    #   "structure"    : BigBeluga M15 structure trend (src/research/structure.py)
+    #   "both"         : d1_ema20 AND M15 structure must agree
+    #   "d1_proximity" : d1_ema20, BUT allow both directions when the D1 close is
+    #                    within gate_prox_atr * D1_ATR14 of the EMA20 (transition
+    #                    zone -- the "macro might be flipping" case)
+    #   "h4_structure" : structure trend on H4 bars (needs H4 data)
+    #   "d1_choch"     : d1_ema20, BUT allow a counter-daily trade if an H4
+    #                    structure flip (CHoCH) fired in that direction within
+    #                    the last choch_lookback_h4 H4 bars
+    # Only consulted when enable_d1_bias_gate is True.
+    direction_gate: str = "d1_ema20"
+    structure_len: int = 10
+    gate_prox_atr: float = 0.5
+    choch_lookback_h4: int = 3
+    # Breakeven exit: once a position's favourable excursion reaches
+    # be_trigger_atr * entry-ATR, move its stop ONCE to entry + be_offset_atr*ATR
+    # (a losing near-miss then exits ~flat instead of at the full stop). 0 = off.
+    be_trigger_atr: float = 0.0
+    be_offset_atr: float = 0.1
+    # Equity-curve pause: stop OPENING new trades when balance falls more than
+    # equity_pause_dd below its running peak; resume when it recovers to within
+    # equity_resume_dd of the peak. Open positions keep their stops. 0 = off.
+    # A "the strategy has stopped working, stand down" rule that needs no
+    # external data. Tested rohith-2 iter 4 against the 4-year regime swings.
+    equity_pause_dd: float = 0.0
+    equity_resume_dd: float = 0.0
     spread_gate_points: float = 350.0
     spread_gate_blocks_management: bool = True   # HIGH-7: the bug at HEAD
     lot_cap: Optional[float] = None              # the lost 0.01 guard
@@ -249,11 +279,13 @@ class BacktestEngine:
         self.m5 = bars.m5
         self.m1 = bars.m1
         self.d1 = bars.d1
+        self.h4 = getattr(bars, "h4", None)
 
         self._m15_t = self.m15["time"].astype(np.int64)
         self._m5_t = self.m5["time"].astype(np.int64) if self.m5 is not None else None
         self._m1_t = self.m1["time"].astype(np.int64) if self.m1 is not None else None
         self._d1_t = self.d1["time"].astype(np.int64) if self.d1 is not None else None
+        self._h4_t = self.h4["time"].astype(np.int64) if self.h4 is not None else None
 
         self.stub = _Mt5Stub(self.spec)
         self.balance = config.starting_balance
@@ -631,6 +663,8 @@ class BacktestEngine:
 
         daily_pl: Dict[Any, float] = {}
         shutdown_date = None
+        peak_bal = self.balance
+        equity_paused = False
 
         for i in range(cfg.warmup_bars, n - 1):
             bar_open = int(self._m15_t[i])
@@ -664,12 +698,63 @@ class BacktestEngine:
                 if self.d1 is not None else None
             )
 
+            h4_view = (
+                self._view(self.h4, self._h4_t, bar_close, 120, 14400)
+                if self.h4 is not None else None
+            )
+
             d1_bias = None
-            if cfg.enable_d1_bias_gate and d1_view is not None and len(d1_view) >= 20:
-                closes = d1_view["close"]
-                ema20 = _ema(closes, 20)
-                if not np.isnan(ema20[-1]):
-                    d1_bias = "BULLISH" if closes[-1] > ema20[-1] else "BEARISH"
+            choch_override = None   # for "d1_choch": direction a fresh H4 CHoCH allows
+            if cfg.enable_d1_bias_gate:
+                daily_bias = None
+                d1_atr = None
+                if d1_view is not None and len(d1_view) >= 20:
+                    closes = d1_view["close"]
+                    ema_p = 10 if cfg.direction_gate == "d1_ema10" else 20
+                    ema_d = _ema(closes, ema_p)
+                    if not np.isnan(ema_d[-1]):
+                        daily_bias = "BULLISH" if closes[-1] > ema_d[-1] else "BEARISH"
+                        hi, lo = d1_view["high"], d1_view["low"]
+                        tr = np.maximum(hi[1:] - lo[1:],
+                                        np.maximum(np.abs(hi[1:] - closes[:-1]),
+                                                   np.abs(lo[1:] - closes[:-1])))
+                        d1_atr = float(np.mean(tr[-14:])) if len(tr) >= 14 else None
+                        self._last_ema20 = float(ema_d[-1]); self._last_dclose = float(closes[-1])
+
+                struct_bias = None
+                if cfg.direction_gate in ("structure", "both") and len(m15_view) >= 60:
+                    from src.research.structure import trend_series
+                    _tr = trend_series(m15_view, cfg.structure_len)
+                    struct_bias = "BULLISH" if _tr[-1] > 0 else "BEARISH"
+
+                h4_bias = None
+                if cfg.direction_gate in ("h4_structure", "d1_choch") and \
+                        h4_view is not None and len(h4_view) >= 40:
+                    from src.research.structure import compute as _sc
+                    s4 = _sc(h4_view, 10)
+                    h4_bias = "BULLISH" if s4["trend"][-1] > 0 else "BEARISH"
+                    recent = s4["event"][-cfg.choch_lookback_h4:]
+                    if 2 in recent:
+                        choch_override = "BULLISH"
+                    elif -2 in recent:
+                        choch_override = "BEARISH"
+
+                if cfg.direction_gate == "structure":
+                    d1_bias = struct_bias
+                elif cfg.direction_gate == "h4_structure":
+                    d1_bias = h4_bias
+                elif cfg.direction_gate == "both":
+                    d1_bias = daily_bias if daily_bias == struct_bias else "CONFLICT"
+                elif cfg.direction_gate == "d1_proximity":
+                    if daily_bias and d1_atr and abs(self._last_dclose - self._last_ema20) \
+                            < cfg.gate_prox_atr * d1_atr:
+                        d1_bias = None          # transition zone -> allow both
+                    else:
+                        d1_bias = daily_bias
+                elif cfg.direction_gate == "d1_choch":
+                    d1_bias = daily_bias        # choch_override handled at signal time
+                else:
+                    d1_bias = daily_bias
 
             ist = datetime.fromtimestamp(nxt_open, tz=timezone.utc).astimezone(IST)
             session_mult = self._session_multiplier(rm, ist)
@@ -684,6 +769,12 @@ class BacktestEngine:
                 bar = m1_bars[m]
                 ts = int(bar["time"])
                 spread_pts = float(bar["spread"]) if "spread" in bar.dtype.names else None
+                current_ist = datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(IST)
+
+                # Friday Kill Switch
+                if market_hours.should_flatten_for_weekend(current_ist):
+                    for pos in list(self.positions):
+                        self._close(pos, pos.price_current, ts, "Weekend Gap Avoidance")
 
                 # 1. Broker side: stops and targets fire on ticks, not on our loop.
                 for pos in list(self.positions):
@@ -720,6 +811,19 @@ class BacktestEngine:
                     self._manage(rm, m15_view, bar, point, spread_pts)
                     continue
 
+                # 3b. Equity-curve pause (opt-in). Manage open positions but
+                # open nothing new while the account is deep below its peak.
+                if cfg.equity_pause_dd > 0:
+                    peak_bal = max(peak_bal, self.balance)
+                    if not equity_paused and self.balance < peak_bal * (1 - cfg.equity_pause_dd):
+                        equity_paused = True
+                        self.diag["equity_pauses"] = self.diag.get("equity_pauses", 0) + 1
+                    elif equity_paused and self.balance >= peak_bal * (1 - cfg.equity_resume_dd):
+                        equity_paused = False
+                    if equity_paused:
+                        self._manage(rm, m15_view, bar, point, spread_pts)
+                        continue
+
                 # 4. Strategy evaluation, on M5 boundaries as the M5 view advances.
                 if spread_ok and ts - last_signal_eval >= cfg.resignal_interval_sec:
                     last_signal_eval = ts
@@ -736,8 +840,14 @@ class BacktestEngine:
                         if cached[s.name] is not None:
                             self.diag["signals_generated"] += 1
 
-                # 5. Entries.
+                # 5. Entries (with Highlander Rule)
                 if spread_ok:
+                    mh_ok, _ = market_hours.allow_new_entry(current_ist)
+                    if not mh_ok:
+                        # Time lock or rollover blocked entry
+                        continue
+                        
+                    actionable_signals = []
                     for s in strategies:
                         sig = cached[s.name]
                         if sig is None:
@@ -746,37 +856,54 @@ class BacktestEngine:
                             self.diag["signals_deduped"] += 1
                             continue
                         if d1_bias:
-                            if sig.is_buy and d1_bias == "BEARISH":
-                                self.diag["entries_blocked_d1_bias"] += 1
-                                continue
-                            if not sig.is_buy and d1_bias == "BULLISH":
-                                self.diag["entries_blocked_d1_bias"] += 1
-                                continue
+                            sig_dir = "BULLISH" if sig.is_buy else "BEARISH"
+                            _ovr = (cfg.direction_gate == "d1_choch" and choch_override == sig_dir)
+                            if not _ovr:
+                                if d1_bias == "CONFLICT" or (sig.is_buy and d1_bias == "BEARISH") or (not sig.is_buy and d1_bias == "BULLISH"):
+                                    self.diag["entries_blocked_d1_bias"] += 1
+                                    continue
                         if not self._caps_allow(sig.is_buy):
                             self.diag["entries_blocked_caps"] += 1
                             continue
+                            
+                        # If passed all gates, it's actionable
+                        actionable_signals.append((s, sig))
+
+                    if actionable_signals:
+                        # HIGHLANDER RULE
+                        rank_order = {
+                            "FVG_NY_SWEEP_OR_VOID": 5,
+                            "FVG_NY_SWEEP": 4,
+                            "FVG_NY_VOID": 3,
+                            "FVG_NY_TIGHT": 2,
+                            "FVG_ASIA_SWEEP": 1,
+                        }
+                        actionable_signals.sort(key=lambda x: rank_order.get(x[0].name.upper(), 0), reverse=True)
+                        best_s, best_sig = actionable_signals[0]
+
+                        # Block others
+                        for other_s, _ in actionable_signals[1:]:
+                            fired_on[other_s.name] = bar_open
+                            self.diag["signals_deduped"] += 1
 
                         dup_of = None
-                        same = [p for p in self.positions
-                                if p.strategy == s.name and p.is_buy == sig.is_buy]
+                        same = [p for p in self.positions if p.strategy == best_s.name and p.is_buy == best_sig.is_buy]
                         if same:
                             dup_of = same[0].ticket
-                        if fired_on[s.name] == bar_open:
-                            # the same unchanged candle firing a second time --
-                            # CRIT-1, distinct from merely holding correlated risk
+                        if fired_on[best_s.name] == bar_open:
                             self.diag["same_candle_refires"] += 1
 
                         base = float(bar["open"])
-                        fill = self.cost.ask(base, point, spread_pts) if sig.is_buy else base
-                        fill += self.cost.slip(point) * (1 if sig.is_buy else -1)
+                        fill = self.cost.ask(base, point, spread_pts) if best_sig.is_buy else base
+                        fill += self.cost.slip(point) * (1 if best_sig.is_buy else -1)
 
-                        opened = self._open(s.name, s.magic, sig.is_buy, fill, ts, rm,
+                        opened = self._open(best_s.name, best_s.magic, best_sig.is_buy, fill, ts, rm,
                                             m15_view, session_mult, session_name,
                                             duplicate_of=dup_of,
-                                            sl_atr_mult=getattr(s, "sl_atr_mult", None),
-                                            tp_atr_mult=getattr(s, "tp_atr_mult", None))
+                                            sl_atr_mult=getattr(best_s, "sl_atr_mult", None),
+                                            tp_atr_mult=getattr(best_s, "tp_atr_mult", None))
                         if opened is not None:
-                            fired_on[s.name] = bar_open
+                            fired_on[best_s.name] = bar_open
 
                 # 6. Pyramiding, then management -- the order main_loop uses.
                 if spread_ok and cfg.enable_pyramiding:
@@ -857,6 +984,7 @@ class BacktestEngine:
         short_view = m15_view[-20:]
         atr = rm.get_latest_atr(short_view)
         if atr is None:
+            print("DEBUG: atr is None in _manage!")
             return
 
         if self.cfg.enable_trailing:
@@ -865,6 +993,27 @@ class BacktestEngine:
                 if new_sl is not None:
                     pos.sl = new_sl
                     pos.trail_active = True
+
+        # One-shot breakeven move: once favourable excursion reaches
+        # be_trigger_atr * entry-ATR, pull the stop to entry +/- be_offset once.
+        if self.cfg.be_trigger_atr > 0:
+            for pos in list(self.positions):
+                if pos.trail_active or pos.atr_at_entry <= 0:
+                    continue
+                a0 = pos.atr_at_entry
+                off = self.cfg.be_offset_atr * a0
+                if pos.is_buy:
+                    mfe = (pos.mfe_price or pos.price_current) - pos.entry_price
+                    be = pos.entry_price + off
+                    if mfe >= self.cfg.be_trigger_atr * a0 and pos.sl < be:
+                        pos.sl = be
+                        pos.trail_active = True   # mark done -- one shot only
+                else:
+                    mfe = pos.entry_price - (pos.mfe_price or pos.price_current)
+                    be = pos.entry_price - off
+                    if mfe >= self.cfg.be_trigger_atr * a0 and (pos.sl > be or pos.sl == 0):
+                        pos.sl = be
+                        pos.trail_active = True
 
         if self.cfg.enable_consolidation_exit and rm.should_exit_consolidation(short_view):
             ts = int(bar["time"])

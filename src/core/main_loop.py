@@ -19,6 +19,7 @@ Run:
     python -m src.core.main_loop
 """
 
+import os
 import time as _time
 import logging
 import numpy as np
@@ -32,6 +33,9 @@ from src.core.data_fetcher import DataFetcher
 from src.core.risk_manager import RiskManager
 from src.core.execution_handler import ExecutionHandler, FIXED_LOT_SIZE
 from src.core import resilience
+from src.core import trade_log
+from src.core import risk_rules
+from src.core import market_hours
 # MorningMomentum (grade H), EMAPullback (grade E), AsianSweep (grade E) were
 # archived to src/strategies/archive/ on 2026-09-01 (rohith phase 3): all three
 # scored below the random-entry control (HYP-020) and MorningMomentum's 83%
@@ -39,7 +43,7 @@ from src.core import resilience
 # EMAStack (rohith phase 2, HYP-027) superseded 2026-09-01 by the 4-leg
 # portfolio below -- kept in src/strategies/ema_stack.py for reference but
 # no longer imported here.
-from src.strategies.portfolio_v4 import PORTFOLIO_V4  # rohith phase 3: 4-leg session-specialist portfolio, PF 1.512, $703 net over ~100d (HYP-036/038)
+from src.strategies.portfolio_v4 import PORTFOLIO_V4  # 2 NY FVG legs (TIGHT + SWEEP_OR_VOID); trimmed 2026-09-08, see portfolio_v4.py
 
 # IST offset
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -90,6 +94,12 @@ LOOP_INTERVAL = 60  # seconds between scans
 # Positions now run to their fixed SL/TP, exactly as validated.
 ENABLE_TRAILING = False
 ENABLE_PYRAMIDING = False
+# D1 EMA20 direction gate -- ON. Reversed 2026-09-06 (HYP-064) after August 2026
+# simulation proved that trading FVG strategies without trend filtering in a
+# high-volatility environment causes extreme drawdowns. The gate flawlessly
+# filtered out toxic counter-trend setups in August, turning a -79% maxDD failure
+# into a +$44 profit (PF 1.40).
+ENABLE_D1_GATE = True
 
 
 def _ist_now() -> str:
@@ -138,6 +148,30 @@ def _run_guarded():
         log.error("Startup safety check FAILED. Not trading. Fix the above and restart.")
         return
 
+    # Config-integrity gate: refuse to trade a configuration nobody has run
+    # through a backtest and recorded. This is the fix for a real recurring
+    # failure -- exposure caps raised without re-validating, the D1 gate left
+    # in a different state than any tested backtest, a strategy fix that
+    # silently changed what an unrelated script tested. See
+    # src/core/validation_ledger.py and RESEARCH_LEDGER.md HYP-047/048.
+    from src.core import validation_ledger
+    _cfg_report = validation_ledger.check_live_config()
+    if _cfg_report["validated"]:
+        _res = _cfg_report["match"]["result"]
+        log.info(f"CONFIG VALIDATED: fingerprint {_cfg_report['fingerprint']} matches "
+                 f"{_cfg_report['match']['source']} ({_cfg_report['match']['recorded_at']}): {_res}")
+    else:
+        log.error(f"CONFIG NOT VALIDATED: live fingerprint {_cfg_report['fingerprint']} "
+                  f"matches no recorded backtest.")
+        for line in _cfg_report["diff"]:
+            log.error(f"  differs from most recent recorded config: {line}")
+        if os.environ.get("ULTRA_ALLOW_UNVALIDATED") != "1":
+            log.error("Refusing to trade an unvalidated configuration. Re-run a backtest "
+                       "and record it (validation_ledger.record), or set "
+                       "ULTRA_ALLOW_UNVALIDATED=1 to override (not recommended).")
+            return
+        log.warning("ULTRA_ALLOW_UNVALIDATED=1 set -- proceeding on an unvalidated config.")
+
     # --- Modules ---
     fetcher = DataFetcher(SYMBOL)
     risk = RiskManager(SYMBOL)
@@ -176,10 +210,12 @@ def _run_guarded():
     log.info("Ultra Core v3 -- Final Boss Engine")
     log.info(f"Symbol: {SYMBOL}")
     log.info(f"Active Strategies: {[s.name for s in strategies]}")
-    log.info(f"Lots: FIXED {FIXED_LOT_SIZE} | Max exposure: 0.02 | Max positions: 2")
+    from src.core.execution_handler import MAX_CONCURRENT_POSITIONS as _mcp, MAX_TOTAL_VOLUME as _mtv
+    log.info(f"Lots: FIXED {FIXED_LOT_SIZE} | Max exposure: {_mtv} | Max positions: {_mcp}")
     log.info(f"Daily loss cap: 6% of balance | Session: IST-adaptive")
     log.info(f"Trailing: {'ON' if ENABLE_TRAILING else 'OFF'} | "
-             f"Pyramiding: {'ON' if ENABLE_PYRAMIDING else 'OFF'}")
+             f"Pyramiding: {'ON' if ENABLE_PYRAMIDING else 'OFF'} | "
+             f"D1 gate: {'ON' if ENABLE_D1_GATE else 'OFF'}")
     log.info(f"Resilience: lock={resilience.LOCK_FILE} | kill switch=create '{resilience.STOP_FILE}'")
     log.info("=" * 60)
     print(f"\n[{_ist_now()}] >>> Ultra Core v3 is LIVE.\n")
@@ -198,6 +234,19 @@ def _run_guarded():
                 print(f"[{_ist_now()}] KILL SWITCH -- closing all positions, halting.")
                 _close_all_positions(fetcher, executor, "STOP file")
                 break
+
+            # ----------------------------------------------------------
+            # Friday Kill Switch: Flatten for the weekend
+            # ----------------------------------------------------------
+            if market_hours.should_flatten_for_weekend(now_ist):
+                open_pos = fetcher.get_positions()
+                if open_pos:
+                    log.warning("FRIDAY KILL SWITCH: Market closing soon. Flattening all positions.")
+                    print(f"[{_ist_now()}] FRIDAY KILL SWITCH -- flattening for the weekend.")
+                    _close_all_positions(fetcher, executor, "Weekend Gap Avoidance")
+                # Sleep and skip the rest of the loop until market reopens
+                _time.sleep(LOOP_INTERVAL)
+                continue
 
             # ----------------------------------------------------------
             # Reset drawdown shutdown at midnight IST
@@ -263,12 +312,13 @@ def _run_guarded():
                 continue
 
             d1_bias = None
-            d1_rates_macro = fetcher.get_d1_rates(50)
-            if d1_rates_macro is not None and len(d1_rates_macro) >= 20:
-                d1_closes = d1_rates_macro["close"]
-                d1_ema20 = _calc_ema(d1_closes, 20)
-                if not np.isnan(d1_ema20[-1]):
-                    d1_bias = "BULLISH" if d1_closes[-1] > d1_ema20[-1] else "BEARISH"
+            if ENABLE_D1_GATE:
+                d1_rates_macro = fetcher.get_d1_rates(50)
+                if d1_rates_macro is not None and len(d1_rates_macro) >= 20:
+                    d1_closes = d1_rates_macro["close"]
+                    d1_ema20 = _calc_ema(d1_closes, 20)
+                    if not np.isnan(d1_ema20[-1]):
+                        d1_bias = "BULLISH" if d1_closes[-1] > d1_ema20[-1] else "BEARISH"
 
             # ----------------------------------------------------------
             # Session info
@@ -283,6 +333,7 @@ def _run_guarded():
             # Time of the last CLOSED candle -- the one strategies read at [-2].
             # It is the deduplication key: it stays constant for 15 minutes.
             signal_candle = int(m15_rates[-2]["time"])
+            actionable_signals = []
 
             for strategy in strategies:
                 # Check pending confirmation (non-London signals)
@@ -292,56 +343,74 @@ def _run_guarded():
                         log.info(f"[{strategy.name}] confirmed signal DEDUPED (already acted this candle).")
                     else:
                         log.info(f"Pending signal CONFIRMED ({strategy.name}): {confirmed_signal.direction_str}")
-                        # Apply the same D1 bias gate fresh signals get. Previously
-                        # confirmed signals bypassed it entirely.
                         if _d1_bias_allows(confirmed_signal, d1_bias, strategy.name):
-                            _execute_signal(
-                                confirmed_signal, m15_rates, fetcher, risk, executor,
-                                session_mult, session_name, strategy,
-                            )
-                            last_fired_candle[strategy.name] = signal_candle
+                            actionable_signals.append((strategy, confirmed_signal))
 
                 # Evaluate strategy
                 signal = strategy.evaluate(m15_rates, m5_rates)
 
                 if signal is not None:
                     if last_fired_candle.get(strategy.name) == signal_candle:
-                        # Same unchanged candle, already acted on. This is the
-                        # single highest-cost defect in the live record.
+                        trade_log.signal(strategy.name, signal.direction_str, "deduped",
+                                         "already acted on this candle", candle=signal_candle,
+                                         session=session_name)
                         continue
-                    # D1 Bias Gate
                     if not _d1_bias_allows(signal, d1_bias, strategy.name):
+                        trade_log.signal(strategy.name, signal.direction_str, "blocked",
+                                         f"D1 bias gate ({d1_bias})", candle=signal_candle,
+                                         session=session_name)
+                        continue
+                    if _leg_in_cooldown(strategy.name):
+                        log.info(f"[{strategy.name}] {signal.direction_str} skipped -- reversal cooldown active.")
+                        trade_log.signal(strategy.name, signal.direction_str, "blocked",
+                                         "reversal cooldown active", candle=signal_candle,
+                                         session=session_name)
                         continue
 
-                    # rohith phase 3: the backtest engine that validated portfolio_v4
-                    # (and, undiscovered until now, EMAStack before it) has NO concept
-                    # of a "queue and confirm next candle" delay -- every signal is
-                    # immediately actionable. Strategies opting into that via
-                    # `execute_immediately = True` get the same path London already
-                    # had, instead of silently falling into the pending-confirmation
-                    # queue where check_pending_confirmation() returning None forever
-                    # means the signal is dropped and NEVER executes. This is what a
-                    # direct trace against real account history caught: 3 of 4
-                    # portfolio_v4 legs would never have traded live without this.
                     if is_london or getattr(strategy, "execute_immediately", False):
-                        log.info(f"[{strategy.name}] {signal.direction_str} -- executing immediately (session={session_name})")
-                        _execute_signal(
-                            signal, m15_rates, fetcher, risk, executor,
-                            session_mult, session_name, strategy,
-                        )
-                        last_fired_candle[strategy.name] = signal_candle
+                        log.info(f"[{strategy.name}] {signal.direction_str} -- actionable immediately (session={session_name})")
+                        actionable_signals.append((strategy, signal))
                     else:
-                        # Other sessions: queue for confirmation on next candle
                         candle_time = int(m15_rates[-2]["time"])
                         strategy.set_pending(signal, candle_time)
-                        log.info(
-                            f"Signal queued for confirmation ({strategy.name} in {session_name}): "
-                            f"{signal.direction_str} -- waiting for next M15 close"
-                        )
-                        print(
-                            f"[{_ist_now()}] PENDING: {signal.direction_str} signal "
-                            f"queued (session: {session_name}). Confirming next candle."
-                        )
+                        log.info(f"Signal queued for confirmation ({strategy.name} in {session_name}): {signal.direction_str}")
+                        print(f"[{_ist_now()}] PENDING: {signal.direction_str} signal queued (session: {session_name}). Confirming next candle.")
+
+            # ----------------------------------------------------------
+            # HIGHLANDER RULE: Execute only the highest conviction signal
+            # ----------------------------------------------------------
+            if actionable_signals:
+                # Rank by conviction based on strategy name
+                rank_order = {
+                    "FVG_NY_SWEEP_OR_VOID": 5,
+                    "FVG_NY_SWEEP": 4,
+                    "FVG_NY_VOID": 3,
+                    "FVG_NY_TIGHT": 2,
+                    "FVG_ASIA_SWEEP": 1,
+                }
+                
+                # Sort signals by rank (descending)
+                actionable_signals.sort(key=lambda x: rank_order.get(x[0].name.upper(), 0), reverse=True)
+                
+                best_strategy, best_signal = actionable_signals[0]
+                
+                if len(actionable_signals) > 1:
+                    log.info(f"HIGHLANDER: {len(actionable_signals)} signals fired. Selected {best_strategy.name} as best conviction.")
+                
+                # Execute the best one
+                _execute_signal(
+                    best_signal, m15_rates, fetcher, risk, executor,
+                    session_mult, session_name, best_strategy,
+                )
+                last_fired_candle[best_strategy.name] = signal_candle
+                
+                # Block the others and mark them as fired to prevent immediate re-fires
+                for strat, sig in actionable_signals[1:]:
+                    trade_log.signal(strat.name, sig.direction_str, "blocked",
+                                     f"Highlander rule: overridden by {best_strategy.name}", candle=signal_candle,
+                                     session=session_name)
+                    log.info(f"[{strat.name}] {sig.direction_str} BLOCKED by Highlander rule (lost to {best_strategy.name}).")
+                    last_fired_candle[strat.name] = signal_candle
 
             # ----------------------------------------------------------
             # Pyramiding: add to winning positions
@@ -360,6 +429,21 @@ def _run_guarded():
             print(f"[{_ist_now()}] ERROR: {e}")
 
         _time.sleep(LOOP_INTERVAL)
+
+
+_COOLDOWN_FILE = "logs/cooldown.json"
+
+
+def _leg_in_cooldown(name: str) -> bool:
+    """True if scripts/protect_profit.py closed this leg on a reversal recently
+    and it should not re-enter yet."""
+    try:
+        import json as _json
+        with open(_COOLDOWN_FILE) as f:
+            until = _json.load(f).get(name, 0)
+        return _time.time() < until
+    except (OSError, ValueError):
+        return False
 
 
 def _d1_bias_allows(signal, d1_bias, strategy_name: str) -> bool:
@@ -388,12 +472,25 @@ def _execute_signal(signal, m15_rates, fetcher, risk, executor, session_mult, se
     multiplier and the shared TP_ATR_MULTIPLIER constant for this order only.
     Absent on a strategy -> falls back to exactly the prior behaviour.
     """
+    # IV.6 + owner's 11:30-21:30 trading window: weekend gap, rollover spread
+    # spike, and no-night-trades are all checked here, before anything else.
+    _mh_ok, _mh_why = market_hours.allow_new_entry()
+    if not _mh_ok:
+        trade_log.signal(signal.strategy_name, signal.direction_str, "blocked",
+                         _mh_why, session=session_name)
+        log.info(f"[{signal.strategy_name}] entry blocked -- {_mh_why}")
+        return
+
     if not executor.can_open_new_position():
         log.info("Cannot execute: max concurrent positions reached.")
+        trade_log.signal(signal.strategy_name, signal.direction_str, "blocked",
+                         "max concurrent positions reached", session=session_name)
         return
 
     tick = fetcher.get_tick()
     if tick is None:
+        trade_log.signal(signal.strategy_name, signal.direction_str, "blocked",
+                         "no tick available", session=session_name)
         return
 
     price = tick.ask if signal.is_buy else tick.bid
@@ -402,14 +499,35 @@ def _execute_signal(signal, m15_rates, fetcher, risk, executor, session_mult, se
     tp_mult = getattr(strategy, "tp_atr_mult", None)
     stops = risk.calculate_atr_stops(price, signal.is_buy, m15_rates, sl_mult, tp_mult)
     if stops is None:
+        trade_log.signal(signal.strategy_name, signal.direction_str, "blocked",
+                         "ATR stops unavailable", session=session_name)
         return
+
+    # Part II shadow mode: record what the (not yet enforced) risk rulebook
+    # would have decided, so its real-world impact can be measured before
+    # ENFORCE is ever switched on. See src/core/risk_rules.py.
+    try:
+        _acct = mt5.account_info()
+        if _acct is not None:
+            _decision, _rstate = risk_rules.evaluate(
+                balance=_acct.balance, equity=_acct.equity,
+                margin_used=getattr(_acct, "margin", 0.0) or 0.0)
+            risk_rules.save_state(_rstate)
+            if not _decision.allow_new_entries:
+                trade_log.gate("risk_rules_shadow", allowed=False, reason=_decision.reason,
+                               strategy=signal.strategy_name, enforced=risk_rules.ENFORCE)
+                if risk_rules.ENFORCE:
+                    log.warning(f"[{signal.strategy_name}] BLOCKED by risk rules: {_decision.reason}")
+                    return
+    except Exception as _e:  # shadow logging must never break execution
+        log.debug(f"risk_rules shadow evaluation skipped: {_e}")
 
     # Owner's rule: fixed 0.01 lots, no dynamic sizing. The 0.15 risk_pct sizer
     # put 0.02-0.03 lots on a ~$105 account (live, 2026-09-02). ExecutionHandler
     # also hard-caps this, but the call site now states the intent.
     lot_size = FIXED_LOT_SIZE
 
-    executor.send_order(
+    result = executor.send_order(
         signal=signal.direction,
         price=price,
         sl=stops.sl,
@@ -420,6 +538,16 @@ def _execute_signal(signal, m15_rates, fetcher, risk, executor, session_mult, se
         atr=stops.atr,
         session=session_name,
     )
+
+    trade_log.order(
+        strategy=signal.strategy_name, direction=signal.direction_str, lots=lot_size,
+        price=price, sl=stops.sl, tp=stops.tp,
+        retcode=getattr(result, "retcode", None),
+        ticket=getattr(result, "order", None),
+        atr=stops.atr, sl_atr_mult=sl_mult, tp_atr_mult=tp_mult,
+        session=session_name, magic=signal.magic,
+    )
+    return result
 
 
 def _check_pyramiding(fetcher, risk, executor, m15_rates, session_mult, session_name,

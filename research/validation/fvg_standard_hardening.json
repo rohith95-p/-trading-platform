@@ -1,0 +1,260 @@
+[
+  {
+    "label": "baseline (no filters, 6% daily)",
+    "gap_pct": 0.0,
+    "atr_pct": 0.0,
+    "daily_cap": 0.06,
+    "stats": {
+      "n": 990,
+      "win_rate": 23.535353535353533,
+      "profit_factor": 1.5004,
+      "net": 1477.18,
+      "min_balance": 104.2,
+      "end_balance": 1582.92,
+      "max_drawdown_pct": 35.69,
+      "avg_win": 19.01,
+      "avg_loss": -3.9
+    },
+    "verdict": {
+      "passed": true,
+      "reasons": []
+    },
+    "mc": {
+      "p_ruin_pct": 8.59,
+      "maxdd_p95": 98.6,
+      "p_touch_minus50_pct": 21.41
+    },
+    "usd_per_day": 2.93
+  },
+  {
+    "label": "daily cap 3%",
+    "gap_pct": 0.0,
+    "atr_pct": 0.0,
+    "daily_cap": 0.03,
+    "stats": {
+      "n": 949,
+      "win_rate": 23.603793466807165,
+      "profit_factor": 1.5182,
+      "net": 1462.82,
+      "min_balance": 104.2,
+      "end_balance": 1568.56,
+      "max_drawdown_pct": 35.69,
+      "avg_win": 19.13,
+      "avg_loss": -3.89
+    },
+    "verdict": {
+      "passed": true,
+      "reasons": []
+    },
+    "mc": {
+      "p_ruin_pct": 8.69,
+      "maxdd_p95": 98.9,
+      "p_touch_minus50_pct": 20.7
+    },
+    "usd_per_day": 2.9
+  },
+  {
+    "label": "min gap 0.02% of price",
+    "gap_pct": 0.02,
+    "atr_pct": 0.0,
+    "daily_cap": 0.06,
+    "stats": {
+      "n": 814,
+      "win_rate": 22.972972972972975,
+      "profit_factor": 1.4778,
+      "net": 1214.34,
+      "min_balance": 104.2,
+      "end_balance": 1320.08,
+      "max_drawdown_pct": 47.8,
+      "avg_win": 20.08,
+      "avg_loss": -4.05
+    },
+    "verdict": {
+      "passed": false,
+      "reasons": [
+        "maxDD 47.8% >= 45.0%"
+      ]
+    },
+    "mc": {
+      "p_ruin_pct": 10.63,
+      "maxdd_p95": 106.6,
+      "p_touch_minus50_pct": 24.0
+    },
+    "usd_per_day": 2.4
+  },
+  {
+    "label": "min gap 0.05% of price",
+    "gap_pct": 0.05,
+    "atr_pct": 0.0,
+    "daily_cap": 0.06,
+    "stats": {
+      "n": 610,
+      "win_rate": 23.60655737704918,
+      "profit_factor": 1.5693,
+      "net": 1111.48,
+      "min_balance": 104.2,
+      "end_balance": 1217.22,
+      "max_drawdown_pct": 24.99,
+      "avg_win": 21.28,
+      "avg_loss": -4.19
+    },
+    "verdict": {
+      "passed": true,
+      "reasons": []
+    },
+    "mc": {
+      "p_ruin_pct": 7.92,
+      "maxdd_p95": 96.0,
+      "p_touch_minus50_pct": 20.12
+    },
+    "usd_per_day": 2.2
+  },
+  {
+    "label": "min gap 0.1% of price",
+    "gap_pct": 0.1,
+    "atr_pct": 0.0,
+    "daily_cap": 0.06,
+    "stats": {
+      "n": 343,
+      "win_rate": 22.448979591836736,
+      "profit_factor": 1.4198,
+      "net": 533.51,
+      "min_balance": 100.49,
+      "end_balance": 639.25,
+      "max_drawdown_pct": 50.01,
+      "avg_win": 23.43,
+      "avg_loss": -4.78
+    },
+    "verdict": {
+      "passed": false,
+      "reasons": [
+        "maxDD 50.01% >= 45.0%"
+      ]
+    },
+    "mc": {
+      "p_ruin_pct": 17.15,
+      "maxdd_p95": 132.2,
+      "p_touch_minus50_pct": 32.29
+    },
+    "usd_per_day": 1.06
+  },
+  {
+    "label": "min gap 0.15% of price",
+    "gap_pct": 0.15,
+    "atr_pct": 0.0,
+    "daily_cap": 0.06,
+    "stats": {
+      "n": 202,
+      "win_rate": 21.782178217821784,
+      "profit_factor": 1.5002,
+      "net": 399.92,
+      "min_balance": 87.68,
+      "end_balance": 505.66,
+      "max_drawdown_pct": 53.45,
+      "avg_win": 27.26,
+      "avg_loss": -5.06
+    },
+    "verdict": {
+      "passed": false,
+      "reasons": [
+        "maxDD 53.45% >= 45.0%"
+      ]
+    },
+    "mc": {
+      "p_ruin_pct": 15.66,
+      "maxdd_p95": 125.7,
+      "p_touch_minus50_pct": 30.9
+    },
+    "usd_per_day": 0.79
+  },
+  {
+    "label": "min gap 0.10% + daily 3%",
+    "gap_pct": 0.1,
+    "atr_pct": 0.0,
+    "daily_cap": 0.03,
+    "stats": {
+      "n": 336,
+      "win_rate": 22.61904761904762,
+      "profit_factor": 1.4575,
+      "net": 561.78,
+      "min_balance": 100.49,
+      "end_balance": 667.52,
+      "max_drawdown_pct": 46.83,
+      "avg_win": 23.55,
+      "avg_loss": -4.72
+    },
+    "verdict": {
+      "passed": false,
+      "reasons": [
+        "maxDD 46.83% >= 45.0%"
+      ]
+    },
+    "mc": {
+      "p_ruin_pct": 14.94,
+      "maxdd_p95": 122.9,
+      "p_touch_minus50_pct": 29.98
+    },
+    "usd_per_day": 1.11
+  },
+  {
+    "label": "min gap 0.10% + ATR>=0.20%",
+    "gap_pct": 0.1,
+    "atr_pct": 0.2,
+    "daily_cap": 0.06,
+    "stats": {
+      "n": 215,
+      "win_rate": 20.46511627906977,
+      "profit_factor": 1.3769,
+      "net": 370.89,
+      "min_balance": 37.44,
+      "end_balance": 476.63,
+      "max_drawdown_pct": 79.67,
+      "avg_win": 30.8,
+      "avg_loss": -5.76
+    },
+    "verdict": {
+      "passed": false,
+      "reasons": [
+        "maxDD 79.67% >= 45.0%",
+        "min balance $37.44 < 50% of start ($52.87)"
+      ]
+    },
+    "mc": {
+      "p_ruin_pct": 25.67,
+      "maxdd_p95": 160.5,
+      "p_touch_minus50_pct": 42.2
+    },
+    "usd_per_day": 0.73
+  },
+  {
+    "label": "gap 0.10% + ATR 0.20% + 3%",
+    "gap_pct": 0.1,
+    "atr_pct": 0.2,
+    "daily_cap": 0.03,
+    "stats": {
+      "n": 69,
+      "win_rate": 11.594202898550725,
+      "profit_factor": 0.6047,
+      "net": -91.18,
+      "min_balance": 14.56,
+      "end_balance": 14.56,
+      "max_drawdown_pct": 89.82,
+      "avg_win": 17.43,
+      "avg_loss": -3.78
+    },
+    "verdict": {
+      "passed": false,
+      "reasons": [
+        "PF 0.6047 <= 1.2",
+        "maxDD 89.82% >= 45.0%",
+        "min balance $14.56 < 50% of start ($52.87)"
+      ]
+    },
+    "mc": {
+      "p_ruin_pct": 67.85,
+      "maxdd_p95": 172.8,
+      "p_touch_minus50_pct": 86.52
+    },
+    "usd_per_day": -0.18
+  }
+]

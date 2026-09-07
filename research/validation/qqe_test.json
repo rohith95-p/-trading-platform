@@ -1,0 +1,69 @@
+{
+  "A  FVG alone (baseline)": {
+    "stats": {
+      "n": 990,
+      "win_rate": 23.535353535353533,
+      "profit_factor": 1.5004,
+      "net": 1477.18,
+      "min_balance": 104.2,
+      "end_balance": 1582.92,
+      "max_drawdown_pct": 35.69,
+      "avg_win": 19.01,
+      "avg_loss": -3.9
+    },
+    "verdict": {
+      "passed": true,
+      "reasons": []
+    },
+    "mc": {
+      "p_ruin_pct": 8.59
+    },
+    "usd_per_day": 2.93
+  },
+  "B  FVG + QQE trend filter": {
+    "stats": {
+      "n": 760,
+      "win_rate": 23.42105263157895,
+      "profit_factor": 1.4714,
+      "net": 1062.49,
+      "min_balance": 104.2,
+      "end_balance": 1168.23,
+      "max_drawdown_pct": 37.07,
+      "avg_win": 18.63,
+      "avg_loss": -3.87
+    },
+    "verdict": {
+      "passed": true,
+      "reasons": []
+    },
+    "mc": {
+      "p_ruin_pct": 9.97
+    },
+    "usd_per_day": 2.1
+  },
+  "C  QQE standalone": {
+    "stats": {
+      "n": 147,
+      "win_rate": 15.646258503401361,
+      "profit_factor": 0.6884,
+      "net": -96.94,
+      "min_balance": 8.8,
+      "end_balance": 8.8,
+      "max_drawdown_pct": 93.49,
+      "avg_win": 9.31,
+      "avg_loss": -2.51
+    },
+    "verdict": {
+      "passed": false,
+      "reasons": [
+        "PF 0.6884 <= 1.2",
+        "maxDD 93.49% >= 45.0%",
+        "min balance $8.8 < 50% of start ($52.87)"
+      ]
+    },
+    "mc": {
+      "p_ruin_pct": 69.09
+    },
+    "usd_per_day": -0.19
+  }
+}

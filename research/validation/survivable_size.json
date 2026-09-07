@@ -1,0 +1,115 @@
+{
+  "base": {
+    "n": 2460,
+    "win_rate": 27.926829268292686,
+    "profit_factor": 1.2581,
+    "net": 3029.8,
+    "min_balance": 102.01,
+    "end_balance": 3135.54,
+    "max_drawdown_pct": 40.26,
+    "avg_win": 21.5,
+    "avg_loss": -6.62
+  },
+  "rows": [
+    {
+      "scale": 1.0,
+      "p_ruin_pct": 39.36,
+      "p_touch_minus50_pct": 54.22,
+      "maxdd_p50": 74.5,
+      "maxdd_p95": 223.7,
+      "median_end_balance": 3132.09,
+      "median_net": 3026.35,
+      "route": "Standard 0.01 lot @ $100 (today)",
+      "median_usd_per_day": 5.99
+    },
+    {
+      "scale": 0.75,
+      "p_ruin_pct": 29.82,
+      "p_touch_minus50_pct": 45.62,
+      "maxdd_p50": 63.6,
+      "maxdd_p95": 178.4,
+      "median_end_balance": 2375.5,
+      "median_net": 2269.76,
+      "route": "~$140 account, or 0.0075 equiv",
+      "median_usd_per_day": 4.49
+    },
+    {
+      "scale": 0.5,
+      "p_ruin_pct": 17.09,
+      "p_touch_minus50_pct": 31.88,
+      "maxdd_p50": 50.4,
+      "maxdd_p95": 129.8,
+      "median_end_balance": 1618.92,
+      "median_net": 1513.18,
+      "route": "~$200 account",
+      "median_usd_per_day": 3.0
+    },
+    {
+      "scale": 0.35,
+      "p_ruin_pct": 8.63,
+      "p_touch_minus50_pct": 20.6,
+      "maxdd_p50": 40.9,
+      "maxdd_p95": 98.6,
+      "median_end_balance": 1164.96,
+      "median_net": 1059.22,
+      "route": "~$290 account",
+      "median_usd_per_day": 2.1
+    },
+    {
+      "scale": 0.25,
+      "p_ruin_pct": 3.36,
+      "p_touch_minus50_pct": 11.71,
+      "maxdd_p50": 33.3,
+      "maxdd_p95": 76.3,
+      "median_end_balance": 862.33,
+      "median_net": 756.59,
+      "route": "~$400 account",
+      "median_usd_per_day": 1.5
+    },
+    {
+      "scale": 0.2,
+      "p_ruin_pct": 1.47,
+      "p_touch_minus50_pct": 6.92,
+      "maxdd_p50": 29.0,
+      "maxdd_p95": 63.7,
+      "median_end_balance": 711.01,
+      "median_net": 605.27,
+      "route": "~$500 account",
+      "median_usd_per_day": 1.2
+    },
+    {
+      "scale": 0.15,
+      "p_ruin_pct": 0.29,
+      "p_touch_minus50_pct": 2.96,
+      "maxdd_p50": 24.0,
+      "maxdd_p95": 50.5,
+      "median_end_balance": 559.69,
+      "median_net": 453.95,
+      "route": "~$670 account",
+      "median_usd_per_day": 0.9
+    },
+    {
+      "scale": 0.1,
+      "p_ruin_pct": 0.03,
+      "p_touch_minus50_pct": 0.45,
+      "maxdd_p50": 18.3,
+      "maxdd_p95": 36.8,
+      "median_end_balance": 408.38,
+      "median_net": 302.64,
+      "route": "CENT acct 0.10 lot, or ~$1000",
+      "median_usd_per_day": 0.6
+    },
+    {
+      "scale": 0.05,
+      "p_ruin_pct": 0.0,
+      "p_touch_minus50_pct": 0.01,
+      "maxdd_p50": 11.2,
+      "maxdd_p95": 20.9,
+      "median_end_balance": 257.06,
+      "median_net": 151.32,
+      "route": "CENT acct 0.05 lot, or ~$2000",
+      "median_usd_per_day": 0.3
+    }
+  ],
+  "first_pass_scale": 0.15
+}

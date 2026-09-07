@@ -1,12 +1,12 @@
 {
   "symbol": "XAUUSDm",
   "timeframe": "D1",
-  "bars": 1507,
+  "bars": 1511,
   "first_time": "2021-10-27 00:00:00",
-  "last_time": "2026-08-31 00:00:00",
-  "sha256": "14f97311c791c48433504bb65da02a9860757903c4dec738afde86468b6570ad",
+  "last_time": "2026-09-04 00:00:00",
+  "sha256": "f66020dbb6e37189c8b14f1241b495a325ea2626e193c495898154a31e3bc104",
   "server": "Exness-MT5Trial11",
-  "downloaded_utc": "2026-08-31 15:44:15",
+  "downloaded_utc": "2026-09-05 11:13:06",
   "spec": {
     "symbol": "XAUUSDm",
     "digits": 3,

@@ -1,0 +1,167 @@
+========================================================================
+D1 GOLD MARKET STUDY  |  GC=F  2000-08 -> 2026-09  (26 years, 6527 days)
+========================================================================
+
+## 1. BUY-AND-HOLD GOLD  (the bar every strategy must beat)
+  CAGR               11.39%
+  max drawdown      -44.36%
+  Sharpe              0.69
+  MAR (CAGR/maxDD)    0.26
+  longest underwater 2240 trading days (~8.9 yr)
+  worst year         -28.2%  (2013)
+  best year           64.5%  (2025)
+  positive years    20/26
+
+## 2. RANDOM-ENTRY CONTROL  (the noise floor)
+  hold  5d : random PF  mean 0.997   95th pct 1.278   (a real edge must clear the 95th)
+  hold 10d : random PF  mean 1.007   95th pct 1.280   (a real edge must clear the 95th)
+  hold 20d : random PF  mean 1.022   95th pct 1.287   (a real edge must clear the 95th)
+  hold 40d : random PF  mean 1.005   95th pct 1.265   (a real edge must clear the 95th)
+
+## 3. RETURN AUTOCORRELATION  (M15 was ~0 -- is D1 different?)
+  lag  1d : -0.0148
+  lag  2d : -0.0139
+  lag  3d : +0.0167
+  lag  5d : +0.0094
+  lag 10d : +0.0080
+  lag 20d : +0.0114
+  lag 40d : -0.0251 *
+  lag 60d : -0.0171
+  (|value| > 0.0248 = significant at 2 s.e.)
+
+## 4. TIME-SERIES MOMENTUM  (does past return predict future return?)
+     regress next-21d return on past-Nd return, by lookback:
+  past  21d : beta -0.0939  t-stat -7.56   sign-agreement 50.2%   reversion
+  past  63d : beta -0.0291  t-stat -3.72   sign-agreement 51.1%   reversion
+  past 126d : beta -0.0160  t-stat -2.88   sign-agreement 51.9%   reversion
+  past 252d : beta +0.0054  t-stat +1.36   sign-agreement 55.0%   noise
+
+     past-252d momentum sign-agreement, by period:
+       2000-2007: 62.8%  (n=1578)
+       2008-2012: 53.6%  (n=1259)
+       2013-2017: 50.0%  (n=1257)
+       2018-2021: 47.4%  (n=1007)
+       2022-2026: 58.0%  (n=1153)
+
+## 5. DXY RELATIONSHIP
+  full-sample corr(gold ret, dxy ret): -0.397
+  rolling 63d corr: mean -0.427  min -0.850  max +0.272  std 0.205
+  % of time corr < -0.3: 75%   % of time corr > 0 (relationship inverts): 4%
+
+## 6. 10Y YIELD RELATIONSHIP  (proxy for real yields -- nominal only)
+  corr(gold ret, d 10Y yield): -0.163
+  gold fwd-5d return | 10Y fell >15bp over 20d: +21.8 bp
+  gold fwd-5d return | 10Y rose >15bp over 20d: +30.1 bp
+
+## 7. VOLATILITY REGIMES
+  low vol : fwd-10d mean  +45.7bp  std  308.6bp  n=1908
+  mid vol : fwd-10d mean  +40.5bp  std  335.6bp  n=1950
+  high vol: fwd-10d mean  +45.1bp  std  379.5bp  n=2395
+
+## 8. SEASONALITY
+  mean monthly return (bp):
+    Jan: +295.1
+    Feb: +118.3
+    Mar:  +16.7
+    Apr: +111.5
+    May:  +19.5
+    Jun: -103.9
+    Jul:  +88.6
+    Aug: +212.8
+    Sep:  +66.6
+    Oct:   +8.3
+    Nov: +127.1
+    Dec: +130.6
+  mean by weekday (bp): Mon=+4.7  Tue=+0.9  Wed=+4.2  Thu=+3.0  Fri=+8.8
+
+## 9. GOLD'S OWN DRAWDOWN ANATOMY  (how wide must a stop be?)
+  worst corrections (>10%):
+    2011-08-23 -> 2020-07-23   -44.4%  3257 days
+    2008-03-19 -> 2009-09-11   -29.7%  541 days
+    2006-05-12 -> 2007-09-19   -21.9%  495 days
+    2020-08-07 -> 2023-12-01   -20.9%  1211 days
+    2003-02-06 -> 2003-09-09   -15.2%  215 days
+    2009-12-04 -> 2010-05-11   -13.6%  158 days
+    2004-04-02 -> 2004-10-25   -12.4%  206 days
+  median daily True Range: $5.80   90th pct: $25.70
+
+========================================================================
+VERDICT  (written 2026-09-06, against D1_SYSTEM_PLAN.md's own Phase 1 gate)
+========================================================================
+
+GATE (from the plan): "at least ONE relationship is statistically real
+(t-stat > 2, stable across decades) AND the random-entry control leaves room
+for an edge."
+
+RESULT: **CONDITIONAL GO -- on H2 (DXY) only. H1, H3 and H4 are rejected as
+specified.** Three of the plan's four pre-registered hypotheses die here, and
+they die on the plan's own criteria, before a line of strategy code was
+written. That is the process working exactly as intended.
+
+--- autocorrelation: MOMENTUM FAMILY DEAD (same as M15) ---
+Only lag-40 (-0.0251) clears the +/-0.0248 significance line, marginally, and
+it is NEGATIVE (reversion). Across 8 lags tested, one marginal hit at 2 s.e.
+is what chance alone produces. Nothing here supports a D1 momentum family.
+
+--- H1 TIME-SERIES MOMENTUM: REJECTED (sign is backwards) ---
+The plan's headline, most-evidence-backed hypothesis. Measured: significant
+REVERSION at 21d (beta -0.0939, t -7.56), 63d (t -3.72) and 126d (t -2.88).
+The only momentum-signed lookback (252d) is not significant (t +1.36) and its
+sign-agreement is unstable by period -- 62.8% (2000-07) -> 47.4% (2018-21),
+i.e. worse than a coin flip in a full 4-year stretch. H1 as written cannot be
+traded.
+  ** Worth noting, NOT as a green light: the 21d reversion (t -7.56) is the
+  single strongest statistical signal in this entire study. It is also
+  entirely unregistered -- it was not one of the four hypotheses. Trading it
+  now, having found it by looking, is precisely the selection-bias mechanism
+  that killed portfolio_v4. If it is pursued, it must be pre-registered and
+  tested out-of-sample as its own hypothesis, with the caveat recorded that it
+  was discovered post-hoc in this dataset.
+
+--- H2 DXY REGIME: VIABLE TO TEST (the one survivor) ---
+corr(gold, DXY) = -0.397 full sample; rolling-63d mean -0.427; below -0.3 for
+75% of the time; inverts positive only 4% of the time. Real, strong by
+macro-relationship standards, and stable across decades. This clears the gate.
+  ** CRITICAL CAVEAT: section 5 measures CONTEMPORANEOUS correlation (same-day
+  returns moving together). That is NOT a tradeable edge on its own -- it says
+  gold and DXY move opposite each other, not that DXY move predicts the NEXT
+  gold move. The plan's own H2 asks "does a DXY breakout LEAD gold?" and this
+  study never measured lead/lag. Before H2 becomes a strategy, the next
+  measurement must be: regress gold fwd-Nd return on PRIOR DXY move, and check
+  the t-stat. If DXY is only coincident, H2 dies too and Phase 1 returns NO-GO
+  overall.
+
+--- H3 REAL-YIELD TREND: REJECTED as specified ---
+corr(gold, d10Y) = -0.163, weak. Worse, the conditional test runs the wrong
+way: gold's fwd-5d return was +21.8bp after yields FELL >15bp, and +30.1bp
+after yields ROSE >15bp. Gold did BETTER when yields rose -- the opposite of
+the hypothesis. Caveat: this is NOMINAL yield only; the plan specified real
+(TIPS) yields, which were never fetched. H3 may be retested with real-yield
+data, but the nominal proxy gives it no support.
+
+--- H4 VOLATILITY BREAKOUT: NOT SUPPORTED ---
+fwd-10d mean return by vol regime: low +45.7bp / mid +40.5bp / high +45.1bp,
+against standard deviations of 308-380bp. The differences are noise. Vol
+regime does not predict forward return.
+
+--- THE BAR ANY FUTURE STRATEGY MUST CLEAR ---
+Random-entry 95th-pct PF is ~1.27-1.29 at every holding period tested. A D1
+strategy must beat that, not merely beat PF 1.0. For scale: the current M15
+portfolio_v4's own measured holdout PF (1.18-1.25) would NOT clear this bar.
+Buy-and-hold is the other bar: CAGR 11.39%, Sharpe 0.69, MAR 0.26.
+
+--- USEFUL REGARDLESS OF STRATEGY (stop-sizing reality) ---
+Median daily true range $5.80; 90th pct $25.70. Note this against the live
+M15 system: FVG_NY's ~$5.50 stop is BELOW gold's MEDIAN DAILY range. That is
+independent confirmation, from 26 years of data, of why that leg gets
+noise-stopped.
+
+--- SEASONALITY: too thin to act on ---
+Jan +295bp / Aug +213bp / Jun -104bp look striking but rest on ~26 observations
+per month with no multiple-testing correction across 12 months. Not actionable
+as-is.
+
+--- NEXT ACTION (single, specific) ---
+Measure DXY lead/lag on gold. That one regression decides whether Phase 1 is a
+GO or a NO-GO overall, and it is the only remaining live hypothesis.
+========================================================================

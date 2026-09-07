@@ -1,0 +1,577 @@
+[
+  {
+    "fingerprint": "5ae2fb0735789bcf",
+    "recorded_at": "2026-09-05T20:44:57.030724+00:00",
+    "source": "scratchpad/window_2025_2026.py (2026-09-06 session)",
+    "result": {
+      "window": "2025-01-01 -> 2026-09-04",
+      "n_trades": 3053,
+      "win_rate_pct": 27.5,
+      "profit_factor": 1.245,
+      "net_usd": 3755.28,
+      "min_balance_usd": 102.01,
+      "max_drawdown_pct": 40.3,
+      "avg_win_usd": 22.68,
+      "avg_loss_usd": -6.93,
+      "usd_per_day": 6.15
+    },
+    "notes": "Owner decision (HYP-048): D1 gate OFF, weighting the 2025-2026 regime over 2022-2024. Same exact config produced PF 0.654 / net -$101.24 / min balance $4.50 on 2022-2024 (scratchpad/window_2022_2024.py) -- this is a named, accepted risk, not a validated-safe setting. See RESEARCH_LEDGER.md HYP-048.",
+    "config": {
+      "symbol": "XAUUSDm",
+      "fixed_lot_size": 0.01,
+      "max_concurrent_positions": 3,
+      "max_same_direction_positions": 3,
+      "max_total_volume": 0.03,
+      "enable_trailing": false,
+      "enable_pyramiding": false,
+      "enable_d1_gate": false,
+      "direction_gate": "none",
+      "daily_loss_limit_pct": 0.06,
+      "strategies": [
+        {
+          "name": "EMASTACK_LONDON_TIGHT",
+          "magic": 3012,
+          "candidate_id": "XAU-005",
+          "session": [
+            11.5,
+            15.5
+          ],
+          "sl_atr_mult": 0.75,
+          "tp_atr_mult": 3.0,
+          "edge_trigger": true,
+          "execute_immediately": true
+        },
+        {
+          "name": "FVG_NY_TIGHT",
+          "magic": 3013,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "RANGEREJECTION_NY_TIGHT",
+          "magic": 3014,
+          "candidate_id": "XAU-049",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.75,
+          "tp_atr_mult": 2.25,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "SQUEEZE_ASIA",
+          "magic": 3011,
+          "candidate_id": "XAU-062",
+          "session": [
+            2.5,
+            11.5
+          ],
+          "sl_atr_mult": 2.0,
+          "tp_atr_mult": 4.0,
+          "edge_trigger": false,
+          "execute_immediately": true
+        }
+      ]
+    }
+  },
+  {
+    "fingerprint": "b055c6061586e076",
+    "recorded_at": "2026-09-06T08:36:05.884500+00:00",
+    "source": "scripts/validation/combined_portfolio_v5.py (2026-09-07 session)",
+    "result": {
+      "window": "2025-01-01 -> 2026-05-20",
+      "legs": [
+        "FVG_ASIA_SWEEP",
+        "FVG_NY_SWEEP_OR_VOID"
+      ],
+      "n_trades": 1424,
+      "win_rate_pct": 23.31,
+      "profit_factor": 1.3785,
+      "net_usd": 1500.59,
+      "min_balance_usd": 100.6,
+      "max_drawdown_pct": 33.45,
+      "p_ruin_pct": 12.38,
+      "usd_per_day": 2.97
+    },
+    "notes": "Owner-selected setup (HYP-059/060/061): liquidity-filtered FVG, 2 legs (Asia sweep + NY sweep-or-void), replacing the 4-leg portfolio and the unfiltered single-leg FVG_NY_TIGHT. P(ruin) 12.38%% vs the old 4-leg portfolios 39.4%% -- a 3.2x improvement, though still above the <1%% I.3 bar. Trading window 11:30-21:30 IST enforced (market_hours.py).",
+    "config": {
+      "symbol": "XAUUSDm",
+      "fixed_lot_size": 0.01,
+      "max_concurrent_positions": 3,
+      "max_same_direction_positions": 3,
+      "max_total_volume": 0.03,
+      "enable_trailing": false,
+      "enable_pyramiding": false,
+      "enable_d1_gate": false,
+      "direction_gate": "none",
+      "daily_loss_limit_pct": 0.06,
+      "trading_window_ist": [
+        11.5,
+        21.5
+      ],
+      "risk_rules_enforced": false,
+      "strategies": [
+        {
+          "name": "FVG_ASIA_SWEEP",
+          "magic": 3021,
+          "candidate_id": "XAU-092",
+          "session": [
+            2.5,
+            11.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "FVG_NY_SWEEP_OR_VOID",
+          "magic": 3022,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        }
+      ]
+    }
+  },
+  {
+    "fingerprint": "10743dcaa2e150ea",
+    "recorded_at": "2026-09-06T08:50:23.555671+00:00",
+    "source": "scripts/validation/combined_portfolio_5legs.py (2026-09-07 session)",
+    "result": {
+      "window": "2025-01-01 -> 2026-05-20",
+      "legs": [
+        "FVG_ASIA_SWEEP",
+        "FVG_NY_TIGHT",
+        "FVG_NY_SWEEP",
+        "FVG_NY_VOID",
+        "FVG_NY_SWEEP_OR_VOID"
+      ],
+      "n_trades": 2954,
+      "win_rate_pct": 23.83,
+      "profit_factor": 1.4847,
+      "net_usd": 4100.4,
+      "min_balance_usd": 97.52,
+      "max_drawdown_pct": 29.95,
+      "p_ruin_pct": 8.63,
+      "usd_per_day": 8.12
+    },
+    "notes": "Owner-requested 5-leg set (HYP-062): all FVG/liquidity variants kept as separate concurrent legs, not deduplicated. 604 candles saw 2+ legs fire on the same underlying gap (1793 stacked trades) -- functions as implicit quality-weighted sizing since overlap only occurs on gaps passing stricter filters too. Beats the deduplicated 2-leg version on PF/maxDD/P(ruin)/hBcper-day; costs a shallow ~ dip below starting balance the 2-leg version did not have.",
+    "config": {
+      "symbol": "XAUUSDm",
+      "fixed_lot_size": 0.01,
+      "max_concurrent_positions": 3,
+      "max_same_direction_positions": 3,
+      "max_total_volume": 0.03,
+      "enable_trailing": false,
+      "enable_pyramiding": false,
+      "enable_d1_gate": false,
+      "direction_gate": "none",
+      "daily_loss_limit_pct": 0.06,
+      "trading_window_ist": [
+        11.5,
+        21.5
+      ],
+      "risk_rules_enforced": false,
+      "strategies": [
+        {
+          "name": "FVG_ASIA_SWEEP",
+          "magic": 3021,
+          "candidate_id": "XAU-092",
+          "session": [
+            2.5,
+            11.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "FVG_NY_SWEEP",
+          "magic": 3023,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "FVG_NY_SWEEP_OR_VOID",
+          "magic": 3022,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "FVG_NY_TIGHT",
+          "magic": 3013,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "FVG_NY_VOID",
+          "magic": 3024,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        }
+      ]
+    }
+  },
+  {
+    "fingerprint": "05765338a20c4ab6",
+    "recorded_at": "2026-09-06T09:07:21.543227+00:00",
+    "source": "scripts/validation/combined_portfolio_5legs.py (2026-09-07 session, Asia benched)",
+    "result": {
+      "window": "2025-01-01 -> 2026-05-20",
+      "legs": [
+        "FVG_NY_TIGHT",
+        "FVG_NY_SWEEP",
+        "FVG_NY_VOID",
+        "FVG_NY_SWEEP_OR_VOID"
+      ],
+      "n_trades": 2179,
+      "win_rate_pct": 24.05,
+      "profit_factor": 1.5426,
+      "net_usd": 3492.19,
+      "min_balance_usd": 101.11,
+      "max_drawdown_pct": 54.72,
+      "p_ruin_pct": 6.93,
+      "usd_per_day": 6.92,
+      "i1_pass": false,
+      "i1_fail_reason": "maxDD 54.72% >= 45.0% bar"
+    },
+    "notes": "HYP-063: FVG_ASIA_SWEEP benched (session 02:30-11:30 sits entirely outside the 11:30-21:30 trading window, would never fire live). 4-leg NY-only result: lower P(ruin) (6.93%% vs 8.63%% with Asia) and higher min balance, but maxDD jumps to 54.72%%, FAILING I.1s own <45%% bar -- Asia was providing real drawdown diversification by being a different, non-NY-correlated session. Recorded as the actual live config despite the I.1 failure -- flagged, not hidden.",
+    "config": {
+      "symbol": "XAUUSDm",
+      "fixed_lot_size": 0.01,
+      "max_concurrent_positions": 3,
+      "max_same_direction_positions": 3,
+      "max_total_volume": 0.03,
+      "enable_trailing": false,
+      "enable_pyramiding": false,
+      "enable_d1_gate": false,
+      "direction_gate": "none",
+      "daily_loss_limit_pct": 0.06,
+      "trading_window_ist": [
+        11.5,
+        21.5
+      ],
+      "risk_rules_enforced": false,
+      "strategies": [
+        {
+          "name": "FVG_NY_SWEEP",
+          "magic": 3023,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "FVG_NY_SWEEP_OR_VOID",
+          "magic": 3022,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "FVG_NY_TIGHT",
+          "magic": 3013,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "FVG_NY_VOID",
+          "magic": 3024,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        }
+      ]
+    }
+  },
+  {
+    "fingerprint": "c7526993730d7348",
+    "recorded_at": "2026-09-06T11:42:55.433631+00:00",
+    "source": "scripts/validation/record_live_config.py",
+    "result": {
+      "window": "2025-01-01 -> 2026-05-20",
+      "n_trades": 559,
+      "win_rate_pct": 25.9,
+      "profit_factor": 1.6087,
+      "net_usd": 916.4,
+      "min_balance_usd": 104.2,
+      "max_drawdown_pct": 46.95,
+      "end_balance_usd": 1022.14,
+      "i1_pass": false,
+      "i1_reasons": [
+        "maxDD 46.95% >= 45.0%"
+      ]
+    },
+    "notes": "2-leg FVG-only PORTFOLIO_V4 (FVG_NY_TIGHT + FVG_NY_SWEEP_OR_VOID), D1 EMA20 gate ON (HYP-065), trailing/pyramiding OFF, max 2 concurrent, 06:00-21:30 IST window. Quick single-holdout recording (owner asked for backtest-only, not the full part1 suite) to clear the startup config gate for the 2026-09-08 week. Sweep/Void legs dropped as dead (0 trades, Highlander). See RESEARCH_LEDGER + docs/REPO_GUIDE.md.",
+    "config": {
+      "symbol": "XAUUSDm",
+      "fixed_lot_size": 0.01,
+      "max_concurrent_positions": 2,
+      "max_same_direction_positions": 2,
+      "max_total_volume": 0.02,
+      "enable_trailing": false,
+      "enable_pyramiding": false,
+      "enable_d1_gate": true,
+      "direction_gate": "d1_ema20",
+      "daily_loss_limit_pct": 0.06,
+      "trading_window_ist": [
+        6.0,
+        21.5
+      ],
+      "risk_rules_enforced": false,
+      "strategies": [
+        {
+          "name": "FVG_NY_SWEEP_OR_VOID",
+          "magic": 3022,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "FVG_NY_TIGHT",
+          "magic": 3013,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        }
+      ]
+    }
+  },
+  {
+    "fingerprint": "2b1941475b2b69d6",
+    "recorded_at": "2026-09-07T07:21:49.257444+00:00",
+    "source": "scripts/validation/record_live_config.py",
+    "result": {
+      "window": "2025-01-01 -> 2026-05-20",
+      "n_trades": 831,
+      "win_rate_pct": 25.4,
+      "profit_factor": 1.4252,
+      "net_usd": 1083.13,
+      "min_balance_usd": 104.2,
+      "max_drawdown_pct": 48.21,
+      "end_balance_usd": 1188.87,
+      "i1_pass": false,
+      "i1_reasons": [
+        "maxDD 48.21% >= 45.0%"
+      ]
+    },
+    "notes": "2-leg FVG-only PORTFOLIO_V4 (FVG_NY_TIGHT + FVG_NY_SWEEP_OR_VOID), D1 EMA20 gate ON (HYP-065), trailing/pyramiding OFF, max 2 concurrent, 06:00-21:30 IST window. Quick single-holdout recording (owner asked for backtest-only, not the full part1 suite) to clear the startup config gate for the 2026-09-08 week. Sweep/Void legs dropped as dead (0 trades, Highlander). See RESEARCH_LEDGER + docs/REPO_GUIDE.md.",
+    "config": {
+      "symbol": "XAUUSDm",
+      "fixed_lot_size": 0.01,
+      "max_concurrent_positions": 2,
+      "max_same_direction_positions": 2,
+      "max_total_volume": 0.02,
+      "enable_trailing": false,
+      "enable_pyramiding": false,
+      "enable_d1_gate": true,
+      "direction_gate": "d1_ema20",
+      "daily_loss_limit_pct": 0.06,
+      "trading_window_ist": [
+        6.0,
+        21.5
+      ],
+      "risk_rules_enforced": false,
+      "strategies": [
+        {
+          "name": "EMASTACK_LONDON_TIGHT",
+          "magic": 3012,
+          "candidate_id": "XAU-005",
+          "session": [
+            11.5,
+            15.5
+          ],
+          "sl_atr_mult": 0.75,
+          "tp_atr_mult": 3.0,
+          "edge_trigger": true,
+          "execute_immediately": true
+        },
+        {
+          "name": "FVG_NY_SWEEP_OR_VOID",
+          "magic": 3022,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "FVG_NY_TIGHT",
+          "magic": 3013,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        }
+      ]
+    }
+  },
+  {
+    "fingerprint": "710d28770d67e362",
+    "recorded_at": "2026-09-07T09:56:35.263418+00:00",
+    "source": "scripts/validation/record_live_config.py",
+    "result": {
+      "window": "2025-01-01 -> 2026-05-20",
+      "n_trades": 768,
+      "win_rate_pct": 32.3,
+      "profit_factor": 1.2274,
+      "net_usd": 792.12,
+      "min_balance_usd": 104.2,
+      "max_drawdown_pct": 50.68,
+      "end_balance_usd": 897.86,
+      "i1_pass": false,
+      "i1_reasons": [
+        "maxDD 50.68% >= 45.0%"
+      ]
+    },
+    "notes": "2-leg FVG-only PORTFOLIO_V4 (FVG_NY_TIGHT + FVG_NY_SWEEP_OR_VOID), D1 EMA20 gate ON (HYP-065), trailing/pyramiding OFF, max 2 concurrent, 06:00-21:30 IST window. Quick single-holdout recording (owner asked for backtest-only, not the full part1 suite) to clear the startup config gate for the 2026-09-08 week. Sweep/Void legs dropped as dead (0 trades, Highlander). See RESEARCH_LEDGER + docs/REPO_GUIDE.md.",
+    "config": {
+      "symbol": "XAUUSDm",
+      "fixed_lot_size": 0.01,
+      "max_concurrent_positions": 2,
+      "max_same_direction_positions": 2,
+      "max_total_volume": 0.02,
+      "enable_trailing": false,
+      "enable_pyramiding": false,
+      "enable_d1_gate": true,
+      "direction_gate": "d1_ema20",
+      "daily_loss_limit_pct": 0.06,
+      "trading_window_ist": [
+        6.0,
+        21.5
+      ],
+      "risk_rules_enforced": false,
+      "strategies": [
+        {
+          "name": "EMASTACK_LONDON_TIGHT",
+          "magic": 3012,
+          "candidate_id": "XAU-005",
+          "session": [
+            11.5,
+            15.5
+          ],
+          "sl_atr_mult": 2.0,
+          "tp_atr_mult": 3.0,
+          "edge_trigger": true,
+          "execute_immediately": true
+        },
+        {
+          "name": "FVG_NY_SWEEP_OR_VOID",
+          "magic": 3022,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "FVG_NY_TIGHT",
+          "magic": 3013,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 2.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        }
+      ]
+    }
+  }
+]

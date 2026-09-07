@@ -1,0 +1,62 @@
+{
+  "reversal, all sessions": {
+    "n": 1940,
+    "win_rate": 32.8,
+    "profit_factor": 0.702,
+    "net": -5772.72,
+    "min_balance": -5666.98,
+    "end_balance": -5666.98,
+    "max_drawdown_pct": 5274.19,
+    "usd_per_day": -11.43
+  },
+  "reversal, 11:30-21:30 IST": {
+    "n": 958,
+    "win_rate": 30.1,
+    "profit_factor": 0.6237,
+    "net": -3920.26,
+    "min_balance": -3814.52,
+    "end_balance": -3814.52,
+    "max_drawdown_pct": 3707.45,
+    "usd_per_day": -7.76
+  },
+  "atr 0.75/3.0": {
+    "n": 1941,
+    "win_rate": 19.0,
+    "profit_factor": 0.5634,
+    "net": -5936.09,
+    "min_balance": -5830.35,
+    "end_balance": -5830.35,
+    "max_drawdown_pct": 5613.85,
+    "usd_per_day": -11.75
+  },
+  "atr 1.0/2.0": {
+    "n": 1941,
+    "win_rate": 33.4,
+    "profit_factor": 0.6298,
+    "net": -5031.08,
+    "min_balance": -4937.12,
+    "end_balance": -4925.34,
+    "max_drawdown_pct": 4769.11,
+    "usd_per_day": -9.96
+  },
+  "atr 2.0/4.0": {
+    "n": 1911,
+    "win_rate": 33.6,
+    "profit_factor": 0.7983,
+    "net": -4650.14,
+    "min_balance": -4637.97,
+    "end_balance": -4544.4,
+    "max_drawdown_pct": 3928.37,
+    "usd_per_day": -9.21
+  },
+  "always-in trend": {
+    "n": 1941,
+    "win_rate": 32.8,
+    "profit_factor": 0.7019,
+    "net": -5777.53,
+    "min_balance": -5671.79,
+    "end_balance": -5671.79,
+    "max_drawdown_pct": 5463.9,
+    "usd_per_day": -11.44
+  }
+}

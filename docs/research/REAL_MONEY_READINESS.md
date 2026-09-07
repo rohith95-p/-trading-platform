@@ -4,6 +4,38 @@
 is implemented yet; this is the complete list of what should be done before
 portfolio_v4 trades real money, and the rules to run it by once it does.*
 
+> **STATUS UPDATE 2026-09-06 — this document was abandoned mid-flight, not
+> completed.** It was written ~10.5 hours *before* `SYSTEM_FAULTS.md` concluded
+> the same day that portfolio_v4 has no real out-of-sample edge (4-year holdout
+> PF 0.965), and it was never updated or marked superseded after that finding —
+> it sat here looking current for 3 days while the underlying strategy was
+> already known to be dead. See `docs/research/REAL_MONEY_READINESS_RATING_2026-09-06.md`
+> for the full corrected scoring. Headline corrections since this was written:
+> - **A real bug was found and fixed** (HYP-046/047): the 4-year holdout was
+>   genuinely losing (PF 0.948) on the code that existed 09-03; one dedup fix to
+>   `EMASTACK_LONDON_TIGHT` (not a re-tuned parameter) flipped it to PF 1.180.
+>   There is now a real, if thin, edge to protect — the "no edge at all" verdict
+>   is outdated, but PF 1.180 still misses this document's own I.1 pass bar
+>   (>1.2) and its drawdown (83.9%) badly misses "never below 50% of start."
+> - **III.2 below ("the direction gate is law") is no longer true.** The D1
+>   gate is now deliberately OFF (HYP-048, owner decision, 2026-09-06),
+>   accepting a named risk: the exact config that scores well on 2025-2026
+>   (PF 1.245, $6.15/day) took the account to $4.50 (from $105.74) on 2022-2024
+>   in the same backtest. This is a conscious bet on the recent regime, not a
+>   validated-safe setting — Part III's framing needs to be read with that in
+>   mind, not the original "gate is law, never override" language.
+> - **A config-integrity gate now exists that this document doesn't mention**:
+>   `src/core/system_config.py` + `src/core/validation_ledger.py`, wired into
+>   `main_loop.py`'s startup — it fingerprints the live configuration and
+>   refuses to trade anything that doesn't match a recorded backtest. This
+>   closes part of the "frozen config" problem in III.3 mechanically instead of
+>   relying on discipline alone. See Part IV's new IV.11 entry below.
+> - **None of Part I's formal pass/fail gates have actually been cleared.**
+>   Real testing happened this session (a pre/post-fix A/B, a 2022-2024 vs
+>   2025-2026 out-of-sample check, a Monte Carlo ruin simulation), but it was
+>   exploratory, not the pre-registered I.1-I.9 protocol below. See the rating
+>   report for the honest per-item status.
+
 ---
 
 ## 0. Read this first — what "ready" and "consistent" actually mean
@@ -42,8 +74,22 @@ strategies were statistically indistinguishable from random. The same bar must
 be cleared here.
 
 ### I.1 Out-of-sample holdout test — HIGHEST PRIORITY
+
+> **STANDARD CHANGED 2026-09-06 (owner decision): 2-year scope, not 4-year.**
+> Pre-2025 data is considered no longer representative of the current market
+> environment and is excluded from the pass/fail decision. The 4-year holdout
+> results remain on record (HYP-047: PF 1.180 post-fix) as context, but are no
+> longer the gate.
+>
+> **The holdout window is `2025-01-01 -> 2026-05-20`.** This is deliberately
+> *not* "all of 2025-2026": the 4 legs were selected on 2026-05-21 -> 08-29, so
+> including that window would be scoring the strategy on its own training data.
+> 16.5 months of genuinely unseen data, entirely inside the regime the owner
+> considers representative, is the honest version of a 2-year standard.
+
 - Run portfolio_v4 **exactly as frozen** (no parameter changes, no re-selection)
-  on the locked holdout period (the pre-2026 range the market study reserved).
+  on the holdout window above, at the live configuration (D1 gate OFF per
+  HYP-048, live caps, fixed 0.01 lot).
 - M15 fidelity is acceptable if M1 isn't available for that range — note the
   fill-model difference.
 - **Pass condition:** combined PF > 1.2, max drawdown < 45%, account never below
@@ -101,12 +147,15 @@ be cleared here.
   opens/closes and at broker rollover (~00:00 server time).
 - **Pass condition:** PF > 1.2 at 2× modeled cost with realistic stop slippage.
 
-### I.8 Longer history
-- Exness demo only carries ~100 days of M1. Source **Dukascopy XAUUSD tick data**
-  (free, multi-year) and build a longer M1 series. It won't match the exact
-  broker feed, but it gives real bear markets (2022), the 2020 crash-and-rip,
-  and chop-only stretches to test against.
-- Re-run I.1–I.7 on the long series.
+### I.8 Longer history — RETIRED 2026-09-06 (owner decision)
+- ~~Source Dukascopy multi-year tick data and re-run I.1-I.7 on it.~~
+- **Dropped under the 2-year standard.** The explicit reasoning: pre-2025 gold
+  behaviour is considered a different regime and not decision-relevant. This
+  is a deliberate narrowing of the evidence base, and the cost of it is
+  recorded honestly here rather than quietly dropped: the same live config
+  (gate off) that passes on recent data produced **PF 0.654 / account down to
+  $4.50** on 2022-2024. Choosing the 2-year standard means accepting that a
+  regime like that would not be caught in advance by this test suite.
 
 ### I.9 Forward paper test — the final filter
 - Freeze the config completely. Run on demo for a **minimum of 8 weeks**, no
@@ -194,15 +243,29 @@ ladder require the full validation cycle.
 - The **only** permitted manual action on a live position is the **kill switch**
   (III.6).
 
-### III.2 The direction gate is law
-- The D1 EMA20 bias gate decides direction. **No overriding it** because the
-  move "obviously" continues. On 2026-09-02 a blocked long (FVG_NY BUY at ~4378)
-  would have stopped out on the very next candle — the gate was right and the
-  hindsight-perfect entry was a fantasy. This is the canonical example; re-read
-  it whenever the urge to override appears.
+### III.2 The direction gate — status changed 2026-09-06, read carefully
+- **As of 2026-09-06 the D1 gate is deliberately OFF** (HYP-048), reversing the
+  framing below. This was an explicit owner decision to weight the 2025-2026
+  regime over 2022-2024, made with the full evidence on the table: gate-off
+  scores better on 2025-2026 (PF 1.245, $6.15/day) but took the account from
+  $105.74 to $4.50 on 2022-2024 in the identical config; gate-on survived that
+  period (min balance $39.18) at a lower $/day. **This is a named, accepted
+  risk, not a validated-safe setting** — if conditions revert toward
+  2022-2024-style behavior after real money is live, this is the specific
+  exposure being carried. Re-litigating this decision daily is not useful; but
+  "no overriding it, ever" (the original framing below) no longer describes
+  the system's actual configuration, and anyone reading this document should
+  know that before assuming the gate is protecting anything right now.
+- Original 2026-09-03 rationale, kept for context: the D1 EMA20 bias gate
+  decides direction. On 2026-09-02 a blocked long (FVG_NY BUY at ~4378) would
+  have stopped out on the very next candle — the gate was right and the
+  hindsight-perfect entry was a fantasy.
 - Open question for research (not a live override): the 20-day EMA is *slow* and
   held a stale bias through a full intraday reversal. Test faster variants
-  (EMA10, H4 close, intraday EMA20 cross) — see Part V.
+  (EMA10, H4 close, intraday EMA20 cross) — see Part V. (Tested 2026-09-06:
+  `d1_proximity` k=0.3/k=0.5 variants both did *worse* than plain `d1_ema20` on
+  the 4-year holdout — PF 0.859/0.897, both cratering to ~$7 minimum balance.
+  Don't switch to proximity gating based on this evidence.)
 
 ### III.3 One frozen config
 - After Part I passes, the config is **frozen**. Any change requires:
@@ -252,6 +315,14 @@ ladder require the full validation cycle.
 > auto-started and has **no alert channel** yet. IV.4 (external heartbeat
 > monitor), IV.6 (weekend/rollover/maintenance), IV.8 (structured logging) and
 > IV.9 (daily report) are still to do.
+>
+> **Status 2026-09-06 addendum:** watchdog (IV.1) has no awareness of
+> `protect_profit.py` and nothing monitors watchdog itself -- a real single
+> point of failure in the chain, confirmed by direct code audit, not just
+> unfinished. `logs/trade_ledger.jsonl` (meant to back IV.8/VI.4) is dead code
+> -- nothing currently writes to it. A new item, **IV.11**, was built and
+> verified this session and should be treated as part of this Part going
+> forward.
 
 ### IV.1 Watchdog + auto-restart
 - A separate supervisor (Windows Task Scheduler entry, or a tiny `watchdog.py`)
@@ -311,6 +382,29 @@ On every start, refuse to run unless ALL pass:
 ### IV.10 Backups
 - Repo is in git (done). Additionally: daily export of the MT5 account statement
   and the trade ledger to a dated file; weekly off-machine copy.
+
+### IV.11 Config-integrity gate — NEW, built and verified 2026-09-06
+- `src/core/system_config.py` fingerprints every value that changes a backtest
+  result (lot size, exposure caps, trailing/pyramiding/D1-gate flags, every
+  strategy's session/SL/TP/dedup settings) into one comparable snapshot, from
+  either the live modules or a backtest run.
+- `src/core/validation_ledger.py` (`research/validation_ledger.json`) records
+  which exact configurations have actually been backtested and with what
+  result. `main_loop.py` checks its live fingerprint against this ledger at
+  startup and **refuses to trade a configuration nobody has validated**,
+  naming the exact field that drifted.
+- This exists because of a real, repeated failure pattern this project kept
+  hitting: exposure caps raised in `execution_handler.py` without the backtest
+  that "validated" portfolio_v4 ever being re-run against the new caps; a
+  strategy bugfix silently changing what an unrelated holdout script tested;
+  `EngineConfig`'s own defaults quietly reproducing already-fixed live bugs.
+  Verified working: seeded with the current live config's real backtest
+  result, then confirmed it correctly blocks a simulated revert of the
+  HYP-046 fix with the exact drifted field named.
+- **Not yet done**: `BacktestEngine` runs still don't auto-record into the
+  ledger — that step is still manual (`validation_ledger.record(...)`), which
+  means a backtest can be run, discussed, and never registered. This is the
+  next real gap in this specific piece.
 
 ---
 
@@ -394,39 +488,43 @@ On every start, refuse to run unless ALL pass:
 *Real money does not start until every box is checked. The 2026-09-30 date is a
 target, not a deadline that overrides this list.*
 
+> **Honest status as of 2026-09-06** — see `REAL_MONEY_READINESS_RATING_2026-09-06.md`
+> for full detail per item. Checked = actually done and verifiable; ✗ = not
+> done; ~ = partial / done informally, not to this document's original bar.
+
 **Edge (Part I):**
-- [ ] Holdout test: PF > 1.2, drawdown < 45%, never below 50% of start
-- [ ] Walk-forward: stable leg selection, median test PF > 1.2
-- [ ] Monte Carlo: 95th-pct drawdown < 40%, P(ruin) < 1%
-- [ ] Parameter perturbation: PF > 1.2 across the ±20% cloud
-- [ ] Every leg clears its random-entry control on out-of-sample data
-- [ ] Cost stress: PF > 1.2 at 2× cost with stop-slippage modeled
-- [ ] Long-history (Dukascopy) test covers ≥ 1 bear market and 1 chop period
-- [ ] 8+ week forward paper test, live-demo PF within 20% of backtest
+- [✗] Holdout test: PF > 1.2, drawdown < 45%, never below 50% of start — **fails as specified**: best measured result (post-fix, D1 gate ON, 4yr) is PF 1.180 (misses >1.2) with 83.9% max drawdown and min balance $39.18 (63% down, misses "never below 50% of start")
+- [✗] Walk-forward: stable leg selection, median test PF > 1.2 — not done; calendar 6-month chunking (`edge_by_period.py`) was re-run and shows PF swinging 0.86-1.51 by period, not the pre-registered walk-forward protocol
+- [✗] Monte Carlo: 95th-pct drawdown < 40%, P(ruin) < 1% — **run this session, fails badly**: P(ruin within 100 trades) = 42.3% even under the optimistic stats regime
+- [ ] Parameter perturbation: PF > 1.2 across the ±20% cloud — not done
+- [ ] Every leg clears its random-entry control on out-of-sample data — not re-done post-fix (historical HYP-020 found random-entry scored inside the same range as every real strategy pre-fix)
+- [ ] Cost stress: PF > 1.2 at 2× cost with stop-slippage modeled — not done this session (engine uses one "realistic" cost scenario throughout)
+- [ ] Long-history (Dukascopy) test covers ≥ 1 bear market and 1 chop period — not done; all testing this session stayed on the same Exness-sourced data
+- [ ] 8+ week forward paper test, live-demo PF within 20% of backtest — not done; bot has been stopped, not paper-trading
 
 **Rules (Parts II–III):**
-- [ ] Starting capital decided; if ~$100, first-phase risk accepted in writing
-- [ ] Sizing ladder table filled in and coded as a balance lookup
-- [ ] All loss caps (daily/weekly/monthly/peak) decided and coded
-- [ ] Circuit breakers coded and unit-tested
-- [ ] Profit ring-fencing schedule decided
-- [ ] News blackout list built and wired in
-- [ ] The rulebook is a single finished document
+- [~] Starting capital decided; if ~$100, first-phase risk accepted in writing — $100 confirmed, risk explicitly accepted in writing (HYP-048), but as an edge/regime bet, not this section's 5-9%-per-trade framing specifically
+- [✗] Sizing ladder table filled in and coded as a balance lookup — not built; still fixed 0.01 lot regardless of balance
+- [✗] All loss caps (daily/weekly/monthly/peak) decided and coded — only daily (6%) exists in code; weekly/monthly/peak are still just this document's prose
+- [✗] Circuit breakers coded and unit-tested — not built (no consecutive-loss pause/stop)
+- [✗] Profit ring-fencing schedule decided — not built
+- [✗] News blackout list built and wired in — not built
+- [✗] The rulebook is a single finished document — this document itself was abandoned mid-flight for 3 days; corrected 2026-09-06 but still not a finished, current rulebook
 
 **Resilience (Part IV):**
-- [ ] Watchdog + auto-restart + alert — tested by killing the process
-- [ ] MT5 reconnect — tested by pulling the network
-- [ ] Kill switch — tested mid-trade
-- [ ] Startup safety block — tested against a wrong-account connection
-- [ ] Structured logging + daily auto-report live
-- [ ] Weekend flatten + rollover skip + maintenance-window handling coded
+- [~] Watchdog + auto-restart + alert — exists, restart logic present, but alert is a `print()` stub (no real channel), and watchdog doesn't monitor `protect_profit.py` nor is it itself monitored
+- [x] MT5 reconnect — implemented (`resilience.py`, reconnect after 3 failed fetches)
+- [x] Kill switch — implemented (STOP file); not re-tested mid-trade this session
+- [x] Startup safety block — implemented; **extended 2026-09-06** with the config-integrity gate (IV.11)
+- [✗] Structured logging + daily auto-report live — not built; `trade_ledger.jsonl` is dead code, `main_loop.log` is plain text
+- [✗] Weekend flatten + rollover skip + maintenance-window handling coded — not built
 
 **Operations:**
 - [ ] One dry-run week where the operator follows the rulebook by hand to confirm
-      it is actually followable
-- [ ] Broker: master password, AutoTrading on, correct account verified
+      it is actually followable — not done
+- [x] Broker: master password, AutoTrading on, correct account verified — confirmed working this session (real MT5 deal history pulled successfully)
 - [ ] "Kill criteria" document written — the conditions for shutting this down
-      permanently
+      permanently — not written
 
 ---
 

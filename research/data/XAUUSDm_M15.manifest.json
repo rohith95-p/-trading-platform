@@ -2,11 +2,11 @@
   "symbol": "XAUUSDm",
   "timeframe": "M15",
   "bars": 100000,
-  "first_time": "2022-06-07 11:15:00",
-  "last_time": "2026-08-31 15:30:00",
-  "sha256": "9e942ec66c01128f1a7e120212749fd5f83fde3a0b7b2fec87b4610c160dd3fd",
+  "first_time": "2022-06-13 16:30:00",
+  "last_time": "2026-09-04 20:45:00",
+  "sha256": "639723fa94d116721748de0f21dfdcd935b466e47664c17da6568b4dc2bbe0f8",
   "server": "Exness-MT5Trial11",
-  "downloaded_utc": "2026-08-31 15:44:15",
+  "downloaded_utc": "2026-09-05 21:34:04",
   "spec": {
     "symbol": "XAUUSDm",
     "digits": 3,
@@ -19,30 +19,6 @@
     "contract_size": 100.0
   },
   "gaps": [
-    {
-      "after_utc": "2022-06-07 20:45",
-      "missing_bars": 4,
-      "seconds": 4500,
-      "weekend": false
-    },
-    {
-      "after_utc": "2022-06-08 20:45",
-      "missing_bars": 4,
-      "seconds": 4500,
-      "weekend": false
-    },
-    {
-      "after_utc": "2022-06-09 20:45",
-      "missing_bars": 4,
-      "seconds": 4500,
-      "weekend": false
-    },
-    {
-      "after_utc": "2022-06-10 20:45",
-      "missing_bars": 196,
-      "seconds": 177300,
-      "weekend": true
-    },
     {
       "after_utc": "2022-06-13 20:45",
       "missing_bars": 4,
@@ -6594,6 +6570,30 @@
       "missing_bars": 196,
       "seconds": 177300,
       "weekend": true
+    },
+    {
+      "after_utc": "2026-08-31 20:45",
+      "missing_bars": 4,
+      "seconds": 4500,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-01 20:45",
+      "missing_bars": 4,
+      "seconds": 4500,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-02 20:45",
+      "missing_bars": 4,
+      "seconds": 4500,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-03 20:45",
+      "missing_bars": 4,
+      "seconds": 4500,
+      "weekend": false
     }
   ],
   "zero_volume_bars": 0,

@@ -1,0 +1,74 @@
+{
+  "a=1.0 all sessions": {
+    "n": 2864,
+    "win_rate": 29.8,
+    "profit_factor": 0.6899,
+    "net": -8063.62,
+    "min_balance": -8187.18,
+    "max_drawdown_pct": 7096.0,
+    "usd_per_day": -22.21
+  },
+  "a=1.0 11:30-21:30": {
+    "n": 1443,
+    "win_rate": 28.5,
+    "profit_factor": 0.599,
+    "net": -5461.68,
+    "min_balance": -5568.96,
+    "max_drawdown_pct": 5366.7,
+    "usd_per_day": -15.05
+  },
+  "a=2.0 all sessions": {
+    "n": 1126,
+    "win_rate": 33.2,
+    "profit_factor": 0.8441,
+    "net": -2320.31,
+    "min_balance": -2376.87,
+    "max_drawdown_pct": 1799.7,
+    "usd_per_day": -6.39
+  },
+  "a=2.0 11:30-21:30": {
+    "n": 575,
+    "win_rate": 30.8,
+    "profit_factor": 0.8205,
+    "net": -1459.31,
+    "min_balance": -1512.91,
+    "max_drawdown_pct": 503.0,
+    "usd_per_day": -4.02
+  },
+  "a=3.0 all sessions": {
+    "n": 597,
+    "win_rate": 34.0,
+    "profit_factor": 1.0115,
+    "net": 113.71,
+    "min_balance": -747.05,
+    "max_drawdown_pct": 337.3,
+    "usd_per_day": 0.31
+  },
+  "a=3.0 11:30-21:30": {
+    "n": 298,
+    "win_rate": 33.6,
+    "profit_factor": 0.849,
+    "net": -838.91,
+    "min_balance": -830.89,
+    "max_drawdown_pct": 299.6,
+    "usd_per_day": -2.31
+  },
+  "atr 0.5/2.5": {
+    "n": 2865,
+    "win_rate": 15.9,
+    "profit_factor": 0.5439,
+    "net": -8977.02,
+    "min_balance": -8894.4,
+    "max_drawdown_pct": 8511.6,
+    "usd_per_day": -24.73
+  },
+  "atr 1.0/3.0": {
+    "n": 2862,
+    "win_rate": 24.7,
+    "profit_factor": 0.7242,
+    "net": -7993.74,
+    "min_balance": -7931.19,
+    "max_drawdown_pct": 7600.7,
+    "usd_per_day": -22.02
+  }
+}

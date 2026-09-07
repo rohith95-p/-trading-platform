@@ -1,0 +1,13 @@
+{
+  "days": 355,
+  "hit_target": 102,
+  "hit_halt": 131,
+  "neither": 122,
+  "pct_target": 28.73,
+  "pct_halt": 36.9,
+  "mean_day": 2.99,
+  "median_day": -3.72,
+  "pct_days_profitable": 44.23,
+  "target_halt_ratio": 0.779,
+  "approx_ev_per_day": 1.52
+}

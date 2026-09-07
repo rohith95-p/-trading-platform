@@ -1,5 +1,5 @@
 # Daily Market Analysis (Global Macro Tracker)
-*Date: 2026-09-03 (written 00:20 IST, covering the 2026-09-02 session)*
+*Date: 2026-09-07 (written morning IST, covering the 2026-09-04 session)*
 
 > **WARNING — this file changes live trading behaviour.**
 > `RiskManager._load_macro_rules()` greps this document for two specific
@@ -20,47 +20,32 @@
 
 | Asset | Current | 5-Day | Implication for Gold |
 |---|---|---|---|
-| **Gold (XAUUSDm)** | 4374.54 | **−4.79%** | Downtrend intact, but see the reversal note below. |
-| **Silver (XAGUSDm)** | 65.11 | **−5.83%** | Falling *faster* than gold — metals complex weak, not a gold-specific story. |
-| **DXY** | 99.58 | **+0.48%** | Dollar strength is the dominant driver pressuring gold. |
-| **USDX (alt index)** | 580.26 | +0.94% | Confirms dollar bid. |
-| **EURUSD** | 1.159 | −0.57% | Consistent with dollar strength. |
-| **USDJPY** | 158.92 | −0.24% | Yen firming slightly — mild risk-off undertone. |
-| **Brent (UKOILm)** | 94.31 | **+9.19%** | Large energy spike. Inflationary — a latent *bullish* gold catalyst. |
-| **WTI (USOILm)** | 89.20 | **+7.67%** | Same. |
+| **Gold (XAUUSDm)** | 4430.15 | **−0.63%** | Price compressed after recent drop, but remains vulnerable. |
+| **Silver (XAGUSDm)** | 65.11 | **−5.83%** | Still showing significant weakness in the metals complex. |
+| **DXY** | 99.58 | **+0.48%** | Dollar bid is steady. Pressures gold. |
+| **EURUSD** | 1.158 | −0.57% | Consistent with dollar strength. |
+| **USDJPY** | 158.92 | −0.24% | Modest yen firming. |
+| **Brent (UKOILm)** | 94.30 | **+9.18%** | Energy inflation pulse remains strong. |
+| **WTI (USOILm)** | 89.20 | **+7.68%** | Same. |
 | **US500** | 7672 | −0.66% | Equities soft. |
-| **USTEC** | 29110 | −1.52% | Tech leading the softness. |
+| **USTEC** | 29590 | +0.39% | Tech flat to slightly up. |
 
 ## Gold Price Structure
 
 | Date | Open | High | Low | Close | Range |
 |---|---|---|---|---|---|
-| 08-25 | 4679.80 | **4697.11** (peak) | 4605.20 | 4654.70 | 91.90 |
-| 08-28 | 4594.61 | 4632.24 | 4445.29 | 4456.13 | **186.95** |
-| 08-31 | 4458.30 | 4472.42 | 4396.35 | 4452.14 | 76.07 |
 | 09-01 | 4452.22 | 4461.48 | 4322.67 | 4324.64 | 138.81 |
-| **09-02** | 4324.69 | 4397.71 | **4282.30** | **4374.54** | 115.41 |
+| 09-02 | 4324.69 | 4397.71 | 4282.30 | 4385.40 | 115.41 |
+| 09-03 | 4385.81 | 4510.95 | 4382.42 | 4479.84 | 128.53 |
+| 09-04 | 4480.11 | 4490.91 | 4365.44 | 4430.16 | 125.46 |
+| **09-07 (Live)**| 4423.16 | 4429.73 | 4389.43 | **4403.18** | 40.29 |
 
-- **−6.9% from the 4697.11 peak** (Aug 25).
-- **09-02 is a bullish reversal candle.** Price made a new swing low at 4282.30,
-  then rallied $92 to close at 4374.54 — in the upper third of its own range.
-  After five sessions of decline this is a textbook exhaustion/hammer shape.
-- **Volatility is expanding:** daily ranges 76 → 139 → 115, against a ~88
-  average earlier in the window. Stops sized off a flat ATR are being tested.
+- **Recent Reversal Failed:** Friday's (09-04) candle opened strong at 4480 but rejected, closing at 4430.16, creating a large upper wick and ending the brief bullish impulse.
+- **Current Monday Open:** Price opened lower and is currently trading around 4403, indicating continued pressure.
+- **Volatility is steady:** daily ranges consistently above 115 points over the last four sessions, well above historical baseline.
 
 ## Conclusion
 
-The macro backdrop remains **bearish for gold**: the dollar is bid, silver is
-falling harder than gold, and equities are soft without producing safe-haven
-demand. Nothing in the cross-asset picture has turned.
+The macro backdrop remains **bearish for gold**: dollar is bid, silver is weak, and the failure of Friday's rally confirms sellers remain active. The oil spike remains a latent bullish catalyst but is currently overpowered by dollar strength.
 
-**But the price structure and the macro no longer agree.** Today's daily candle
-reversed off a new low and closed strong, and oil is up ~8-9% in five sessions —
-an inflation impulse that historically supports gold and is currently being
-overridden by dollar strength. That is an unstable configuration.
-
-**The operative number is 4436** — the D1 EMA20. Gold closed $62 below it
-(~1.4%). Given daily ranges of 115-140, that is **within a single session's
-reach**. If price closes above 4436, the live D1 bias gate flips from BEARISH to
-BULLISH, and the bot stops taking shorts and starts taking longs. Treat the
-short bias as valid but **provisional**, not structural.
+**The operative number is 4438.51** — the D1 EMA20. Current price (4403) is below it. Given the recent failure to hold above the EMA20 on Friday, **the live D1 bias gate flips back to BEARISH**. The bot will stop taking longs and resume taking shorts.

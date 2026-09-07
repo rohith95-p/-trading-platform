@@ -1,0 +1,120 @@
+{
+  "A_all4_current": {
+    "legs": [
+      "SQUEEZE_ASIA",
+      "EMASTACK_LONDON_TIGHT",
+      "FVG_NY_TIGHT",
+      "RANGEREJECTION_NY_TIGHT"
+    ],
+    "stats": {
+      "n": 2460,
+      "win_rate": 27.926829268292686,
+      "profit_factor": 1.2581,
+      "net": 3029.8,
+      "min_balance": 102.01,
+      "end_balance": 3135.54,
+      "max_drawdown_pct": 40.26,
+      "avg_win": 21.5,
+      "avg_loss": -6.62,
+      "usd_per_day": 6.0
+    },
+    "verdict": {
+      "passed": true,
+      "reasons": []
+    },
+    "montecarlo": {
+      "p_ruin_pct": 39.36,
+      "maxdd_p50": 74.5,
+      "maxdd_p95": 223.7
+    }
+  },
+  "B_1130_2130_no_asia": {
+    "legs": [
+      "EMASTACK_LONDON_TIGHT",
+      "FVG_NY_TIGHT",
+      "RANGEREJECTION_NY_TIGHT"
+    ],
+    "stats": {
+      "n": 1828,
+      "win_rate": 23.249452954048138,
+      "profit_factor": 1.2558,
+      "net": 1600.52,
+      "min_balance": 102.4,
+      "end_balance": 1706.26,
+      "max_drawdown_pct": 66.17,
+      "avg_win": 18.49,
+      "avg_loss": -4.46,
+      "usd_per_day": 3.17
+    },
+    "verdict": {
+      "passed": false,
+      "reasons": [
+        "maxDD 66.17% >= 45.0%"
+      ]
+    },
+    "montecarlo": {
+      "p_ruin_pct": 28.14,
+      "maxdd_p50": 62.5,
+      "maxdd_p95": 168.1
+    }
+  },
+  "C_1130_2130_no_asia_no_rangerej": {
+    "legs": [
+      "EMASTACK_LONDON_TIGHT",
+      "FVG_NY_TIGHT"
+    ],
+    "stats": {
+      "n": 435,
+      "win_rate": 17.93103448275862,
+      "profit_factor": 0.9072,
+      "net": -91.22,
+      "min_balance": 14.52,
+      "end_balance": 14.52,
+      "max_drawdown_pct": 94.05,
+      "avg_win": 11.43,
+      "avg_loss": -2.75,
+      "usd_per_day": -0.18
+    },
+    "verdict": {
+      "passed": false,
+      "reasons": [
+        "PF 0.9072 <= 1.2",
+        "maxDD 94.05% >= 45.0%",
+        "min balance $14.52 < 50% of start ($52.87)"
+      ]
+    },
+    "montecarlo": {
+      "p_ruin_pct": 73.07,
+      "maxdd_p50": 124.6,
+      "maxdd_p95": 280.3
+    }
+  },
+  "D_fvg_only": {
+    "legs": [
+      "FVG_NY_TIGHT"
+    ],
+    "stats": {
+      "n": 1156,
+      "win_rate": 22.92387543252595,
+      "profit_factor": 1.432,
+      "net": 1503.93,
+      "min_balance": 104.2,
+      "end_balance": 1609.67,
+      "max_drawdown_pct": 49.57,
+      "avg_win": 18.81,
+      "avg_loss": -3.91,
+      "usd_per_day": 2.98
+    },
+    "verdict": {
+      "passed": false,
+      "reasons": [
+        "maxDD 49.57% >= 45.0%"
+      ]
+    },
+    "montecarlo": {
+      "p_ruin_pct": 11.59,
+      "maxdd_p50": 43.9,
+      "maxdd_p95": 110.3
+    }
+  }
+}

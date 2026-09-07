@@ -1,0 +1,78 @@
+{
+  "structure": {
+    "structure, ATR 0.75x/3.0x, all sessions": {
+      "n": 1145,
+      "win_rate": 20.8,
+      "profit_factor": 0.6333,
+      "net": -2893.02,
+      "min_balance": -2947.43,
+      "max_drawdown_pct": 2887.4,
+      "usd_per_day": -5.74
+    },
+    "structure, ATR 1.0x/2.0x, all sessions": {
+      "n": 1146,
+      "win_rate": 34.7,
+      "profit_factor": 0.6532,
+      "net": -2763.24,
+      "min_balance": -2718.78,
+      "max_drawdown_pct": 2671.2,
+      "usd_per_day": -5.48
+    },
+    "structure, ATR 0.75x/3.0x, 11:30-21:30": {
+      "n": 573,
+      "win_rate": 18.3,
+      "profit_factor": 0.5102,
+      "net": -1969.57,
+      "min_balance": -1893.87,
+      "max_drawdown_pct": 1821.1,
+      "usd_per_day": -3.91
+    }
+  },
+  "reversal": {
+    "reversal, ATR 0.75x/3.0x, all sessions": {
+      "n": 2040,
+      "win_rate": 19.8,
+      "profit_factor": 0.5847,
+      "net": -6018.45,
+      "min_balance": -5939.53,
+      "max_drawdown_pct": 5717.1,
+      "usd_per_day": -11.94
+    },
+    "reversal, ATR 1.0x/1.0x, all sessions": {
+      "n": 2041,
+      "win_rate": 46.6,
+      "profit_factor": 0.4782,
+      "net": -5823.04,
+      "min_balance": -5717.3,
+      "max_drawdown_pct": 5506.9,
+      "usd_per_day": -11.55
+    },
+    "reversal, ATR 0.5x/1.5x, all sessions": {
+      "n": 2041,
+      "win_rate": 25.5,
+      "profit_factor": 0.4591,
+      "net": -5619.07,
+      "min_balance": -5538.08,
+      "max_drawdown_pct": 5337.4,
+      "usd_per_day": -11.15
+    },
+    "reversal, ATR 0.75x/3.0x, 11:30-21:30": {
+      "n": 835,
+      "win_rate": 19.5,
+      "profit_factor": 0.5449,
+      "net": -2645.51,
+      "min_balance": -2539.77,
+      "max_drawdown_pct": 2501.9,
+      "usd_per_day": -5.25
+    },
+    "reversal, sens=5, ATR 0.75x/3.0x, all sessions": {
+      "n": 3952,
+      "win_rate": 20.2,
+      "profit_factor": 0.606,
+      "net": -11003.92,
+      "min_balance": -11009.68,
+      "max_drawdown_pct": 10071.4,
+      "usd_per_day": -21.83
+    }
+  }
+}

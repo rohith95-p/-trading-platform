@@ -1,0 +1,233 @@
+{
+  "run_id": "20260905-213419_head_realistic",
+  "generated_utc": "2026-09-05 21:34:19",
+  "symbol": "XAUUSDm",
+  "config_name": "head",
+  "cost_scenario": "realistic",
+  "cost_model": {
+    "spread_source": "bar",
+    "fixed_spread_points": 260.0,
+    "spread_multiplier": 1.0,
+    "slippage_points": 20.0,
+    "commission_per_lot_roundtrip": 0.0,
+    "swap_long_points": -515.5,
+    "swap_short_points": 0.0,
+    "enable_swap": true,
+    "rollover_hour_utc": 0.0,
+    "triple_swap_weekday": null
+  },
+  "strategies": [
+    "morning_momentum",
+    "ema_pullback",
+    "asian_sweep"
+  ],
+  "window": {
+    "start": "2026-09-04",
+    "end": "2026-09-05"
+  },
+  "engine_config": {
+    "symbol": "XAUUSDm",
+    "starting_balance": 105.74,
+    "risk_pct": 0.05,
+    "history_bars": 250,
+    "m5_history_bars": 100,
+    "d1_history_bars": 50,
+    "loop_interval_sec": 60,
+    "resignal_interval_sec": 300,
+    "dedup_per_candle": false,
+    "max_concurrent": 3,
+    "max_same_direction": 2,
+    "enable_pyramiding": true,
+    "enable_consolidation_exit": true,
+    "enable_trailing": true,
+    "enable_d1_bias_gate": true,
+    "direction_gate": "d1_ema20",
+    "structure_len": 10,
+    "gate_prox_atr": 0.5,
+    "choch_lookback_h4": 3,
+    "be_trigger_atr": 0.0,
+    "be_offset_atr": 0.1,
+    "equity_pause_dd": 0.0,
+    "equity_resume_dd": 0.0,
+    "spread_gate_points": 350.0,
+    "spread_gate_blocks_management": true,
+    "lot_cap": null,
+    "daily_loss_limit_mode": "off",
+    "daily_loss_limit_pct": 0.06,
+    "load_macro_rules": false,
+    "warmup_bars": 260,
+    "min_tradeable_balance": 5.0,
+    "leverage": 200.0,
+    "enforce_margin": true,
+    "margin_call_level_pct": 100.0,
+    "sizing_mode": "live",
+    "tp_atr_mult": null,
+    "trail_activation_atr": null,
+    "trail_distance_atr": null,
+    "sl_atr_mult_override": null,
+    "fixed_lots": 0.01,
+    "use_time_of_day_atr": false,
+    "tod_atr_bucket_minutes": 60
+  },
+  "data_hash": "d5a5d94eedc0f072",
+  "data_manifests": {
+    "M15": {
+      "sha256": "639723fa94d116721748de0f21dfdcd935b466e47664c17da6568b4dc2bbe0f8",
+      "bars": 100000,
+      "first": "2022-06-13 16:30:00",
+      "last": "2026-09-04 20:45:00"
+    },
+    "M5": {
+      "sha256": "4cbbb26bcfa07b9140015704bd4f0d4fad6e3dc4dadb25a8a5a55a213d1e7a96",
+      "bars": 100000,
+      "first": "2025-04-08 17:05:00",
+      "last": "2026-09-04 20:55:00"
+    },
+    "M1": {
+      "sha256": "4ec32da03eb8e54e6846f0910fbfe88ec63459322f74041850ba1654348397c3",
+      "bars": 100000,
+      "first": "2026-05-26 23:39:00",
+      "last": "2026-09-04 20:57:00"
+    },
+    "D1": {
+      "sha256": "f66020dbb6e37189c8b14f1241b495a325ea2626e193c495898154a31e3bc104",
+      "bars": 1511,
+      "first": "2021-10-27 00:00:00",
+      "last": "2026-09-04 00:00:00"
+    }
+  },
+  "diagnostics": {
+    "signals_generated": 11,
+    "signals_deduped": 0,
+    "entries_blocked_caps": 9,
+    "entries_blocked_spread": 0,
+    "entries_blocked_d1_bias": 40,
+    "duplicate_entries": 3,
+    "pyramid_entries": 1,
+    "ambiguous_bars": 0,
+    "management_skipped_spread": 0,
+    "daily_shutdowns": 0,
+    "bars_without_m1": 0,
+    "entries_blocked_insufficient_equity": 0,
+    "entries_blocked_margin": 0,
+    "same_candle_refires": 3,
+    "swap_nights_charged": 0,
+    "swap_paid": 0.0
+  },
+  "stats": {
+    "trades": 7,
+    "wins": 6,
+    "losses": 1,
+    "scratches": 0,
+    "win_rate": 85.71,
+    "gross_profit": 19.74,
+    "gross_loss": 8.77,
+    "net_pl": 10.97,
+    "profit_factor": 2.251,
+    "expectancy": 1.5674,
+    "avg_win": 3.29,
+    "avg_loss": 8.77,
+    "median_win": 3.36,
+    "median_loss": 8.77,
+    "payoff_ratio": 0.375,
+    "breakeven_win_rate": 72.72,
+    "win_rate_margin": 12.99,
+    "total_r": 0.939,
+    "expectancy_r": 0.1342,
+    "avg_win_r": 0.324,
+    "avg_loss_r": 1.002,
+    "max_drawdown": 8.77,
+    "max_drawdown_pct": 6.99,
+    "max_drawdown_duration_days": 0.0,
+    "recovery_factor": 1.251,
+    "max_consec_wins": 6,
+    "max_consec_losses": 1,
+    "avg_mae_r": -0.428,
+    "avg_mfe_r": 0.494,
+    "mfe_capture": 0.272,
+    "avg_minutes_open": 44.0,
+    "median_minutes_open": 55.0,
+    "avg_minutes_to_mfe": 41.9,
+    "duplicate_trades": 3,
+    "duplicate_pl": 9.95,
+    "pyramid_trades": 1,
+    "pyramid_pl": -8.77,
+    "ambiguous_trades": 0,
+    "exit_reasons": {
+      "SL": 7
+    },
+    "by_session": {
+      "ASIA_OVERNIGHT": {
+        "trades": 2,
+        "wins": 2,
+        "net_pl": 7.17,
+        "gross_profit": 7.17,
+        "gross_loss": 0.0,
+        "win_rate": 100.0,
+        "profit_factor": Infinity
+      },
+      "LONDON_OPEN": {
+        "trades": 2,
+        "wins": 2,
+        "net_pl": 6.76,
+        "gross_profit": 6.76,
+        "gross_loss": 0.0,
+        "win_rate": 100.0,
+        "profit_factor": Infinity
+      },
+      "LONDON_NY_OVERLAP": {
+        "trades": 3,
+        "wins": 2,
+        "net_pl": -2.97,
+        "gross_profit": 5.8,
+        "gross_loss": 8.77,
+        "win_rate": 66.7,
+        "profit_factor": 0.662
+      }
+    },
+    "by_month": {
+      "2026-09": {
+        "trades": 7,
+        "wins": 6,
+        "net_pl": 10.97,
+        "gross_profit": 19.74,
+        "gross_loss": 8.77,
+        "win_rate": 85.7,
+        "profit_factor": 2.252
+      }
+    },
+    "by_strategy": {
+      "MORNING_MOMENTUM": {
+        "trades": 7,
+        "wins": 6,
+        "net_pl": 10.97,
+        "gross_profit": 19.74,
+        "gross_loss": 8.77,
+        "win_rate": 85.7,
+        "profit_factor": 2.252
+      }
+    },
+    "start_balance": 105.74,
+    "end_balance": 116.71,
+    "return_pct": 10.37
+  },
+  "confidence": {
+    "bootstrap_expectancy": {
+      "mean": 1.5596,
+      "p05": -1.7813,
+      "p50": 1.608,
+      "p95": 3.4321,
+      "prob_negative": 0.2562
+    },
+    "monte_carlo": {
+      "median_max_dd": 8.77,
+      "p95_max_dd": 8.77,
+      "worst_max_dd": 8.77,
+      "median_final": 116.71,
+      "p05_final": 116.71,
+      "prob_50pct_drawdown": 0.0,
+      "prob_final_below_start": 0.0
+    },
+    "outlier_dependence": {}
+  }
+}

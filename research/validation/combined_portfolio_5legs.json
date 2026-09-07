@@ -1,0 +1,35 @@
+{
+  "stats": {
+    "n": 1094,
+    "win_rate": 23.308957952468006,
+    "profit_factor": 1.4339,
+    "net": 1408.39,
+    "min_balance": 104.2,
+    "end_balance": 1514.13,
+    "max_drawdown_pct": 52.85,
+    "avg_win": 18.25,
+    "avg_loss": -3.87
+  },
+  "verdict": {
+    "passed": false,
+    "reasons": [
+      "maxDD 52.85% >= 45.0%"
+    ]
+  },
+  "montecarlo": {
+    "maxdd_p95": 106.4,
+    "p_ruin_pct": 10.89,
+    "p_touch_minus50_pct": 24.77
+  },
+  "by_leg": {
+    "FVG_NY_SWEEP_OR_VOID": {
+      "n": 660,
+      "net": 987.54
+    },
+    "FVG_NY_TIGHT": {
+      "n": 434,
+      "net": 420.86
+    }
+  },
+  "stacked_candles": 0
+}

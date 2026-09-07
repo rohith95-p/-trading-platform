@@ -322,6 +322,39 @@ def _c_engulfing(f: F) -> np.ndarray:
     return _sig(bull, bear)
 
 
+def _c_structure_break_choch(f: F, length: int = 10) -> np.ndarray:
+    """BigBeluga MS Trend Matrix entry: enter on a structure trend FLIP (CHoCH).
+    Long when close crosses the last confirmed pivot high while trend was down;
+    short on the mirror."""
+    from src.research.structure import _compute_from_arrays
+    s = _compute_from_arrays(f["high"], f["low"], f["close"], length)
+    ev = s["event"]
+    return _sig(ev == 2, ev == -2)
+
+
+def _c_structure_break_bos(f: F, length: int = 10) -> np.ndarray:
+    """Structure CONTINUATION (BOS): close breaks a pivot in the direction of the
+    existing trend."""
+    from src.research.structure import _compute_from_arrays
+    s = _compute_from_arrays(f["high"], f["low"], f["close"], length)
+    ev = s["event"]
+    return _sig(ev == 1, ev == -1)
+
+
+def _c_order_block(f: F, length: int = 10) -> np.ndarray:
+    """LuxAlgo SMC order block: price returns to the origin candle of the move
+    that broke structure, and holds it. Long = wick into an unmitigated bullish
+    OB, close back above its low, bullish candle. Mirror for short."""
+    from src.research.structure import _compute_from_arrays
+    s = _compute_from_arrays(f["high"], f["low"], f["close"], length)
+    lo, hi, cl, op = f["low"], f["high"], f["close"], f["open"]
+    b_hi, b_lo = s["bull_ob_hi"], s["bull_ob_lo"]
+    r_hi, r_lo = s["bear_ob_hi"], s["bear_ob_lo"]
+    long_mask = (~np.isnan(b_lo)) & (lo <= b_hi) & (cl >= b_lo) & (cl > op)
+    short_mask = (~np.isnan(r_hi)) & (hi >= r_lo) & (cl <= r_hi) & (cl < op)
+    return _sig(long_mask, short_mask)
+
+
 def _c_inside_bar_break(f: F) -> np.ndarray:
     ph, pl = _shift(f["high"], 1), _shift(f["low"], 1)
     pph, ppl = _shift(f["high"], 2), _shift(f["low"], 2)
@@ -561,5 +594,25 @@ def build_library() -> List[Candidate]:
         "EMA200 filter + SAR flip only, no ADX/ChoCh/volume gates.",
         "Simpler = higher signal frequency but lower quality per signal.",
         _c_ema_sar_simple, SESS_MAIN, EX_STD)
+
+    # --- market structure (BigBeluga MS Trend Matrix), rohith-2 ---
+    add("Structure break CHoCH", "structure",
+        "A close through the last confirmed opposite pivot flips the trend -- "
+        "enter on that flip.",
+        "10-bar lookahead pivot means the flip is confirmed late; the move may "
+        "be half done.",
+        _c_structure_break_choch, SESS_MAIN, EX_STD)
+    add("Structure break BOS", "structure",
+        "A close through a pivot in the direction of the existing trend "
+        "continues it.",
+        "Continuation breaks in gold revert as often as they run "
+        "(follow-through ~48-50%).",
+        _c_structure_break_bos, SESS_MAIN, EX_STD)
+    add("Order block retest", "structure",
+        "Price returns to the origin candle of a structure-breaking move and "
+        "holds the zone (LuxAlgo SMC order block).",
+        "OB zones are wide and frequently overrun; the 'hold' may be one bar "
+        "of noise before continuation through.",
+        _c_order_block, SESS_MAIN, EX_STD)
 
     return lib

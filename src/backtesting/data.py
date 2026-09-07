@@ -289,6 +289,7 @@ class BarSet:
     d1: Optional[np.ndarray]
     spec: SymbolSpec
     manifests: Dict[str, DataManifest]
+    h4: Optional[np.ndarray] = None
 
     def hash_key(self) -> str:
         """Combined hash of every series backing this set."""
@@ -338,6 +339,7 @@ def load_bars(
         m5=series.get("M5"),
         m1=series.get("M1"),
         d1=series.get("D1"),
+        h4=series.get("H4"),
         spec=spec,
         manifests=manifests,
     )

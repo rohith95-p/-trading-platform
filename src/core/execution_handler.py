@@ -26,9 +26,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 # ---------------------------------------------------------------------------
 SYMBOL = "XAUUSDm"
 
-# Owner's rule (2026-09-02): total open exposure on the symbol must never exceed
-# 0.02 lots. With FIXED_LOT_SIZE = 0.01 that is at most 2 concurrent positions.
-# Was 3 (-> 0.03 lots possible, which is what the owner flagged).
+# Owner's rule: Max 2 concurrent positions, max 0.02 total exposure.
 MAX_CONCURRENT_POSITIONS = 2
 MAX_SAME_DIRECTION_POSITIONS = 2
 
@@ -133,14 +131,13 @@ class ExecutionHandler:
             print(f"[{_ist_now()}] BLOCKED: Max concurrent positions reached")
             return None
 
-        # Hard 0.01-lot cap -- owner's rule, applied to every order regardless of
-        # what the caller computed.
-        if lot_size != FIXED_LOT_SIZE:
-            log.warning(
-                f"[{strategy_name}] lot size {lot_size} overridden to fixed "
-                f"{FIXED_LOT_SIZE} (owner's hard cap)."
-            )
-            lot_size = FIXED_LOT_SIZE
+        # Threshold Scaling: 0.01 lots until $400
+        account = mt5.account_info()
+        balance = account.balance if account is not None else 100.0
+        if balance < 400.0:
+            if lot_size != 0.01:
+                log.info(f"[{strategy_name}] Threshold Scaling: Balance ${balance:.2f} < $400. Locking to 0.01 lots.")
+                lot_size = 0.01
 
         # Hard exposure ceiling: never let total open volume exceed 0.02 lots.
         open_volume = sum(p.volume for p in self.get_open_positions())

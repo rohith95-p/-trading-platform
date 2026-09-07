@@ -1,0 +1,54 @@
+{
+  "ema50": {
+    "stats": {
+      "n": 377,
+      "win_rate": 20.424403183023873,
+      "profit_factor": 0.9271,
+      "net": -89.52,
+      "min_balance": 16.22,
+      "end_balance": 16.22,
+      "max_drawdown_pct": 93.8,
+      "avg_win": 14.79,
+      "avg_loss": -4.09,
+      "usd_per_day": -0.18
+    },
+    "verdict": {
+      "passed": false,
+      "reasons": [
+        "PF 0.9271 <= 1.2",
+        "maxDD 93.8% >= 45.0%",
+        "min balance $16.22 < 50% of start ($52.87)"
+      ]
+    },
+    "montecarlo": {
+      "p_ruin_pct": 76.2,
+      "maxdd_p95": 330.6
+    }
+  },
+  "ema20": {
+    "stats": {
+      "n": 702,
+      "win_rate": 21.794871794871796,
+      "profit_factor": 1.0664,
+      "net": 171.57,
+      "min_balance": 46.7,
+      "end_balance": 277.31,
+      "max_drawdown_pct": 87.44,
+      "avg_win": 18.02,
+      "avg_loss": -4.71,
+      "usd_per_day": 0.34
+    },
+    "verdict": {
+      "passed": false,
+      "reasons": [
+        "PF 1.0664 <= 1.2",
+        "maxDD 87.44% >= 45.0%",
+        "min balance $46.7 < 50% of start ($52.87)"
+      ]
+    },
+    "montecarlo": {
+      "p_ruin_pct": 62.67,
+      "maxdd_p95": 333.1
+    }
+  }
+}
