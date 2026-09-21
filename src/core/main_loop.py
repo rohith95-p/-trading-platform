@@ -3,7 +3,7 @@ main_loop.py -- Ultra Core v3 Final Boss Orchestrator.
 
 PHILOSOPHY:
   - NEVER hardcode dollar limits. Everything scales with ATR.
-  - Fixed 0.01 lots, 0.02 total exposure (owner's hard rule, not a risk model).
+  - Runtime-policy staged sizing/exposure (demo -> paper-forward -> small-live).
   - Positions run to their fixed SL/TP -- no trailing, no pyramiding. Both were
     measured net-negative on the validation window (see ENABLE_TRAILING below).
   - portfolio_v4: four session-specialist legs (Asia/London/NY).
@@ -30,8 +30,9 @@ mt5: Any = _mt5
 
 from src.core.data_fetcher import DataFetcher
 from src.core.risk_manager import RiskManager
-from src.core.execution_handler import ExecutionHandler, FIXED_LOT_SIZE
+from src.core.execution_handler import ExecutionHandler
 from src.core import resilience
+from src.core.runtime_policy import load_runtime_policy
 # MorningMomentum (grade H), EMAPullback (grade E), AsianSweep (grade E) were
 # archived to src/strategies/archive/ on 2026-09-01 (rohith phase 3): all three
 # scored below the random-entry control (HYP-020) and MorningMomentum's 83%
@@ -96,6 +97,34 @@ def _ist_now() -> str:
     return datetime.now(IST).strftime("%I:%M:%S %p IST")
 
 
+def _period_start_utc(now_ist: datetime, scope: str) -> datetime:
+    if scope == "day":
+        start_ist = now_ist.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif scope == "week":
+        start_ist = (now_ist - timedelta(days=now_ist.weekday())).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+    elif scope == "month":
+        start_ist = now_ist.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        raise ValueError(f"unknown scope: {scope}")
+    return start_ist.astimezone(timezone.utc)
+
+
+def _period_drawdown_hit(fetcher, floating_pl: float, start_utc: datetime, loss_pct: float):
+    realised_pl = fetcher.get_closed_pl_since(start_utc)
+    balance = fetcher.get_account_balance()
+    if balance is None:
+        return False, realised_pl, 0.0, 0.0
+    period_start_balance = balance - realised_pl
+    if period_start_balance <= 0:
+        return False, realised_pl, period_start_balance, 0.0
+    total_pl = realised_pl + floating_pl
+    limit = loss_pct * period_start_balance
+    hit = total_pl < 0 and abs(total_pl) >= limit
+    return hit, realised_pl, period_start_balance, limit
+
+
 def _calc_ema(closes: np.ndarray, period: int) -> np.ndarray:
     ema = np.full_like(closes, np.nan, dtype=float)
     if len(closes) >= period:
@@ -139,9 +168,10 @@ def _run_guarded():
         return
 
     # --- Modules ---
+    policy = load_runtime_policy()
     fetcher = DataFetcher(SYMBOL)
-    risk = RiskManager(SYMBOL)
-    executor = ExecutionHandler(SYMBOL)
+    risk = RiskManager(SYMBOL, policy=policy)
+    executor = ExecutionHandler(SYMBOL, policy=policy)
     # rohith phase 3 (2026-09-01): portfolio_v4 replaces EMAStack alone.
     # Validated together (PF 1.512, $703 net/~100d) is not the same claim as
     # "EMAStack plus these 4" -- that 5-strategy combination was never tested,
@@ -151,6 +181,10 @@ def _run_guarded():
     # Daily drawdown shutdown flag
     drawdown_shutdown = False
     shutdown_date = None
+    weekly_shutdown = False
+    monthly_shutdown = False
+    weekly_key = (datetime.now(IST).isocalendar().year, datetime.now(IST).isocalendar().week)
+    monthly_key = (datetime.now(IST).year, datetime.now(IST).month)
 
     # CRIT-1: the loop re-reads the same closed M15 candle every 60s, so an
     # unchanged signal fires up to 15 times and opens duplicate positions one
@@ -176,8 +210,14 @@ def _run_guarded():
     log.info("Ultra Core v3 -- Final Boss Engine")
     log.info(f"Symbol: {SYMBOL}")
     log.info(f"Active Strategies: {[s.name for s in strategies]}")
-    log.info(f"Lots: FIXED {FIXED_LOT_SIZE} | Max exposure: 0.02 | Max positions: 2")
-    log.info(f"Daily loss cap: 6% of balance | Session: IST-adaptive")
+    stage = executor.current_stage_name()
+    stage_lot = executor.current_lot_size()
+    log.info(f"Lots: stage-policy {stage_lot:.2f} ({stage}) | Session: IST-adaptive")
+    log.info(
+        f"Breakers: daily {policy.breakers.get('daily_loss_pct', 0.06):.0%}, "
+        f"weekly {policy.breakers.get('weekly_loss_pct', 0.15):.0%}, "
+        f"monthly {policy.breakers.get('monthly_loss_pct', 0.25):.0%}"
+    )
     log.info(f"Trailing: {'ON' if ENABLE_TRAILING else 'OFF'} | "
              f"Pyramiding: {'ON' if ENABLE_PYRAMIDING else 'OFF'}")
     log.info(f"Resilience: lock={resilience.LOCK_FILE} | kill switch=create '{resilience.STOP_FILE}'")
@@ -208,7 +248,22 @@ def _run_guarded():
                 log.info("Midnight IST -- drawdown reset. Trading resumes.")
                 print(f"[{_ist_now()}] RESET: New day, drawdown cleared.")
 
+            curr_week_key = (now_ist.isocalendar().year, now_ist.isocalendar().week)
+            curr_month_key = (now_ist.year, now_ist.month)
+            if weekly_shutdown and curr_week_key != weekly_key:
+                weekly_shutdown = False
+                weekly_key = curr_week_key
+                log.info("New ISO week -- weekly breaker reset.")
+            if monthly_shutdown and curr_month_key != monthly_key:
+                monthly_shutdown = False
+                monthly_key = curr_month_key
+                log.info("New month -- monthly breaker reset.")
+
             if drawdown_shutdown:
+                _time.sleep(LOOP_INTERVAL)
+                continue
+            if weekly_shutdown or monthly_shutdown:
+                _manage_open_positions(fetcher, risk, executor)
                 _time.sleep(LOOP_INTERVAL)
                 continue
 
@@ -249,6 +304,44 @@ def _run_guarded():
                     _manage_open_positions(fetcher, risk, executor)
                     _time.sleep(LOOP_INTERVAL)
                     continue
+
+            weekly_hit, weekly_realised, weekly_start_balance, weekly_limit = _period_drawdown_hit(
+                fetcher=fetcher,
+                floating_pl=floating_pl,
+                start_utc=_period_start_utc(now_ist, "week"),
+                loss_pct=policy.weekly_loss_pct(),
+            )
+            if weekly_hit:
+                weekly_shutdown = True
+                weekly_key = curr_week_key
+                print(
+                    f"[{_ist_now()}] SHUTDOWN: Weekly loss breaker hit "
+                    f"(realised ${weekly_realised:.2f} + floating ${floating_pl:.2f} <= "
+                    f"-${weekly_limit:.2f} from start ${weekly_start_balance:.2f}). "
+                    f"No new trades until next ISO week."
+                )
+                _manage_open_positions(fetcher, risk, executor)
+                _time.sleep(LOOP_INTERVAL)
+                continue
+
+            monthly_hit, monthly_realised, monthly_start_balance, monthly_limit = _period_drawdown_hit(
+                fetcher=fetcher,
+                floating_pl=floating_pl,
+                start_utc=_period_start_utc(now_ist, "month"),
+                loss_pct=policy.monthly_loss_pct(),
+            )
+            if monthly_hit:
+                monthly_shutdown = True
+                monthly_key = curr_month_key
+                print(
+                    f"[{_ist_now()}] SHUTDOWN: Monthly loss breaker hit "
+                    f"(realised ${monthly_realised:.2f} + floating ${floating_pl:.2f} <= "
+                    f"-${monthly_limit:.2f} from start ${monthly_start_balance:.2f}). "
+                    f"No new trades until next month."
+                )
+                _manage_open_positions(fetcher, risk, executor)
+                _time.sleep(LOOP_INTERVAL)
+                continue
 
             # ----------------------------------------------------------
             # Fetch data & Macro Bias
@@ -404,10 +497,8 @@ def _execute_signal(signal, m15_rates, fetcher, risk, executor, session_mult, se
     if stops is None:
         return
 
-    # Owner's rule: fixed 0.01 lots, no dynamic sizing. The 0.15 risk_pct sizer
-    # put 0.02-0.03 lots on a ~$105 account (live, 2026-09-02). ExecutionHandler
-    # also hard-caps this, but the call site now states the intent.
-    lot_size = FIXED_LOT_SIZE
+    # Runtime stage policy decides lot size deterministically by account balance.
+    lot_size = executor.current_lot_size()
 
     executor.send_order(
         signal=signal.direction,
@@ -464,7 +555,7 @@ def _check_pyramiding(fetcher, risk, executor, m15_rates, session_mult, session_
             if stops is None:
                 continue
 
-            lot_size = FIXED_LOT_SIZE  # owner's rule: pyramid adds are also 0.01
+            lot_size = executor.current_lot_size()
 
             profit_dist = abs(pos.price_current - pos.price_open)
             log.info(

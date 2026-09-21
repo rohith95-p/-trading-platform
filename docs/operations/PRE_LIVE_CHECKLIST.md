@@ -1,0 +1,9 @@
+- [ ] Correct account login and symbol visibility verified
+- [ ] `STOP` kill-switch path verified
+- [ ] Runtime policy version reviewed (`config/runtime_policy.json`)
+- [ ] Daily/weekly/monthly breaker thresholds reviewed
+- [ ] Promotion stage for current balance verified
+- [ ] Watchdog running with webhook configured (`ULTRA_CORE_ALERT_WEBHOOK`)
+- [ ] `scripts.production_validation` report generated and gates passed
+- [ ] Regression tests executed and passing
+- [ ] Rollback commit + procedure documented

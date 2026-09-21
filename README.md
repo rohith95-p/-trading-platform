@@ -52,6 +52,7 @@ docs/
 
 reports/         longer-form analysis write-ups
 .agents/         AI skills (macro prep, trade auditor) and rules
+config/          versioned runtime policy + production validation profile
 ```
 
 ## Key documents
@@ -63,6 +64,14 @@ reports/         longer-form analysis write-ups
 - **`docs/research/RESEARCH_LEDGER.md`** — every hypothesis tested (HYP-001+).
 - **`docs/research/STRATEGY_REGISTRY.md`** — every strategy, its grade, why.
 - **`docs/research/PHASE3_FULL_SWEEP_RESULTS.md`** — how portfolio_v4 was chosen.
+- **`docs/operations/INCIDENT_RUNBOOK.md`** — incident response and restart safety.
+- **`docs/operations/CHANGE_MANAGEMENT.md`** — release gates and rollback discipline.
+
+## Production validation
+
+Run deterministic promotion checks (holdout, walk-forward, perturbation + gates):
+
+`python -m scripts.production_validation --profile config/validation_profile.json`
 
 ## Daily routine
 

@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "symbol": "XAUUSDm",
+  "starting_balance": 105.74,
+  "cost_scenario": "realistic",
+  "strategies": "portfolio_v4",
+  "frozen_engine_config": {
+    "sizing_mode": "fixed",
+    "fixed_lots": 0.01,
+    "dedup_per_candle": true,
+    "max_concurrent": 2,
+    "max_same_direction": 2,
+    "enable_pyramiding": false,
+    "enable_trailing": false,
+    "enable_consolidation_exit": false,
+    "history_bars": 250,
+    "warmup_bars": 300,
+    "daily_loss_limit_mode": "balance_pct",
+    "daily_loss_limit_pct": 0.06,
+    "enable_d1_bias_gate": true
+  },
+  "holdout": {
+    "start": "2025-01-01",
+    "end": "2025-12-31"
+  },
+  "walk_forward": {
+    "start": "2024-01-01",
+    "end": "2026-08-31",
+    "test_days": 30,
+    "step_days": 30
+  },
+  "perturbations": {
+    "spread_multiplier": [1.0, 1.5, 2.0],
+    "slippage_points": [10.0, 20.0, 40.0]
+  },
+  "promotion_gates": {
+    "holdout": {
+      "pf_min": 1.2,
+      "max_drawdown_pct_max": 45.0,
+      "prob_50pct_drawdown_max": 0.01
+    },
+    "walk_forward": {
+      "median_pf_min": 1.2,
+      "worst_window_pf_min": 1.0
+    },
+    "perturbation": {
+      "pf_min": 1.1
+    }
+  }
+}

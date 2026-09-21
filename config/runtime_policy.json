@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "macro": {
+    "strict_short_stops": true
+  },
+  "breakers": {
+    "daily_loss_pct": 0.06,
+    "weekly_loss_pct": 0.15,
+    "monthly_loss_pct": 0.25
+  },
+  "promotion": {
+    "default_stage": "demo",
+    "stages": [
+      {
+        "name": "demo",
+        "min_balance": 0.0,
+        "max_balance": 199.99,
+        "lot_size": 0.01,
+        "max_concurrent_positions": 1,
+        "max_same_direction_positions": 1,
+        "max_total_volume": 0.01
+      },
+      {
+        "name": "paper_forward",
+        "min_balance": 200.0,
+        "max_balance": 399.99,
+        "lot_size": 0.01,
+        "max_concurrent_positions": 2,
+        "max_same_direction_positions": 1,
+        "max_total_volume": 0.02
+      },
+      {
+        "name": "small_live",
+        "min_balance": 400.0,
+        "max_balance": 1000000000.0,
+        "lot_size": 0.01,
+        "max_concurrent_positions": 2,
+        "max_same_direction_positions": 2,
+        "max_total_volume": 0.02
+      }
+    ]
+  },
+  "operations": {
+    "alert_webhook_env": "ULTRA_CORE_ALERT_WEBHOOK",
+    "require_change_checklist": true
+  }
+}

@@ -97,9 +97,16 @@ class DataFetcher:
         """Sum the P/L of all deals closed today (IST midnight to now)."""
         now_ist = datetime.now(IST)
         midnight_ist = now_ist.replace(hour=0, minute=0, second=0, microsecond=0)
-        midnight_utc = midnight_ist.astimezone(timezone.utc)
+        return self.get_closed_pl_since(midnight_ist.astimezone(timezone.utc))
 
-        deals = mt5.history_deals_get(midnight_utc, datetime.now(timezone.utc))
+    def get_closed_pl_since(self, start_utc: datetime) -> float:
+        """Sum closed-deal P/L for the symbol from `start_utc` to now UTC."""
+        if start_utc.tzinfo is None:
+            start_utc = start_utc.replace(tzinfo=timezone.utc)
+        else:
+            start_utc = start_utc.astimezone(timezone.utc)
+
+        deals = mt5.history_deals_get(start_utc, datetime.now(timezone.utc))
         if deals is None:
             return 0.0
 
@@ -109,3 +116,7 @@ class DataFetcher:
             if deal.entry == 1 and deal.symbol == self.symbol:
                 total_pl += deal.profit
         return total_pl
+
+    def get_account_balance(self) -> Optional[float]:
+        info = mt5.account_info()
+        return float(info.balance) if info is not None else None

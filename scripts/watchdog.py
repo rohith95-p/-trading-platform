@@ -16,6 +16,8 @@ import os
 import subprocess
 import sys
 import time
+import json
+import urllib.request
 from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,6 +27,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 CHECK_EVERY = 30
 HEARTBEAT_MAX_AGE = 300  # seconds
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ALERT_WEBHOOK = os.getenv("ULTRA_CORE_ALERT_WEBHOOK")
 PYTHON = os.path.join(ROOT, "venv", "Scripts", "python.exe")
 if not os.path.exists(PYTHON):
     PYTHON = sys.executable
@@ -35,8 +38,21 @@ def _now():
 
 
 def _alert(msg: str):
-    # TODO: wire a real notification channel here.
     print(f"[{_now()}] ALERT: {msg}")
+    if not ALERT_WEBHOOK:
+        return
+    payload = {"text": f"[ultra-core watchdog] {msg}", "ts": datetime.now(timezone.utc).isoformat()}
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        ALERT_WEBHOOK,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        urllib.request.urlopen(req, timeout=5).read()
+    except Exception as exc:
+        print(f"[{_now()}] ALERT WEBHOOK FAILED: {exc}")
 
 
 def _loop_alive() -> bool:

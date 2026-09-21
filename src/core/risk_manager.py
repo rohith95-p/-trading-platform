@@ -9,12 +9,12 @@ Zero hardcoded limits. Every single threshold scales with ATR(14).
 """
 
 import logging
-import os
 import numpy as np
 import MetaTrader5 as _mt5
 from typing import Any, Optional, Dict
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass
+from src.core.runtime_policy import RuntimePolicy, load_runtime_policy
 
 mt5: Any = _mt5
 log = logging.getLogger(__name__)
@@ -79,30 +79,22 @@ class StopLevels:
 class RiskManager:
     """Fully dynamic, ATR-driven risk engine. Zero hardcoded dollar limits."""
 
-    def __init__(self, symbol: str = "XAUUSDm"):
+    def __init__(self, symbol: str = "XAUUSDm", policy: Optional[RuntimePolicy] = None):
         self.symbol = symbol
+        self._policy = policy or load_runtime_policy()
         self._strict_short_stops = False
+        self._daily_loss_limit_pct = DAILY_LOSS_LIMIT_PCT
         self._load_macro_rules()
 
     # ------------------------------------------------------------------
-    # Macro gating (reads DAILY_MARKET_ANALYSIS.md)
+    # Macro gating (structured runtime policy, not markdown parsing)
     # ------------------------------------------------------------------
 
     def _load_macro_rules(self):
-        plan_path = os.path.join(
-            os.path.dirname(__file__), "..", "..", "docs", "plans", "DAILY_MARKET_ANALYSIS.md"
-        )
-        try:
-            with open(plan_path, "r", encoding="utf-8") as f:
-                content = f.read().lower()
-                if (
-                    "bullish macro momentum" in content
-                    and "shorts must have strict, tight stops" in content
-                ):
-                    self._strict_short_stops = True
-                    log.info("Macro rule: strict SHORT stops enabled.")
-        except Exception as e:
-            log.warning(f"Could not parse macro analysis: {e}")
+        self._strict_short_stops = self._policy.strict_short_stops()
+        self._daily_loss_limit_pct = self._policy.daily_loss_pct(DAILY_LOSS_LIMIT_PCT)
+        if self._strict_short_stops:
+            log.info("Macro rule: strict SHORT stops enabled (runtime policy).")
 
     # ------------------------------------------------------------------
     # ATR calculation
@@ -343,14 +335,14 @@ class RiskManager:
             return False
 
         total_pl = todays_pl + floating_pl
-        daily_loss_limit = DAILY_LOSS_LIMIT_PCT * balance
+        daily_loss_limit = self._daily_loss_limit_pct * balance
 
         if total_pl < 0 and abs(total_pl) >= daily_loss_limit:
             log.warning(
                 f"DAILY DRAWDOWN HIT: today's P/L ${total_pl:.2f} "
                 f"(realised ${todays_pl:.2f} + floating ${floating_pl:.2f}) "
                 f">= limit -${daily_loss_limit:.2f} "
-                f"({DAILY_LOSS_LIMIT_PCT:.0%} of ${balance:.2f}). "
+                f"({self._daily_loss_limit_pct:.0%} of ${balance:.2f}). "
                 f"SHUTTING DOWN until midnight IST."
             )
             return False

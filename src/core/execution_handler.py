@@ -3,7 +3,8 @@ ExecutionHandler -- THE GATEKEEPER.
 
 No hardcoded trade limits. Unlimited wins, protected losses.
   - Daily drawdown cap (via RiskManager) is the ONLY hard limit
-  - Pyramiding: adds to winners at 0.5x ATR profit (max 3 concurrent, 2 per side)
+  - Runtime-policy stage caps: lot size, max concurrent, max per side, max volume
+  - Pyramiding: adds to winners at 0.5x ATR profit (within stage caps)
   - 3x retry logic on order_send failures
   - All timestamps logged in IST
 """
@@ -14,6 +15,7 @@ import MetaTrader5 as _mt5
 from typing import Any, Optional, List
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass
+from src.core.runtime_policy import RuntimePolicy, StageLimits, load_runtime_policy
 
 mt5: Any = _mt5
 log = logging.getLogger(__name__)
@@ -26,26 +28,15 @@ IST = timezone(timedelta(hours=5, minutes=30))
 # ---------------------------------------------------------------------------
 SYMBOL = "XAUUSDm"
 
-# Owner's rule (2026-09-02): total open exposure on the symbol must never exceed
-# 0.02 lots. With FIXED_LOT_SIZE = 0.01 that is at most 2 concurrent positions.
-# Was 3 (-> 0.03 lots possible, which is what the owner flagged).
+# Runtime defaults; concrete limits are balance-stage controlled by runtime policy.
 MAX_CONCURRENT_POSITIONS = 2
 MAX_SAME_DIRECTION_POSITIONS = 2
-
-# Hard exposure ceiling, checked against actual open volume (bot + manual) so it
-# holds even if a position is opened outside this handler.
 MAX_TOTAL_VOLUME = 0.02
 
 ORDER_RETRY_COUNT = 3
 ORDER_RETRY_DELAY_MS = 500
 
-# HARD LOT CAP. The account owner's rule: every position is 0.01 lots, always --
-# fresh entries and pyramid adds alike. This is not a risk-model output, it is a
-# fixed ceiling the owner set. The dynamic sizer (RiskManager.calculate_dynamic_
-# lot_size, risk_pct=0.15) previously sized entries up to 0.02-0.03 lots on a
-# ~$105 account; live evidence 2026-09-02 (tickets 633818770 @0.02, 633822753
-# @0.03). Enforced here because send_order is the single chokepoint every order
-# passes through -- no caller can exceed it.
+# Historical floor lot. Runtime stage policy can raise this in higher stages.
 FIXED_LOT_SIZE = 0.01
 
 # Market orders were previously sent with no deviation, i.e. zero permitted
@@ -76,8 +67,24 @@ class TradeRecord:
 class ExecutionHandler:
     """Manages order execution with dynamic gating. No hardcoded trade caps."""
 
-    def __init__(self, symbol: str = SYMBOL):
+    def __init__(self, symbol: str = SYMBOL, policy: Optional[RuntimePolicy] = None):
         self.symbol = symbol
+        self._policy = policy or load_runtime_policy()
+
+    def _account_balance(self) -> float:
+        info = mt5.account_info()
+        if info is None:
+            return 100.0
+        return float(info.balance)
+
+    def _limits(self) -> StageLimits:
+        return self._policy.stage_for_balance(self._account_balance())
+
+    def current_stage_name(self) -> str:
+        return self._limits().name
+
+    def current_lot_size(self) -> float:
+        return self._limits().lot_size
 
     # ------------------------------------------------------------------
     # Position queries
@@ -98,7 +105,8 @@ class ExecutionHandler:
 
     def can_open_new_position(self) -> bool:
         """Max concurrent positions (leverage guard)."""
-        return self.count_open_positions() < MAX_CONCURRENT_POSITIONS
+        limits = self._limits()
+        return self.count_open_positions() < limits.max_concurrent_positions
 
     # ------------------------------------------------------------------
     # Order execution with retry
@@ -120,42 +128,43 @@ class ExecutionHandler:
         """Execute a market order on MT5 with 3x retry logic.
 
         Gates applied here:
-          1. MAX_CONCURRENT_POSITIONS (currently 2)
-          2. MAX_SAME_DIRECTION_POSITIONS (currently 2)
-          3. MAX_TOTAL_VOLUME (0.02 lots of open exposure, owner's hard cap)
+          1. max_concurrent_positions (stage policy)
+          2. max_same_direction_positions (stage policy)
+          3. max_total_volume (stage policy)
         The daily drawdown cap is checked in main_loop before calling this.
         """
         if not self.can_open_new_position():
+            limits = self._limits()
             log.warning(
-                f"[{strategy_name}] BLOCKED: Max {MAX_CONCURRENT_POSITIONS} "
+                f"[{strategy_name}] BLOCKED: Max {limits.max_concurrent_positions} "
                 f"concurrent positions. Wait for one to close."
             )
             print(f"[{_ist_now()}] BLOCKED: Max concurrent positions reached")
             return None
 
-        # Hard 0.01-lot cap -- owner's rule, applied to every order regardless of
-        # what the caller computed.
-        if lot_size != FIXED_LOT_SIZE:
+        limits = self._limits()
+        stage_lot = limits.lot_size
+        if lot_size != stage_lot:
             log.warning(
                 f"[{strategy_name}] lot size {lot_size} overridden to fixed "
-                f"{FIXED_LOT_SIZE} (owner's hard cap)."
+                f"{stage_lot} (stage={limits.name})."
             )
-            lot_size = FIXED_LOT_SIZE
+            lot_size = stage_lot
 
-        # Hard exposure ceiling: never let total open volume exceed 0.02 lots.
+        # Hard exposure ceiling from balance stage.
         open_volume = sum(p.volume for p in self.get_open_positions())
-        if open_volume + lot_size > MAX_TOTAL_VOLUME + 1e-9:
+        if open_volume + lot_size > limits.max_total_volume + 1e-9:
             log.warning(
                 f"[{strategy_name}] BLOCKED: open volume {open_volume:.2f} + "
-                f"{lot_size:.2f} would exceed cap {MAX_TOTAL_VOLUME:.2f} lots."
+                f"{lot_size:.2f} would exceed cap {limits.max_total_volume:.2f} lots."
             )
-            print(f"[{_ist_now()}] BLOCKED: 0.02-lot exposure cap reached")
+            print(f"[{_ist_now()}] BLOCKED: stage exposure cap reached")
             return None
 
         is_buy = signal == mt5.ORDER_TYPE_BUY
-        if self.get_same_direction_count(is_buy) >= MAX_SAME_DIRECTION_POSITIONS:
+        if self.get_same_direction_count(is_buy) >= limits.max_same_direction_positions:
             log.warning(
-                f"[{strategy_name}] BLOCKED: Max {MAX_SAME_DIRECTION_POSITIONS} "
+                f"[{strategy_name}] BLOCKED: Max {limits.max_same_direction_positions} "
                 f"same-direction positions reached."
             )
             print(f"[{_ist_now()}] BLOCKED: Max same-direction positions reached")
@@ -227,7 +236,8 @@ class ExecutionHandler:
                     f"[{strategy_name}] {label} @ {price:.3f} | "
                     f"SL: {sl:.3f} | TP: {tp:.3f} | "
                     f"ATR: {atr:.3f} | Session: {session} | "
-                    f"Open: {self.count_open_positions()}/{MAX_CONCURRENT_POSITIONS}"
+                    f"Open: {self.count_open_positions()}/{limits.max_concurrent_positions} | "
+                    f"Stage: {limits.name}"
                 )
                 log.info(msg)
                 print(f"[{_ist_now()}] >> {msg}")
