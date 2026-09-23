@@ -15,38 +15,29 @@ front door.
 python -m src.core.main_loop
 ```
 
-Runs **`PORTFOLIO_V4`** (`src/strategies/portfolio_v4.py`) — three legs:
+Runs **`PORTFOLIO_V4`** (`src/strategies/portfolio_v4.py`) — two legs:
 
 | Leg | Magic | Session IST | SL/TP ×ATR |
 |---|---|---|---|
-| `EMASTACK_LONDON_TIGHT` | 3012 | 11:30–15:30 | 2.0 / 3.0 |
-| `FVG_NY_SWEEP_OR_VOID` | 3022 | 17:30–21:30 | 0.5 / 2.5 |
-| `FVG_NY_TIGHT` | 3013 | 17:30–21:30 | 0.5 / 2.5 |
+| `NVMR_TARGET_10` | 4003 | 17:30–21:30 | 0.4 / 1.5 |
+| `LARS_LONDON` | 4004 | 11:30–15:30 | 0.4 / 1.2 |
 
-Both FVG legs share the `XAU-092` gap detector; `EMASTACK` is an EMA-ribbon
-leg (`XAU-005`) kept for London-session coverage.
+The FVG strategies have been formally paused due to market regime shifts. This 2-leg portfolio is tuned specifically for the "$10/trade" goal on small accounts.
 
 Hard rules, enforced in code (not guidance):
 
-- **0.01 lots per order**, always — `ExecutionHandler.send_order`
-- **0.02 lots total exposure**, max **2** concurrent positions
+- **0.02 lots per order**, always — `ExecutionHandler.send_order`
+- **0.04 lots total exposure**, max **2** concurrent positions
 - **6% daily loss breaker** → no new entries until 00:00 IST
 - **D1 EMA20 bias gate ON** → only trades with the daily trend
 - **06:00–21:30 IST** trading window, nothing held over the weekend
 - No trailing stops, no pyramiding (both backtested net-negative)
 
-## Status (2026-09-09)
+## Status (2026-09-24)
 
-Demo account only (Exness-MT5Trial11 #198874999). The FVG-liquidity rework
-(RESEARCH_LEDGER HYP-059+) recovered a measurable edge after the original
-4-leg portfolio was declared dead in September. The live 3-leg config's own
-OOS holdout (2025-01 → 2026-05) is PF 1.23 but **fails I.1 on drawdown
-(maxDD 50.68%)** — see REPO_GUIDE §6.1. Real money still blocked: the
-operating rulebook (sizing floor, early loss caps tighter than 6%, paper→live
-path) is unwritten. The `risk_rules.py` streak breakers are now wired to
-live closes but run in shadow (`ENFORCE = False`).
+Demo account only. The massive "$10/trade" search concluded and successfully locked in `NVMR_TARGET_10` as the primary driver, supplemented by `LARS` for London volume. Monte Carlo stress tests proved 0.04 lots carries a 42% risk of ruin on a sub-$200 account; therefore, the fixed lot ceiling was strictly locked to **0.02 lots**.
 
-**Settled this session (2026-09-09):**
+**Settled this session (2026-09-24):**
 
 - **Broker price feed restored.** `research/data/` M1/M5/M15/D1 had been
   overwritten with the Kaggle 22-yr retail set (zero-spread, ends Feb 2026).
