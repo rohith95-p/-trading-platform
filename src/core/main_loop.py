@@ -3,10 +3,10 @@ main_loop.py -- Ultra Core v3 Final Boss Orchestrator.
 
 PHILOSOPHY:
   - NEVER hardcode dollar limits. Everything scales with ATR.
-  - Fixed 0.01 lots, 0.02 total exposure (owner's hard rule, not a risk model).
+  - Fixed 0.02 lots, 0.04 total exposure (owner's hard rule, not a risk model).
   - Positions run to their fixed SL/TP -- no trailing, no pyramiding. Both were
     measured net-negative on the validation window (see ENABLE_TRAILING below).
-  - portfolio_v4: four session-specialist legs (Asia/London/NY).
+  - portfolio_v4: two session-specialist legs (LARS/NVMR).
   - Direction gated by the D1 EMA20 bias; sessions in IST.
 
 Resilience (src/core/resilience.py -- does not affect trading):
@@ -44,7 +44,7 @@ from src.core import news_filter  # III.5 -- blocks entries around tier-1 macro 
 # EMAStack (rohith phase 2, HYP-027) superseded 2026-09-01 by the 4-leg
 # portfolio below -- kept in src/strategies/ema_stack.py for reference but
 # no longer imported here.
-from src.strategies.portfolio_v4 import PORTFOLIO_V4  # 3 legs: EMASTACK_LONDON_TIGHT + FVG_NY_TIGHT + FVG_NY_SWEEP_OR_VOID (see portfolio_v4.py)
+from src.strategies.portfolio_v4 import PORTFOLIO_V4  # 2 legs: NVMR_TARGET_10 + LARS_LONDON (see portfolio_v4.py)
 
 # IST offset
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -676,7 +676,7 @@ def _execute_signal(signal, m15_rates, fetcher, risk, executor, session_mult, se
     except Exception as _e:  # shadow logging must never break execution
         log.debug(f"risk_rules shadow evaluation skipped: {_e}")
 
-    # Owner's rule: fixed 0.01 lots, no dynamic sizing. The 0.15 risk_pct sizer
+    # Owner's rule: fixed 0.02 lots, no dynamic sizing. The 0.15 risk_pct sizer
     # put 0.02-0.03 lots on a ~$105 account (live, 2026-09-02). ExecutionHandler
     # also hard-caps this, but the call site now states the intent.
     lot_size = FIXED_LOT_SIZE
@@ -746,7 +746,7 @@ def _check_pyramiding(fetcher, risk, executor, m15_rates, session_mult, session_
             if stops is None:
                 continue
 
-            lot_size = FIXED_LOT_SIZE  # owner's rule: pyramid adds are also 0.01
+            lot_size = FIXED_LOT_SIZE  # owner's rule: pyramid adds are also 0.02
 
             profit_dist = abs(pos.price_current - pos.price_open)
             log.info(

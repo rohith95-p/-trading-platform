@@ -37,7 +37,7 @@ MAX_TOTAL_VOLUME = 0.04
 ORDER_RETRY_COUNT = 3
 ORDER_RETRY_DELAY_MS = 500
 
-# HARD LOT CAP. The account owner's rule: every position is 0.01 lots, always --
+# HARD LOT CAP. The dynamic sizer (RiskManager.calculate_dynamic_
 # fresh entries and pyramid adds alike. This is not a risk-model output, it is a
 # fixed ceiling the owner set. The dynamic sizer (RiskManager.calculate_dynamic_
 # lot_size, risk_pct=0.15) previously sized entries up to 0.02-0.03 lots on a
@@ -121,7 +121,7 @@ class ExecutionHandler:
         Gates applied here:
           1. MAX_CONCURRENT_POSITIONS (currently 2)
           2. MAX_SAME_DIRECTION_POSITIONS (currently 2)
-          3. MAX_TOTAL_VOLUME (0.02 lots of open exposure, owner's hard cap)
+          3. MAX_TOTAL_VOLUME (0.04 lots of open exposure, owner's hard cap)
         The daily drawdown cap is checked in main_loop before calling this.
         """
         if not self.can_open_new_position():
@@ -132,22 +132,22 @@ class ExecutionHandler:
             print(f"[{_ist_now()}] BLOCKED: Max concurrent positions reached")
             return None
 
-        # Threshold Scaling: 0.01 lots until $400
+        # Threshold Scaling: 0.02 lots until $200
         account = mt5.account_info()
         balance = account.balance if account is not None else 100.0
-        if balance < 400.0:
-            if lot_size != 0.01:
-                log.info(f"[{strategy_name}] Threshold Scaling: Balance ${balance:.2f} < $400. Locking to 0.01 lots.")
-                lot_size = 0.01
+        if balance < 200.0:
+            if lot_size != 0.02:
+                log.info(f"[{strategy_name}] Threshold Scaling: Balance ${balance:.2f} < $200. Locking to 0.02 lots.")
+                lot_size = 0.02
 
-        # Hard exposure ceiling: never let total open volume exceed 0.02 lots.
+        # Hard exposure ceiling: never let total open volume exceed 0.04 lots.
         open_volume = sum(p.volume for p in self.get_open_positions())
         if open_volume + lot_size > MAX_TOTAL_VOLUME + 1e-9:
             log.warning(
                 f"[{strategy_name}] BLOCKED: open volume {open_volume:.2f} + "
                 f"{lot_size:.2f} would exceed cap {MAX_TOTAL_VOLUME:.2f} lots."
             )
-            print(f"[{_ist_now()}] BLOCKED: 0.02-lot exposure cap reached")
+            print(f"[{_ist_now()}] BLOCKED: 0.04-lot exposure cap reached")
             return None
 
         is_buy = signal == mt5.ORDER_TYPE_BUY
