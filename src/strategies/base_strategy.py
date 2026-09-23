@@ -106,27 +106,38 @@ class BaseStrategy(ABC):
 
     @staticmethod
     def atr(highs: np.ndarray, lows: np.ndarray, closes: np.ndarray, period: int = 14) -> np.ndarray:
-        """Average True Range."""
+        """Average True Range.
+
+        Uses explicit prior-close construction (not np.roll) to avoid a
+        lookahead bias at index 0, where np.roll wrapped closes[-1] back
+        into position 0 of the true-range calculation.
+        """
         highs = np.asarray(highs, dtype=float)
         lows = np.asarray(lows, dtype=float)
         closes = np.asarray(closes, dtype=float)
-        
+
+        # prior_close[i] = closes[i-1]; index 0 is NaN (no prior bar)
+        prior_close = np.empty_like(closes)
+        prior_close[0] = np.nan
+        prior_close[1:] = closes[:-1]
+
         tr = np.maximum(
             highs - lows,
             np.maximum(
-                np.abs(highs - np.roll(closes, 1)),
-                np.abs(lows - np.roll(closes, 1))
+                np.abs(highs - prior_close),
+                np.abs(lows - prior_close)
             )
         )
+        # Bar 0 has no prior close, so use simple range
         tr[0] = highs[0] - lows[0]
-        
+
         atr = np.zeros_like(closes)
         if len(closes) < period:
             atr[:] = np.nan
             return atr
-            
-        atr[period-1] = np.mean(tr[:period])
+
+        atr[period - 1] = np.mean(tr[:period])
         for i in range(period, len(closes)):
-            atr[i] = (atr[i-1] * (period - 1) + tr[i]) / period
-        atr[:period-1] = np.nan
+            atr[i] = (atr[i - 1] * (period - 1) + tr[i]) / period
+        atr[:period - 1] = np.nan
         return atr

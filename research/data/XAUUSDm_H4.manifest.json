@@ -1,12 +1,12 @@
 {
   "symbol": "XAUUSDm",
   "timeframe": "H4",
-  "bars": 7456,
+  "bars": 7498,
   "first_time": "2022-01-02 20:00:00",
-  "last_time": "2026-08-31 16:00:00",
-  "sha256": "b8c7b80296fddd71afa6cf92f4d01128c24527fa4f65b55793bdbb5c1cbed4aa",
+  "last_time": "2026-09-09 12:00:00",
+  "sha256": "b89d1acb9562faf7c0bab0285ac16bedf02820aba3596cc2b56a42e2bb9fe76a",
   "server": "Exness-MT5Trial11",
-  "downloaded_utc": "2026-08-31 17:33:12",
+  "downloaded_utc": "2026-09-09 14:45:26",
   "spec": {
     "symbol": "XAUUSDm",
     "digits": 3,
@@ -1497,6 +1497,12 @@
     },
     {
       "after_utc": "2026-08-28 20:00",
+      "missing_bars": 11,
+      "seconds": 172800,
+      "weekend": true
+    },
+    {
+      "after_utc": "2026-09-04 20:00",
       "missing_bars": 11,
       "seconds": 172800,
       "weekend": true

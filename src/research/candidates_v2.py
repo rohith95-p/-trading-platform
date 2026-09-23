@@ -185,9 +185,21 @@ def _roll_min(a: np.ndarray, w: int) -> np.ndarray:
 
 
 def _roll_mean(a: np.ndarray, w: int) -> np.ndarray:
+    """Mean of the w bars ENDING AT i-1 (excludes the current bar).
+
+    O(n) vectorized implementation. Matches _roll_max/_roll_min/_roll_std
+    convention. The previous cumsum implementation included the current bar
+    at index i, creating a 1-bar lookahead bias when paired with _roll_std.
+
+    Method: prepend 0 to the cumsum so prior_cs[i] = sum(a[0:i]).
+    Then mean(a[i-w:i]) = (prior_cs[i] - prior_cs[i-w]) / w.
+    """
     out = np.full(len(a), np.nan)
-    cs = np.nancumsum(np.nan_to_num(a))
-    out[w:] = (cs[w:] - cs[:-w]) / w
+    n = len(a)
+    if n <= w:
+        return out
+    prior_cs = np.concatenate(([0.0], np.nancumsum(np.nan_to_num(a))))
+    out[w:] = (prior_cs[w:n] - prior_cs[0:n - w]) / w
     return out
 
 
@@ -972,6 +984,48 @@ def _mk_fvg_entry(mode: str = "continue") -> Callable[[F], np.ndarray]:
         return _sig(up, dn) if mode == "continue" else _sig(dn, up)
     return rule
 
+
+def _mk_fvg_scored_entry(threshold: int = 50) -> Callable[[F], np.ndarray]:
+    """FVG with Quality Scoring (Gap Size, Displacement, HTF Alignment, Freshness, Premium/Discount)."""
+    def rule(f: F) -> np.ndarray:
+        c, h, l, o = f["close"], f["high"], f["low"], f["open"]
+        h3, l3 = _shift(h, 3), _shift(l, 3)
+        h1, l1 = _shift(h, 1), _shift(l, 1)
+        c2, o2, h2, l2 = _shift(c, 2), _shift(o, 2), _shift(h, 2), _shift(l, 2)
+        atr = f["atr14"]
+        
+        ema200 = f["ema200"] if "ema200" in f else _ema(c, 200)
+        ema800 = _ema(c, 800)
+        
+        # Bull Gap
+        bull_gap = _ok(h3 < l1)
+        gap_size_bull = np.maximum(0.0, l1 - h3)
+        body2_bull = np.maximum(0.0, c2 - o2)
+        tr2 = np.maximum(1e-9, h2 - l2)
+        score_gap_bull = np.clip(gap_size_bull / np.maximum(1e-9, _shift(atr, 2)), 0, 1) * 30
+        score_disp_bull = np.clip(body2_bull / tr2, 0, 1) * 30
+        score_htf_bull = np.where(c > ema200, 20.0, 0.0)
+        score_fresh_bull = 10.0
+        score_pd_bull = np.where(c < ema800, 10.0, 0.0)
+        total_bull = score_gap_bull + score_disp_bull + score_htf_bull + score_fresh_bull + score_pd_bull
+        back_in_bull = _ok(l <= l1) & _ok(c > h3)
+        up = bull_gap & back_in_bull & (total_bull >= threshold)
+        
+        # Bear Gap
+        bear_gap = _ok(l3 > h1)
+        gap_size_bear = np.maximum(0.0, l3 - h1)
+        body2_bear = np.maximum(0.0, o2 - c2)
+        score_gap_bear = np.clip(gap_size_bear / np.maximum(1e-9, _shift(atr, 2)), 0, 1) * 30
+        score_disp_bear = np.clip(body2_bear / tr2, 0, 1) * 30
+        score_htf_bear = np.where(c < ema200, 20.0, 0.0)
+        score_fresh_bear = 10.0
+        score_pd_bear = np.where(c > ema800, 10.0, 0.0)
+        total_bear = score_gap_bear + score_disp_bear + score_htf_bear + score_fresh_bear + score_pd_bear
+        back_in_bear = _ok(h >= h1) & _ok(c < l3)
+        dn = bear_gap & back_in_bear & (total_bear >= threshold)
+        
+        return _sig(up, dn)
+    return rule
 
 def _mk_inside_break(n_inside: int = 2) -> Callable[[F], np.ndarray]:
     def rule(f: F) -> np.ndarray:
@@ -1929,6 +1983,14 @@ def build_library_v2() -> List[Candidate]:
         "Same in London.",
         "Same objection.",
         _mk_fvg_entry("continue"), LONDON, SL_LONDON, 2.5, 24, SPR_NORMAL, VOL_ANY)
+    add("FVG Quality Scored [LONDON]", "structure",
+        "A three-bar imbalance that scores >50/100 on gap size, displacement, HTF alignment, freshness, and premium/discount.",
+        "Quality scoring reduces frequency but may filter out the noise inherent in plain FVGs.",
+        _mk_fvg_scored_entry(50), LONDON, SL_LONDON, 2.5, 24, SPR_NORMAL, VOL_ANY)
+    add("FVG Quality Scored [NY]", "structure",
+        "Same in NY session.",
+        "Same mechanism.",
+        _mk_fvg_scored_entry(50), NY, SL_NY, 2.5, 24, SPR_LOOSE, VOL_ANY)
     add("Two-bar inside break [ASIA]", "structure",
         "Two consecutive bars contained within one reference bar is compression; "
         "the break of the reference bar is the expansion.",

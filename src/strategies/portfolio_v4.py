@@ -139,16 +139,6 @@ class EMAStackLondonTight(_SessionSpecialist):
     edge_trigger = True
 
 
-class FVGNYTight(_SessionSpecialist):
-    """Fair value gap, NY session (17:30-21:30 IST), tight-risk variant
-    (~$5 avg risk, ~$26 avg win). Isolated PF 1.661 -- the strongest single
-    leg in the portfolio."""
-    name = "FVG_NY_TIGHT"
-    magic = 3013
-    candidate_id = "XAU-092"
-    session = (17.5, 21.5)
-    sl_atr_mult = 0.5
-    tp_atr_mult = 2.5
 
 
 class RangeRejectionNYTight(_SessionSpecialist):
@@ -198,6 +188,8 @@ class _LiquidityFilteredFVG(BaseStrategy):
     _min_bars = 250
     mode: str
     void_mult = 0.5
+    signal_ttl_candles = 5
+    max_spread_pts = 250
 
     def evaluate(self, m15_rates: np.ndarray, m5_rates: Optional[np.ndarray] = None) -> Optional[Signal]:
         if m15_rates is None or len(m15_rates) < self._min_bars:
@@ -210,46 +202,128 @@ class _LiquidityFilteredFVG(BaseStrategy):
         hi = np.asarray(f["high"], dtype=float)
         lo = np.asarray(f["low"], dtype=float)
         cl = np.asarray(f["close"], dtype=float)
-        h2, l2 = hi[i - 2], lo[i - 2]
-        bull = h2 < lo[i]
-        bear = l2 > hi[i]
-        if not (bull or bear):
-            return None
-
+        
+        ttl = getattr(self, "signal_ttl_candles", 1)
+        
         from src.research.liquidity import liquidity_state, is_liquidity_void
         from src.research.market_study import atr as _atr_struct
+        
+        mode = getattr(self, "mode", "baseline")
+        
+        if mode in ["sweep", "sweep_or_void"]:
+            last_t = int(m15_rates["time"][-1])
+            if not hasattr(self.__class__, "_liq_cache"):
+                self.__class__._liq_cache = {}
+            if last_t in self.__class__._liq_cache:
+                bs, ss = self.__class__._liq_cache[last_t]
+            else:
+                bs, ss = liquidity_state(hi, lo, cl)
+                self.__class__._liq_cache[last_t] = (bs, ss)
+                if len(self.__class__._liq_cache) > 100:
+                    self.__class__._liq_cache.pop(next(iter(self.__class__._liq_cache)))
+        else:
+            bs, ss = None, None
+            
+        if mode in ["void", "sweep_or_void"]:
+            last_t2 = int(m15_rates["time"][-1])
+            if not hasattr(self.__class__, "_atr_cache"):
+                self.__class__._atr_cache = {}
+            if last_t2 in self.__class__._atr_cache:
+                a200_arr = self.__class__._atr_cache[last_t2]
+            else:
+                a200_arr = _atr_struct(m15_rates, 200)
+                self.__class__._atr_cache[last_t2] = a200_arr
+                if len(self.__class__._atr_cache) > 100:
+                    self.__class__._atr_cache.pop(next(iter(self.__class__._atr_cache)))
+        else:
+            a200_arr = None
 
-        if self.mode == "baseline":
-            pass  # unfiltered -- any 3-bar gap qualifies, same as FVGNYTight
-        elif self.mode == "void":
-            a200 = _atr_struct(m15_rates, 200)[i]
-            bull_v, bear_v = is_liquidity_void(h2, l2, hi[i], lo[i], cl[i - 1], a200, self.void_mult)
-            if (bull and not bull_v) or (bear and not bear_v):
-                return None
-        elif self.mode == "sweep":
-            bs, ss = liquidity_state(hi, lo, cl)
-            if (bull and not bs[i]) or (bear and not ss[i]):
-                return None
-        elif self.mode == "sweep_or_void":
-            a200 = _atr_struct(m15_rates, 200)[i]
-            bull_v, bear_v = is_liquidity_void(h2, l2, hi[i], lo[i], cl[i - 1], a200, self.void_mult)
-            bs, ss = liquidity_state(hi, lo, cl)
-            if bull and not (bull_v or bs[i]):
-                return None
-            if bear and not (bear_v or ss[i]):
-                return None
+        found_bull = False
+        found_bear = False
+        
+        for j in range(i, i - ttl, -1):
+            h2, l2 = hi[j - 2], lo[j - 2]
+            bull = h2 < lo[j]
+            bear = l2 > hi[j]
+            
+            if not (bull or bear):
+                continue
+                
+            # Check mitigation between j+1 and i
+            mitigated = False
+            for k in range(j + 1, i + 1):
+                if bull and cl[k] < h2:
+                    mitigated = True
+                    break
+                if bear and cl[k] > l2:
+                    mitigated = True
+                    break
+            if mitigated:
+                continue
 
-        if bull:
+            if mode != "baseline":
+                if mode in ["void", "sweep_or_void"]:
+                    bull_v, bear_v = is_liquidity_void(h2, l2, hi[j], lo[j], cl[j - 1], a200_arr[j], self.void_mult)
+                else:
+                    bull_v, bear_v = False, False
+                    
+                if mode in ["sweep", "sweep_or_void"]:
+                    bs_j, ss_j = bs[j], ss[j]
+                else:
+                    bs_j, ss_j = False, False
+                    
+                if mode == "void":
+                    if (bull and not bull_v) or (bear and not bear_v):
+                        continue
+                elif mode == "sweep":
+                    if (bull and not bs_j) or (bear and not ss_j):
+                        continue
+                elif mode == "sweep_or_void":
+                    if bull and not (bull_v or bs_j):
+                        continue
+                    if bear and not (bear_v or ss_j):
+                        continue
+                        
+            # Pullback condition
+            if j < i:
+                if bull and not (h2 <= cl[i] <= lo[j]):
+                    continue
+                if bear and not (hi[j] <= cl[i] <= l2):
+                    continue
+                    
+            if bull:
+                found_bull = True
+                break
+            if bear:
+                found_bear = True
+                break
+
+        if found_bull:
             return Signal(direction=mt5.ORDER_TYPE_BUY, strategy_name=self.name,
                           magic=self.magic, is_buy=True)
-        return Signal(direction=mt5.ORDER_TYPE_SELL, strategy_name=self.name,
-                      magic=self.magic, is_buy=False)
+        if found_bear:
+            return Signal(direction=mt5.ORDER_TYPE_SELL, strategy_name=self.name,
+                          magic=self.magic, is_buy=False)
+                          
+        return None
 
     def check_pending_confirmation(self, m15_rates):
         return None
 
     def set_pending(self, signal, candle_time):
         pass
+
+
+class FVGNYTight(_LiquidityFilteredFVG):
+    """Fair value gap, NY session (17:30-21:30 IST), tight-risk variant
+    (SL=0.5 ATR, TP=1.5 ATR). Passed strict DSR & Bonferroni Out-of-Sample tests
+    (2025-2026). True OOS PF 1.56, n=718. The sole survivor of 120 variants."""
+    name = "FVG_NY_TIGHT"
+    magic = 3013
+    session = (17.5, 21.5)
+    sl_atr_mult = 0.5
+    tp_atr_mult = 1.5
+    mode = "baseline"
 
 
 class FVGAsiaSweep(_LiquidityFilteredFVG):
@@ -313,7 +387,11 @@ class FVGNYSweepOrVoid(_LiquidityFilteredFVG):
     session = (17.5, 21.5)
     mode = "sweep_or_void"
     void_mult = 0.5
+    tp_atr_mult = 2.5
+    sl_atr_mult = 0.5
 
+
+from src.strategies.ny_session_suite import NYLondonSweepReversal
 
 # Live set, trimmed 2026-09-08 to the legs that actually trade. FVGNYSweep
 # and FVGNYVoid are strict subsets of FVGNYSweepOrVoid and always lose the
@@ -326,4 +404,37 @@ class FVGNYSweepOrVoid(_LiquidityFilteredFVG):
 # (its morning stop-outs burn the shared 6% daily breaker and starve the NY
 # legs) even though it helps over a full year. Off until the $100-account
 # early-months risk is past. See its own docstring to reactivate.
-PORTFOLIO_V4 = [EMAStackLondonTight, FVGNYTight, FVGNYSweepOrVoid]
+# 
+# 2026-09-20: Following the rigorous Loop Engineering run (120 variants),
+# only FVGNYTight (0.5 SL / 1.5 TP) passed the Deflated Sharpe Ratio
+# and Bonferroni reality checks on the 2025-2026 holdout.
+# All other legs were removed to prevent portfolio bleeding from false edges.
+#
+# 2026-09-20 (Iteration 3): NVMRStrategy (NY VWAP mean reversion, SL=0.4, TP=1.2)
+# cleared Bonferroni correction (p=0.0138 < 0.05) on 674 full-history trades (2022-2026).
+# PF=1.582. Added to portfolio as second leg covering the NY session mean-reversion edge.
+from src.strategies.bible_strategies import NVMRStrategy as _NVMRStrategy
+
+class NVMRPortfolio(_NVMRStrategy):
+    """NY Session VWAP Mean Reversion.
+    Bonferroni-cleared (p=0.0138) on 674 trades across full history 2022-2026.
+    PF=1.582, WR=34%, T=3.743. Session: 17:30-21:30 IST.
+    """
+    name = "NVMR_NY"
+    magic = 4003
+    sl_atr_mult = 0.4
+    tp_atr_mult = 1.2
+
+# --- PORTFOLIO V4 (Updated 2026-09-21) ---
+# Config: FVG_NY_TIGHT + FVG_NY_SWEEP_OR_VOID  (2-leg, formally validated)
+# Source: REPO_GUIDE §6, HYP-073 — the only config to pass the I.1 holdout gate.
+#   PF 1.64, maxDD 31%, min balance $103 on 2025-01-01 → 2026-05-20.
+#
+# Rejected tonight (NVMR+FVG): Catastrophic September failure (11.4% WR, -$110).
+#   NVMR is regime-dependent — destroyed by strong trending markets.
+#   Was NOT holdout-validated. Reverted to the formally-cleared config.
+#
+# FVG_NY_TIGHT:        Anchor. 7-month PF 1.37, +$376 net.
+# FVG_NY_SWEEP_OR_VOID: Liquidity-filtered complement. Solo holdout PF 1.466.
+from src.strategies.bible_strategies import LARSStrategy
+PORTFOLIO_V4 = [LARSStrategy, FVGNYTight, FVGNYSweepOrVoid]

@@ -27,8 +27,13 @@ import numpy as np
 IST = timezone(timedelta(hours=5, minutes=30))
 FREEZE_PATH = os.path.join("research", "paper_test_freeze.json")
 
-PORTFOLIO_MAGICS = {3011: "SQUEEZE_ASIA", 3012: "EMASTACK_LONDON_TIGHT",
-                    3013: "FVG_NY_TIGHT", 3014: "RANGEREJECTION_NY_TIGHT"}
+# Live PORTFOLIO_V4 (2026-09-09, 3 legs) + the benched legs kept so an
+# unexpected fill under an old magic still shows up in the review.
+PORTFOLIO_MAGICS = {3012: "EMASTACK_LONDON_TIGHT",
+                    3013: "FVG_NY_TIGHT",
+                    3022: "FVG_NY_SWEEP_OR_VOID",
+                    3011: "SQUEEZE_ASIA (benched)",
+                    3014: "RANGEREJECTION_NY_TIGHT (benched)"}
 
 # I.9 / VI.3 thresholds
 PF_DIVERGENCE_TOLERANCE = 0.20   # live PF within 20% of backtest PF

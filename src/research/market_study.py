@@ -95,6 +95,29 @@ def ema(x: np.ndarray, period: int) -> np.ndarray:
     return out
 
 
+def macd(c: np.ndarray, fast: int = 12, slow: int = 26, signal: int = 9) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Standard MACD. Returns (macd_line, signal_line, histogram)."""
+    fast_ema = ema(c, fast)
+    slow_ema = ema(c, slow)
+    macd_line = fast_ema - slow_ema
+    
+    # Calculate signal line (EMA of MACD line)
+    # We must handle the NaNs at the beginning of macd_line
+    signal_line = np.full(len(c), np.nan)
+    valid_idx = np.where(~np.isnan(macd_line))[0]
+    if len(valid_idx) > 0:
+        first_valid = valid_idx[0]
+        if len(c) - first_valid >= signal:
+            # Seed the EMA with an SMA of the first 'signal' valid MACD values
+            signal_line[first_valid + signal - 1] = macd_line[first_valid:first_valid + signal].mean()
+            k = 2.0 / (signal + 1)
+            for i in range(first_valid + signal, len(c)):
+                signal_line[i] = macd_line[i] * k + signal_line[i - 1] * (1 - k)
+                
+    histogram = macd_line - signal_line
+    return macd_line, signal_line, histogram
+
+
 def rsi(x: np.ndarray, period: int = 14) -> np.ndarray:
     out = np.full(len(x), np.nan)
     if len(x) < period + 1:
@@ -325,7 +348,13 @@ def change_of_character(c: np.ndarray, h: np.ndarray, l: np.ndarray,
 # ---------------------------------------------------------------------------
 
 
+_build_features_cache = {}
+
 def build_features(rates: np.ndarray) -> Dict[str, np.ndarray]:
+    last_t = int(rates["time"][-1])
+    if last_t in _build_features_cache:
+        return _build_features_cache[last_t]
+        
     c = rates["close"].astype(float)
     f: Dict[str, np.ndarray] = {
         "time": rates["time"].astype(np.int64),
@@ -342,6 +371,7 @@ def build_features(rates: np.ndarray) -> Dict[str, np.ndarray]:
         "ema200": ema(c, 200),
         "rsi14": rsi(c, 14),
         "er20": efficiency_ratio(c, 20),
+        "macd_hist": macd(c)[2],
     }
     # ATR as a percentile of its own trailing year, so "high volatility" is
     # defined relative to the regime rather than as a fixed dollar figure.
@@ -366,6 +396,11 @@ def build_features(rates: np.ndarray) -> Dict[str, np.ndarray]:
         datetime.fromtimestamp(int(t), tz=timezone.utc).astimezone(IST).weekday()
         for t in f["time"]
     ])
+    
+    _build_features_cache[last_t] = f
+    if len(_build_features_cache) > 100:
+        _build_features_cache.pop(next(iter(_build_features_cache)))
+        
     return f
 
 
@@ -444,7 +479,7 @@ def excursion_baseline(f: Dict[str, np.ndarray], horizon_bars: int = 32,
     lm, la = np.array(long_mfe), np.array(long_mae)
     return {
         "horizon_bars": horizon_bars,
-        "n": int(len(lm)),
+        "n": len(lm),
         "mfe_atr_mean": round(float(lm.mean()), 4),
         "mfe_atr_median": round(float(np.median(lm)), 4),
         "mae_atr_mean": round(float(la.mean()), 4),

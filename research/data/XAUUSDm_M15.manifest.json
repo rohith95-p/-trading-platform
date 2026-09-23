@@ -2,11 +2,11 @@
   "symbol": "XAUUSDm",
   "timeframe": "M15",
   "bars": 100000,
-  "first_time": "2022-06-13 16:30:00",
-  "last_time": "2026-09-04 20:45:00",
-  "sha256": "639723fa94d116721748de0f21dfdcd935b466e47664c17da6568b4dc2bbe0f8",
+  "first_time": "2022-06-27 17:45:00",
+  "last_time": "2026-09-18 20:45:00",
+  "sha256": "665df8a2a0b157bdb4742043fc3d6e74b7dc0f89c6a2b9350c459267ea61a57c",
   "server": "Exness-MT5Trial11",
-  "downloaded_utc": "2026-09-05 21:34:04",
+  "downloaded_utc": "2026-09-19 16:44:13",
   "spec": {
     "symbol": "XAUUSDm",
     "digits": 3,
@@ -19,66 +19,6 @@
     "contract_size": 100.0
   },
   "gaps": [
-    {
-      "after_utc": "2022-06-13 20:45",
-      "missing_bars": 4,
-      "seconds": 4500,
-      "weekend": false
-    },
-    {
-      "after_utc": "2022-06-14 20:45",
-      "missing_bars": 4,
-      "seconds": 4500,
-      "weekend": false
-    },
-    {
-      "after_utc": "2022-06-15 20:45",
-      "missing_bars": 4,
-      "seconds": 4500,
-      "weekend": false
-    },
-    {
-      "after_utc": "2022-06-16 20:45",
-      "missing_bars": 4,
-      "seconds": 4500,
-      "weekend": false
-    },
-    {
-      "after_utc": "2022-06-17 20:45",
-      "missing_bars": 196,
-      "seconds": 177300,
-      "weekend": true
-    },
-    {
-      "after_utc": "2022-06-20 17:00",
-      "missing_bars": 19,
-      "seconds": 18000,
-      "weekend": false
-    },
-    {
-      "after_utc": "2022-06-21 20:45",
-      "missing_bars": 4,
-      "seconds": 4500,
-      "weekend": false
-    },
-    {
-      "after_utc": "2022-06-22 20:45",
-      "missing_bars": 4,
-      "seconds": 4500,
-      "weekend": false
-    },
-    {
-      "after_utc": "2022-06-23 20:45",
-      "missing_bars": 4,
-      "seconds": 4500,
-      "weekend": false
-    },
-    {
-      "after_utc": "2022-06-24 20:45",
-      "missing_bars": 196,
-      "seconds": 177300,
-      "weekend": true
-    },
     {
       "after_utc": "2022-06-27 20:45",
       "missing_bars": 4,
@@ -6591,6 +6531,66 @@
     },
     {
       "after_utc": "2026-09-03 20:45",
+      "missing_bars": 4,
+      "seconds": 4500,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-04 20:45",
+      "missing_bars": 196,
+      "seconds": 177300,
+      "weekend": true
+    },
+    {
+      "after_utc": "2026-09-07 18:15",
+      "missing_bars": 14,
+      "seconds": 13500,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-08 20:45",
+      "missing_bars": 4,
+      "seconds": 4500,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-09 20:45",
+      "missing_bars": 4,
+      "seconds": 4500,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-10 20:45",
+      "missing_bars": 4,
+      "seconds": 4500,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-11 20:45",
+      "missing_bars": 196,
+      "seconds": 177300,
+      "weekend": true
+    },
+    {
+      "after_utc": "2026-09-14 20:45",
+      "missing_bars": 4,
+      "seconds": 4500,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-15 20:45",
+      "missing_bars": 4,
+      "seconds": 4500,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-16 20:45",
+      "missing_bars": 4,
+      "seconds": 4500,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-17 20:45",
       "missing_bars": 4,
       "seconds": 4500,
       "weekend": false

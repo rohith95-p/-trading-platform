@@ -36,11 +36,11 @@ from src.strategies.portfolio_v4 import PORTFOLIO_V4
 IST = timezone(timedelta(hours=5, minutes=30))
 OUT_DIR = os.path.join("research", "validation")
 
-# --- The 2-year standard windows -------------------------------------------
-HOLDOUT_START = "2025-01-01"
-HOLDOUT_END = "2026-05-20"      # stops before the 05-21 selection window
-SELECTION_START = "2026-05-21"
-SELECTION_END = "2026-08-29"
+# --- The strict IS/OOS split -----------------------------------------------
+TRAIN_START = "2022-06-07"
+TRAIN_END = "2024-12-31"
+OOS_START = "2025-01-01"
+OOS_END = "2026-05-20"
 START_BAL = 105.74
 
 PASS_PF = 1.2
@@ -117,25 +117,25 @@ def save(target: str, payload: dict):
 
 
 # ---------------------------------------------------------------------------
-# I.1  Out-of-sample holdout
+# I.1  Out-of-sample holdout (OOS)
 # ---------------------------------------------------------------------------
 def t_holdout():
     bars = _bars()
-    print(f"I.1 HOLDOUT  {HOLDOUT_START} -> {HOLDOUT_END}  (live config, D1 gate OFF)")
-    res = run_window(bars, live_config(), HOLDOUT_START, HOLDOUT_END)
+    print(f"I.1 OOS HOLDOUT  {OOS_START} -> {OOS_END}  (live config, D1 gate OFF)")
+    res = run_window(bars, live_config(), OOS_START, OOS_END)
     s = stats(res.trades)
     v = verdict(s)
     print(json.dumps(s, indent=2))
     print(f"PASS: {v['passed']}  {v['reasons']}")
 
-    # For reference only, not the gate: the selection window itself.
-    res_sel = run_window(bars, live_config(), SELECTION_START, SELECTION_END)
-    s_sel = stats(res_sel.trades)
-    print(f"\n(reference) selection window {SELECTION_START}..{SELECTION_END}: "
-          f"PF={s_sel.get('profit_factor')} net=${s_sel.get('net')}")
+    # For reference only, the training window itself.
+    res_train = run_window(bars, live_config(), TRAIN_START, TRAIN_END)
+    s_train = stats(res_train.trades)
+    print(f"\n(reference) training window {TRAIN_START}..{TRAIN_END}: "
+          f"PF={s_train.get('profit_factor')} net=${s_train.get('net')}")
 
-    save("holdout", dict(window=[HOLDOUT_START, HOLDOUT_END], stats=s, verdict=v,
-                         selection_window_reference=s_sel))
+    save("holdout", dict(window=[OOS_START, OOS_END], stats=s, verdict=v,
+                         training_window_reference=s_train))
 
 
 # ---------------------------------------------------------------------------
@@ -145,9 +145,9 @@ def t_walkforward():
     bars = _bars()
     # 60d train is implicit (the legs are already fixed); we measure rolling
     # 30-day test windows across the holdout to see stability of the edge.
-    print("I.2 WALK-FORWARD: rolling 30d test windows across the holdout")
-    start = datetime.strptime(HOLDOUT_START, "%Y-%m-%d")
-    end = datetime.strptime(HOLDOUT_END, "%Y-%m-%d")
+    print("I.2 WALK-FORWARD: rolling 30d test windows across the OOS holdout")
+    start = datetime.strptime(OOS_START, "%Y-%m-%d")
+    end = datetime.strptime(OOS_END, "%Y-%m-%d")
     windows, cur = [], start
     while cur + timedelta(days=30) <= end:
         nxt = cur + timedelta(days=30)
@@ -174,8 +174,8 @@ def t_walkforward():
 # ---------------------------------------------------------------------------
 def t_montecarlo(n_sims=10000):
     bars = _bars()
-    print("I.3 MONTE CARLO bootstrap on holdout trade sequence")
-    res = run_window(bars, live_config(), HOLDOUT_START, HOLDOUT_END)
+    print("I.3 MONTE CARLO bootstrap on OOS holdout trade sequence")
+    res = run_window(bars, live_config(), OOS_START, OOS_END)
     pl = np.array([t.net_pl for t in res.trades])
     if not len(pl):
         print("no trades"); return
@@ -225,7 +225,7 @@ def t_perturb():
             s.sl_atr_mult = cls.sl_atr_mult * scale
             s.tp_atr_mult = cls.tp_atr_mult * scale
             strategies.append(s)
-        res = run_window(bars, live_config(), HOLDOUT_START, HOLDOUT_END, strategies)
+        res = run_window(bars, live_config(), OOS_START, OOS_END, strategies)
         st = stats(res.trades)
         rows.append(dict(scale=scale, **st))
         print(f"  scale={scale:.1f}  n={st.get('n',0):4d}  PF={st.get('profit_factor','-'):>7}  "
@@ -259,13 +259,13 @@ def t_randomentry(n_iter=1000):
     atr = f["atr14"]
     ist_hour = f["ist_hour"]
 
-    lo_ts, hi_ts = _ts(HOLDOUT_START), _ts(HOLDOUT_END)
+    lo_ts, hi_ts = _ts(OOS_START), _ts(OOS_END)
     m1_t, m1_h, m1_l = m1["time"], m1["high"], m1["low"]
     rng = np.random.default_rng(5)
     results = {}
 
     for cls in PORTFOLIO_V4:
-        real = run_window(bars, live_config(), HOLDOUT_START, HOLDOUT_END, [cls()])
+        real = run_window(bars, live_config(), OOS_START, OOS_END, [cls()])
         real_s = stats(real.trades)
         n_real = real_s.get("n", 0)
         real_pf = real_s.get("profit_factor", 0.0)
@@ -344,8 +344,8 @@ def t_randomentry(n_iter=1000):
 # ---------------------------------------------------------------------------
 def t_regime():
     bars = _bars()
-    print("I.6 REGIME SEGMENTATION across the holdout")
-    res = run_window(bars, live_config(), HOLDOUT_START, HOLDOUT_END)
+    print("I.6 REGIME SEGMENTATION across the OOS holdout")
+    res = run_window(bars, live_config(), OOS_START, OOS_END)
     if not res.trades:
         print("no trades"); return
     m15 = bars.m15
@@ -399,7 +399,7 @@ def t_cost():
         )
         eng = BacktestEngine(bars=bars, cost=cost, config=live_config())
         res = eng.run([c() for c in PORTFOLIO_V4],
-                      start_ts=_ts(HOLDOUT_START), end_ts=_ts(HOLDOUT_END))
+                      start_ts=_ts(OOS_START), end_ts=_ts(OOS_END))
         s = stats(res.trades)
         rows.append(dict(cost_multiple=mult, **s))
         print(f"  {mult}x  n={s.get('n',0):4d}  PF={s.get('profit_factor','-'):>7}  net=${s.get('net','-'):>9}")
@@ -427,7 +427,7 @@ def t_ladder(n_sims=10000):
     cfg = live_config(max_concurrent=max_pos, max_same_direction=max_pos,
                       fixed_lots=lots,
                       daily_loss_limit_pct=risk_rules.DAILY_LIMIT_PCT_EARLY)
-    res = run_window(bars, cfg, HOLDOUT_START, HOLDOUT_END)
+    res = run_window(bars, cfg, OOS_START, OOS_END)
     s = stats(res.trades)
     v = verdict(s)
     print("\nHoldout under Part II sizing:")

@@ -85,7 +85,10 @@ def send(message: str, severity: str = WARN, context: Optional[dict] = None) -> 
         text += "\n" + "\n".join(f"  {k}: {v}" for k, v in context.items())
 
     _record(text.replace("\n", " | "))
-    print(text)
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        print(text.encode('ascii', 'replace').decode('ascii'))
 
     delivered = False
     for fn in (lambda: _telegram(text), lambda: _webhook(text, severity)):

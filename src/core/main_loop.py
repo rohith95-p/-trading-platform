@@ -36,6 +36,7 @@ from src.core import resilience
 from src.core import trade_log
 from src.core import risk_rules
 from src.core import market_hours
+from src.core import news_filter  # III.5 -- blocks entries around tier-1 macro events
 # MorningMomentum (grade H), EMAPullback (grade E), AsianSweep (grade E) were
 # archived to src/strategies/archive/ on 2026-09-01 (rohith phase 3): all three
 # scored below the random-entry control (HYP-020) and MorningMomentum's 83%
@@ -43,7 +44,7 @@ from src.core import market_hours
 # EMAStack (rohith phase 2, HYP-027) superseded 2026-09-01 by the 4-leg
 # portfolio below -- kept in src/strategies/ema_stack.py for reference but
 # no longer imported here.
-from src.strategies.portfolio_v4 import PORTFOLIO_V4  # 2 NY FVG legs (TIGHT + SWEEP_OR_VOID); trimmed 2026-09-08, see portfolio_v4.py
+from src.strategies.portfolio_v4 import PORTFOLIO_V4  # 3 legs: EMASTACK_LONDON_TIGHT + FVG_NY_TIGHT + FVG_NY_SWEEP_OR_VOID (see portfolio_v4.py)
 
 # IST offset
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -92,8 +93,10 @@ LOOP_INTERVAL = 60  # seconds between scans
 # entry, more extended, with its own full stop -- so a reversal loses on both.
 #
 # Positions now run to their fixed SL/TP, exactly as validated.
-ENABLE_TRAILING = False
+ENABLE_TRAILING = True
 ENABLE_PYRAMIDING = False
+CLOSE_ONLY_TRAIL = True
+
 # D1 EMA20 direction gate -- ON. Reversed 2026-09-06 (HYP-064) after August 2026
 # simulation proved that trading FVG strategies without trend filtering in a
 # high-volatility environment causes extreme drawdowns. The gate flawlessly
@@ -206,6 +209,10 @@ def _run_guarded():
 
     mt5_fail_count = 0
 
+    # Positions seen on the previous loop -- None until the first pass, so
+    # positions already open at startup are adopted, not counted as closes.
+    known_position_tickets = None
+
     log.info("=" * 60)
     log.info("Ultra Core v3 -- Final Boss Engine")
     log.info(f"Symbol: {SYMBOL}")
@@ -217,14 +224,40 @@ def _run_guarded():
              f"Pyramiding: {'ON' if ENABLE_PYRAMIDING else 'OFF'} | "
              f"D1 gate: {'ON' if ENABLE_D1_GATE else 'OFF'}")
     log.info(f"Resilience: lock={resilience.LOCK_FILE} | kill switch=create '{resilience.STOP_FILE}'")
+    log.info(f"News filter: {'ENABLED' if news_filter.ENABLE_NEWS_FILTER else 'DISABLED'} "
+             f"(±{news_filter.NEWS_BLACKOUT_MINUTES}min blackout around tier-1 events)")
+    news_filter.invalidate_cache()  # ensure calendar is freshly loaded at startup
+    _upcoming = news_filter.upcoming_events(hours_ahead=8.0)
+    if _upcoming:
+        log.info("Upcoming tier-1 events (next 8h):")
+        for _ev in _upcoming:
+            log.info(f"  {_ev['minutes_away']:>4}min: {_ev['name']} @ {_ev['utc_time']} UTC ({_ev['date']})")
     log.info("=" * 60)
     print(f"\n[{_ist_now()}] >>> Ultra Core v3 is LIVE.\n")
+
+    current_date = datetime.now(IST).date()
 
     while True:
         try:
             now_ist = datetime.now(IST)
+            
+            # ----------------------------------------------------------
+            # Midnight IST tasks
+            # ----------------------------------------------------------
+            if current_date != now_ist.date():
+                log.info("Midnight IST transition detected. Running daily tasks.")
+                try:
+                    from src.core.daily_report import send_daily_report
+                    send_daily_report(force=False)
+                except Exception as e:
+                    log.error(f"Failed to send daily report: {e}")
+                current_date = now_ist.date()
             resilience.heartbeat()
             resilience.save_state(last_fired_candle, drawdown_shutdown, shutdown_date)
+
+            # Feed closed-trade results to the risk_rules streak breakers. Runs
+            # every loop -- a stop can fill while the bot is in drawdown_shutdown.
+            known_position_tickets = _record_closed_trades(fetcher, known_position_tickets)
 
             # ----------------------------------------------------------
             # Kill switch: STOP file in the project root -> flatten + halt
@@ -275,6 +308,19 @@ def _run_guarded():
                 continue
 
             # ----------------------------------------------------------
+            # Gate 1b: News blackout (III.5) -- block entries around
+            # scheduled tier-1 macro events (NFP, CPI, FOMC, PCE, etc.)
+            # that spike XAUUSD spreads to 50-100 pts and cause extreme
+            # slippage on the FVG legs' tight ~$5 stops.
+            # ----------------------------------------------------------
+            _news_blocked, _news_reason = news_filter.is_near_news_event(now_ist)
+            if _news_blocked:
+                log.info(f"NEWS FILTER: {_news_reason}")
+                _manage_open_positions(fetcher, risk, executor)
+                _time.sleep(LOOP_INTERVAL)
+                continue
+
+            # ----------------------------------------------------------
             # Gate 2: Dynamic daily drawdown cap
             # ----------------------------------------------------------
             todays_pl = fetcher.get_todays_closed_pl()
@@ -283,21 +329,20 @@ def _run_guarded():
             # trades, because only closed deals were measured.
             floating_pl = sum(p.profit for p in fetcher.get_positions())
 
-            if True:
-                if not risk.check_daily_drawdown(
-                    todays_pl=todays_pl, floating_pl=floating_pl
-                ):
-                    drawdown_shutdown = True
-                    shutdown_date = now_ist.date()
-                    print(
-                        f"[{_ist_now()}] SHUTDOWN: Daily drawdown limit hit "
-                        f"(realised ${todays_pl:.2f} + floating ${floating_pl:.2f}). "
-                        f"No more trades until midnight IST."
-                    )
-                    # Still manage open positions (trailing stops)
-                    _manage_open_positions(fetcher, risk, executor)
-                    _time.sleep(LOOP_INTERVAL)
-                    continue
+            if not risk.check_daily_drawdown(
+                todays_pl=todays_pl, floating_pl=floating_pl
+            ):
+                drawdown_shutdown = True
+                shutdown_date = now_ist.date()
+                print(
+                    f"[{_ist_now()}] SHUTDOWN: Daily drawdown limit hit "
+                    f"(realised ${todays_pl:.2f} + floating ${floating_pl:.2f}). "
+                    f"No more trades until midnight IST."
+                )
+                # Still manage open positions (trailing stops)
+                _manage_open_positions(fetcher, risk, executor)
+                _time.sleep(LOOP_INTERVAL)
+                continue
 
             # ----------------------------------------------------------
             # Fetch data & Macro Bias
@@ -446,6 +491,107 @@ def _leg_in_cooldown(name: str) -> bool:
         return False
 
 
+def _record_closed_trades(fetcher, known_tickets):
+    """Feed every newly-closed position's realised P/L to the risk_rules streak
+    breakers (II.4: consecutive-loss pause / stop-day, early-phase losing-trade
+    cap).
+
+    `record_trade_result()` existed but nothing ever called it, so
+    consecutive_losses / day_losing_trades sat at 0 forever and those breakers
+    could not fire even in shadow mode. This closes that gap. It is still
+    shadow-only while risk_rules.ENFORCE is False -- it makes the breaker STATE
+    real (persisted to logs/risk_state.json) so it can be measured now and works
+    the moment ENFORCE is flipped on.
+
+    known_tickets is None on the first loop after startup -- pre-existing
+    positions are adopted, not counted as closes. A ticket whose deal history
+    can't be read yet is retried next loop rather than lost.
+    """
+    current = {p.ticket for p in fetcher.get_positions()}
+    if known_tickets is None:
+        return current
+
+    closed = known_tickets - current
+    if not closed:
+        return current
+
+    acct = mt5.account_info()
+    state = risk_rules.load_state()
+    if acct is not None:
+        # same day/week/month roll evaluate() does, so a close before the first
+        # signal of a new day sees a reset day_losing_trades.
+        state = risk_rules._roll_anchors(state, float(acct.balance), datetime.now(IST))
+
+    still_pending = set()
+    for ticket in closed:
+        try:
+            deals = mt5.history_deals_get(position=ticket)
+            if not deals:
+                still_pending.add(ticket)
+                continue
+            pl = sum((d.profit + d.swap + d.commission) for d in deals
+                     if d.entry == mt5.DEAL_ENTRY_OUT)
+            state = risk_rules.record_trade_result(pl, state=state)
+            trade_log.position_closed(strategy="", ticket=ticket, profit=round(pl, 2),
+                                      consecutive_losses=state.consecutive_losses,
+                                      day_losing_trades=state.day_losing_trades,
+                                      streak_pause_active=state.pause_until_ts > _time.time(),
+                                      enforced=risk_rules.ENFORCE)
+        except Exception as e:
+            log.warning(f"streak breaker: could not record close of #{ticket}: {e}")
+            still_pending.add(ticket)
+
+    risk_rules.save_state(state)
+    
+    if closed:
+        _check_vi3_tripwire(fetcher)
+
+    return current | still_pending
+
+
+def _check_vi3_tripwire(fetcher):
+    """VI.3 tripwire: monitor rolling 30-trade live profit factor."""
+    try:
+        now = datetime.now(timezone.utc)
+        start = now - timedelta(days=60)
+        deals = mt5.history_deals_get(start, now)
+        if not deals:
+            return
+            
+        magics = {3012, 3013, 3022, 3011, 3014}
+        pls = []
+        for d in deals:
+            if d.symbol == fetcher.symbol and d.magic in magics and d.entry == mt5.DEAL_ENTRY_OUT:
+                pl = float(d.profit) + float(d.swap) + float(d.commission)
+                pls.append((int(d.time), pl))
+                
+        if len(pls) < 30:
+            return
+            
+        pls.sort(key=lambda x: x[0])
+        recent_30 = [x[1] for x in pls[-30:]]
+        
+        arr = np.array(recent_30, dtype=float)
+        w, l = arr[arr > 0], arr[arr < 0]
+        pf = float(w.sum() / -l.sum()) if len(l) else float("inf")
+        
+        if pf < 0.8:
+            msg = f"VI.3 TRIPWIRE: Rolling 30-trade PF is {pf:.2f} (<0.8). triggering KILL SWITCH."
+            log.error(msg)
+            from src.core import alerts
+            alerts.send(msg, severity=alerts.CRITICAL)
+            # Create STOP file to trigger kill switch on next loop
+            with open(resilience.STOP_FILE, "w") as f:
+                f.write(msg)
+        elif pf < 1.0:
+            msg = f"VI.3 TRIPWIRE WARN: Rolling 30-trade PF is {pf:.2f} (<1.0)."
+            log.warning(msg)
+            from src.core import alerts
+            alerts.send(msg, severity=alerts.WARN)
+    except Exception as e:
+        log.warning(f"Could not check VI.3 tripwire: {e}")
+
+
 def _d1_bias_allows(signal, d1_bias, strategy_name: str) -> bool:
     """Daily-trend gate, shared by the fresh and confirmed signal paths.
 
@@ -480,6 +626,14 @@ def _execute_signal(signal, m15_rates, fetcher, risk, executor, session_mult, se
                          _mh_why, session=session_name)
         log.info(f"[{signal.strategy_name}] entry blocked -- {_mh_why}")
         return
+
+    if strategy and getattr(strategy, "max_spread_pts", None):
+        max_spread = strategy.max_spread_pts
+        if not risk.is_spread_ok(max_spread):
+            trade_log.signal(signal.strategy_name, signal.direction_str, "blocked",
+                             f"spread > {max_spread}", session=session_name)
+            log.info(f"[{signal.strategy_name}] entry blocked -- spread > {max_spread}")
+            return
 
     if not executor.can_open_new_position():
         log.info("Cannot execute: max concurrent positions reached.")
@@ -628,18 +782,64 @@ def _manage_open_positions(fetcher, risk, executor):
     curr_atr = risk.get_latest_atr(m15_rates)
     if curr_atr is None:
         return
+        
+    try:
+        import json
+        with open("logs/virtual_sl.json", "r") as f:
+            virtual_sls = json.load(f)
+    except Exception:
+        virtual_sls = {}
+        
+    state_changed = False
 
     for pos in positions:
         # Trailing stop -- OFF by default, see ENABLE_TRAILING above.
         if ENABLE_TRAILING:
+            ticket_str = str(pos.ticket)
+            actual_broker_sl = pos.sl
+            
+            if CLOSE_ONLY_TRAIL and ticket_str in virtual_sls:
+                pos.sl = virtual_sls[ticket_str]
+                
             new_sl = risk.calculate_trailing_stop(pos, curr_atr)
+            pos.sl = actual_broker_sl  # Restore
+            
             if new_sl is not None:
-                executor.modify_sl(pos.ticket, new_sl, pos.tp, pos.symbol)
+                if CLOSE_ONLY_TRAIL:
+                    virtual_sls[ticket_str] = new_sl
+                    state_changed = True
+                    log.info(f"Virtual Trailing SL for #{pos.ticket} updated to {new_sl}")
+                else:
+                    executor.modify_sl(pos.ticket, new_sl, pos.tp, pos.symbol)
+                    
+            if CLOSE_ONLY_TRAIL and ticket_str in virtual_sls:
+                v_sl = virtual_sls[ticket_str]
+                is_buy = pos.type == 0 # mt5.ORDER_TYPE_BUY
+                last_closed_bar = m15_rates[-2]
+                close_price = float(last_closed_bar["close"])
+                
+                # Check if the closed candle violated our virtual SL
+                if is_buy and close_price <= v_sl:
+                    log.warning(f"CLOSE-ONLY TRAIL HIT: #{pos.ticket} long closed at {close_price} (SL: {v_sl})")
+                    executor.close_position(pos)
+                    continue # Skip consolidation check since it's closed
+                elif not is_buy and close_price >= v_sl:
+                    log.warning(f"CLOSE-ONLY TRAIL HIT: #{pos.ticket} short closed at {close_price} (SL: {v_sl})")
+                    executor.close_position(pos)
+                    continue
 
         # Consolidation exit
         if risk.should_exit_consolidation(m15_rates):
             log.info(f"Consolidation detected -- closing #{pos.ticket}")
             executor.close_position(pos)
+            
+    if state_changed:
+        try:
+            import json
+            with open("logs/virtual_sl.json", "w") as f:
+                json.dump(virtual_sls, f)
+        except Exception as e:
+            log.error(f"Failed to save virtual SL state: {e}")
 
 
 if __name__ == "__main__":

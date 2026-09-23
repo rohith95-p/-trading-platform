@@ -111,6 +111,7 @@ class Position:
     minutes_to_mfe: int = 0
     price_current: float = 0.0
     intrabar_ambiguous: bool = False
+    duplicate_of: Optional[int] = None
 
     @property
     def type(self) -> int:
@@ -182,6 +183,7 @@ class EngineConfig:
     enable_pyramiding: bool = True
     enable_consolidation_exit: bool = True
     enable_trailing: bool = True
+    close_only_trail: bool = False  # Ignore wicks, check trailing stop only at candle close
     enable_d1_bias_gate: bool = True
     # Direction gate variant (rohith-2 research). "d1_ema20" reproduces HEAD.
     #   "d1_ema20"     : daily close vs D1 EMA20 (current live)
@@ -236,6 +238,20 @@ class EngineConfig:
     # None keeps the production constant. These are the parameters Phase 13
     # exit research varies; they are recorded in the manifest like everything else.
     tp_atr_mult: Optional[float] = None
+    # Structural take-profit (2026-09-09, owner request -- "snap TP to the swing
+    # level instead of a fixed ATR distance"). When True, at entry the TP is
+    # pulled IN to just before the nearest CONFIRMED BigBeluga swing pivot in
+    # the trade's direction (structure.compute on the same backward-looking
+    # m15_view -- confirmation is already lag-shifted, no lookahead). Bounds:
+    # the structural TP is only used when its distance is in
+    # [structural_tp_min_atr * ATR, static ATR TP distance) -- i.e. it can only
+    # ever bring the target closer, never reach further through open air. If no
+    # pivot sits between entry and the ATR target, TP is unchanged. SL is never
+    # touched, so this isolates the TP variable.
+    structural_tp: bool = False
+    structural_tp_len: int = 10
+    structural_tp_buffer_atr: float = 0.1
+    structural_tp_min_atr: float = 1.0
     trail_activation_atr: Optional[float] = None
     trail_distance_atr: Optional[float] = None
     sl_atr_mult_override: Optional[float] = None
@@ -483,6 +499,9 @@ class BacktestEngine:
         if stops is None:
             return None
 
+        if self.cfg.structural_tp and stops.atr > 0:
+            self._apply_structural_tp(stops, fill_price, is_buy, m15_view)
+
         # A real account cannot open anything once equity is gone. Without this
         # the sizer keeps returning the broker minimum on a negative balance and
         # the equity curve runs off into fiction.
@@ -526,13 +545,51 @@ class BacktestEngine:
             mae_price=fill_price,
             price_current=fill_price,
         )
-        pos._duplicate_of = duplicate_of  # type: ignore[attr-defined]
+        pos.duplicate_of = duplicate_of
         self.positions.append(pos)
         if duplicate_of is not None:
             self.diag["duplicate_entries"] += 1
         if is_pyramid:
             self.diag["pyramid_entries"] += 1
         return pos
+
+    def _apply_structural_tp(self, stops, fill_price: float, is_buy: bool,
+                             m15_view: np.ndarray) -> None:
+        """Pull `stops.tp` in to just before the nearest confirmed swing pivot,
+        if one sits between the fill and the ATR target. Mutates `stops`."""
+        try:
+            from src.research.structure import compute as _struct_compute
+        except Exception:
+            return
+        if m15_view is None or len(m15_view) < 3 * self.cfg.structural_tp_len:
+            return
+        sc = _struct_compute(m15_view, self.cfg.structural_tp_len)
+        atr = stops.atr
+        buf = self.cfg.structural_tp_buffer_atr * atr
+        min_dist = self.cfg.structural_tp_min_atr * atr
+
+        if is_buy:
+            lvl = float(sc["pivot_high_val"][-1])
+            if not np.isfinite(lvl) or lvl <= fill_price:
+                return
+            cand_tp = lvl - buf
+            cand_dist = cand_tp - fill_price
+            atr_dist = stops.tp - fill_price
+            if min_dist <= cand_dist < atr_dist:
+                stops.tp = round(cand_tp, 3)
+                stops.tp_distance = round(cand_dist, 3)
+                self.diag["structural_tp_applied"] = self.diag.get("structural_tp_applied", 0) + 1
+        else:
+            lvl = float(sc["pivot_low_val"][-1])
+            if not np.isfinite(lvl) or lvl >= fill_price:
+                return
+            cand_tp = lvl + buf
+            cand_dist = fill_price - cand_tp
+            atr_dist = fill_price - stops.tp
+            if min_dist <= cand_dist < atr_dist:
+                stops.tp = round(cand_tp, 3)
+                stops.tp_distance = round(cand_dist, 3)
+                self.diag["structural_tp_applied"] = self.diag.get("structural_tp_applied", 0) + 1
 
     def _close(self, pos: Position, exit_price: float, ts: int, reason: str) -> None:
         direction = 1.0 if pos.is_buy else -1.0
@@ -583,7 +640,7 @@ class BacktestEngine:
                 minutes_open=pos.minutes_open,
                 minutes_to_mfe=pos.minutes_to_mfe,
                 is_pyramid=pos.is_pyramid,
-                duplicate_of=getattr(pos, "_duplicate_of", None),
+                duplicate_of=pos.duplicate_of,
                 intrabar_ambiguous=pos.intrabar_ambiguous,
                 balance_after=self.balance,
                 swap=swap,
@@ -594,7 +651,7 @@ class BacktestEngine:
         self.equity.append((ts, self.balance))
 
     def _walk_minute(self, pos: Position, bar: np.ndarray, ts: int, point: float,
-                     ambiguous: bool) -> Optional[Tuple[float, str]]:
+                     ambiguous: bool, is_m15_close: bool = False) -> Optional[Tuple[float, str]]:
         """Advance one position through one M1 bar. Returns (exit_price, reason) if hit.
 
         Within a single minute the true tick order is still unknown, so a bar that
@@ -603,14 +660,24 @@ class BacktestEngine:
         """
         spread_pts = float(bar["spread"]) if "spread" in bar.dtype.names else None
         hi, lo = float(bar["high"]), float(bar["low"])
+        cl = float(bar["close"])
         slip = self.cost.slip(point)
+        
+        is_trailing = pos.trail_active
+        close_only = self.cfg.close_only_trail and is_trailing
 
         if pos.is_buy:
             # bars are bid-side; a long exits on bid
-            pos.price_current = float(bar["close"])
+            pos.price_current = cl
             pos.mfe_price = max(pos.mfe_price, hi)
             pos.mae_price = min(pos.mae_price, lo)
-            hit_sl = lo <= pos.sl
+            
+            if close_only:
+                # If close-only, we only check SL on the close of the M15 candle using the M15 close price
+                hit_sl = is_m15_close and cl <= pos.sl
+            else:
+                hit_sl = lo <= pos.sl
+                
             hit_tp = hi >= pos.tp
             if hit_sl and hit_tp:
                 pos.intrabar_ambiguous = True
@@ -623,10 +690,17 @@ class BacktestEngine:
             # a short exits on ask
             ask_hi = self.cost.ask(hi, point, spread_pts)
             ask_lo = self.cost.ask(lo, point, spread_pts)
-            pos.price_current = self.cost.ask(float(bar["close"]), point, spread_pts)
+            ask_cl = self.cost.ask(cl, point, spread_pts)
+            
+            pos.price_current = ask_cl
             pos.mfe_price = min(pos.mfe_price, ask_lo)
             pos.mae_price = max(pos.mae_price, ask_hi)
-            hit_sl = ask_hi >= pos.sl
+            
+            if close_only:
+                hit_sl = is_m15_close and ask_cl >= pos.sl
+            else:
+                hit_sl = ask_hi >= pos.sl
+                
             hit_tp = ask_lo <= pos.tp
             if hit_sl and hit_tp:
                 pos.intrabar_ambiguous = True
@@ -776,11 +850,13 @@ class BacktestEngine:
                     for pos in list(self.positions):
                         self._close(pos, pos.price_current, ts, "Weekend Gap Avoidance")
 
+                is_m15_close = (m == len(m1_bars) - 1)
+                
                 # 1. Broker side: stops and targets fire on ticks, not on our loop.
                 for pos in list(self.positions):
                     pos.minutes_open += 1
                     prev_mfe = pos.mfe_price
-                    hit = self._walk_minute(pos, bar, ts, point, coarse)
+                    hit = self._walk_minute(pos, bar, ts, point, coarse, is_m15_close=is_m15_close)
                     if pos.mfe_price != prev_mfe:
                         pos.minutes_to_mfe = pos.minutes_open
                     if hit is not None:
@@ -984,7 +1060,7 @@ class BacktestEngine:
         short_view = m15_view[-20:]
         atr = rm.get_latest_atr(short_view)
         if atr is None:
-            print("DEBUG: atr is None in _manage!")
+            log.debug("_manage: ATR unavailable on short_view -- skipping management.")
             return
 
         if self.cfg.enable_trailing:

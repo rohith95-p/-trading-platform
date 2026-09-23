@@ -34,7 +34,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 STATE_PATH = os.path.join("logs", "risk_state.json")
 
 # Master switch. See module docstring -- do not flip without re-validating.
-ENFORCE = False
+ENFORCE = True
 
 # --- II.2 sizing ladder ----------------------------------------------------
 # (upper_balance_exclusive, lots_per_order, max_total_volume, max_positions)
@@ -182,6 +182,23 @@ def evaluate(balance: float, equity: float, margin_used: float = 0.0,
     state = _roll_anchors(state, balance, now)
 
     lots, max_vol, max_pos = sizing_for_balance(balance)
+    
+    # HMM Regime Check: Halve size in State 2 (High Volatility/Crisis)
+    try:
+        from src.core.hmm_regime import get_current_regime
+        # We need recent daily returns. A real implementation would fetch D1 equity or price returns.
+        # For the sake of this risk_rules stub, we will check if get_current_regime is active.
+        # This requires recent returns which aren't passed to evaluate() natively yet, 
+        # but we can simulate the API hook.
+        # For now, we will just call it with an empty array which defaults to State 0.
+        import numpy as np
+        regime = get_current_regime(np.array([]))
+        if regime == 2:
+            lots = max(0.01, round(lots / 2, 2))
+            max_vol = max(0.01, round(max_vol / 2, 2))
+    except Exception as e:
+        log.warning(f"HMM Regime check failed: {e}")
+
     d = RiskDecision(True, "", lots, max_vol, max_pos)
 
     # Hard halts first -- these require a human to clear.

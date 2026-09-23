@@ -1,6 +1,7 @@
 """Strategy package.
 
-ACTIVE (live in main_loop): portfolio_v4 -- four session-specialist legs.
+ACTIVE (live in main_loop): portfolio_v4 -- three session-specialist legs:
+  EMAStackLondonTight (London), FVGNYTight (NY), FVGNYSweepOrVoid (NY).
   See src/strategies/portfolio_v4.py and docs/research/STRATEGY_REGISTRY.md.
 
 RESEARCH ONLY (not imported by main_loop): ema_stack, trend_sniper_sar,

@@ -103,3 +103,17 @@ research/runs/**/*trades*.json
 
 # kill switch (local only)
 STOP
+
+# Scratch / one-off files
+scratch_*.py
+fetch_market.py
+generate_pinescripts.py
+
+# Generated output
+20_Year_Audit/
+pine scripts/
+scratch_repos/
+AUDIT_REPORT_*.md
+
+# Kaggle data (huge, regenerable)
+research/data/kaggle_22yr/

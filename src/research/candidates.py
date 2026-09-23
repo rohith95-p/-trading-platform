@@ -84,9 +84,23 @@ def _roll_min(a: np.ndarray, w: int) -> np.ndarray:
 
 
 def _roll_mean(a: np.ndarray, w: int) -> np.ndarray:
+    """Mean of the w bars ENDING AT i-1 (excludes the current bar).
+
+    O(n) vectorized implementation. Matches _roll_max/_roll_min/_roll_std
+    convention so Bollinger-style expressions (close - _roll_mean) / _roll_std
+    use consistent lookback. The previous cumsum implementation included the
+    current bar at index i, creating a 1-bar lookahead bias vs _roll_std.
+
+    Method: prepend 0 to the cumsum so prior_cs[i] = sum(a[0:i]).
+    Then mean(a[i-w:i]) = (prior_cs[i] - prior_cs[i-w]) / w.
+    """
     out = np.full(len(a), np.nan)
-    cs = np.nancumsum(np.nan_to_num(a))
-    out[w:] = (cs[w:] - cs[:-w]) / w
+    n = len(a)
+    if n <= w:
+        return out
+    prior_cs = np.concatenate(([0.0], np.nancumsum(np.nan_to_num(a))))
+    # prior_cs has length n+1: prior_cs[i] = sum(a[0:i]), prior_cs[0] = 0
+    out[w:] = (prior_cs[w:n] - prior_cs[0:n - w]) / w
     return out
 
 
@@ -296,6 +310,16 @@ def _c_fvg(f: F) -> np.ndarray:
     """Fair-value gap: bar i-2 high < bar i low (bullish), strictly backward."""
     h2, l2 = _shift(f["high"], 2), _shift(f["low"], 2)
     return _sig(h2 < f["low"], l2 > f["high"])
+
+
+def _c_fvg_macd(f: F) -> np.ndarray:
+    """Fair-value gap with MACD momentum filter."""
+    h2, l2 = _shift(f["high"], 2), _shift(f["low"], 2)
+    fvg_bull = h2 < f["low"]
+    fvg_bear = l2 > f["high"]
+    macd_bull = f["macd_hist"] > 0
+    macd_bear = f["macd_hist"] < 0
+    return _sig(fvg_bull & macd_bull, fvg_bear & macd_bear)
 
 
 def _c_liquidity_sweep(f: F, w: int = 12) -> np.ndarray:
@@ -568,6 +592,10 @@ def build_library() -> List[Candidate]:
         "Price gaps leave imbalances that price continues away from.",
         "FVGs on a 24h instrument are mostly noise.",
         _c_fvg, SESS_MAIN, EX_ONE)
+    add("FVG + MACD Momentum", "structure",
+        "FVGs work best when short-term momentum (MACD) aligns with the gap.",
+        "MACD is a lagging indicator and might just cause late entries or over-filter.",
+        _c_fvg_macd, SESS_MAIN, EX_ONE)
     add("Liquidity sweep reversal", "structure",
         "A wick through a 12-bar extreme with the body closing back inside reverses.",
         "This is the AsianSweep concept generalised; may be too frequent.",

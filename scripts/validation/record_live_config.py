@@ -20,8 +20,8 @@ from src.core import validation_ledger
 from src.strategies.portfolio_v4 import PORTFOLIO_V4
 from scripts.validation.part1_suite import _ts, stats, verdict, START_BAL
 
-HOLDOUT_START = "2025-01-01"
-HOLDOUT_END = "2026-05-20"
+OOS_START = "2025-01-01"
+OOS_END = "2026-05-20"
 
 
 def main():
@@ -45,14 +45,14 @@ def main():
     )
     eng = BacktestEngine(bars=bars, cost=SCENARIOS["realistic"], config=cfg)
     res = eng.run([c() for c in PORTFOLIO_V4],
-                  start_ts=_ts(HOLDOUT_START), end_ts=_ts(HOLDOUT_END))
+                  start_ts=_ts(OOS_START), end_ts=_ts(OOS_END))
     s = stats(res.trades)
     v = verdict(s)
     print(json.dumps(s, indent=2))
     print(f"I.1 gate: {'PASS' if v['passed'] else 'FAIL'}  {v['reasons']}")
 
     result = {
-        "window": f"{HOLDOUT_START} -> {HOLDOUT_END}",
+        "window": f"{OOS_START} -> {OOS_END}",
         "n_trades": s.get("n"), "win_rate_pct": round(s.get("win_rate", 0), 1),
         "profit_factor": s.get("profit_factor"), "net_usd": s.get("net"),
         "min_balance_usd": s.get("min_balance"), "max_drawdown_pct": s.get("max_drawdown_pct"),
@@ -60,11 +60,8 @@ def main():
         "i1_pass": v["passed"], "i1_reasons": v["reasons"],
     }
     notes = ("2-leg FVG-only PORTFOLIO_V4 (FVG_NY_TIGHT + FVG_NY_SWEEP_OR_VOID), "
-             "D1 EMA20 gate ON (HYP-065), trailing/pyramiding OFF, max 2 concurrent, "
-             "06:00-21:30 IST window. Quick single-holdout recording (owner asked "
-             "for backtest-only, not the full part1 suite) to clear the startup "
-             "config gate for the 2026-09-08 week. Sweep/Void legs dropped as dead "
-             "(0 trades, Highlander). See RESEARCH_LEDGER + docs/REPO_GUIDE.md.")
+             "D1 EMA20 gate ON, trailing/pyramiding OFF, max 2 concurrent, "
+             "06:00-21:30 IST window. Risk rules ENFORCE=True (T1.1 implementation).")
     rec_fp = validation_ledger.record(live, result, source="scripts/validation/record_live_config.py", notes=notes)
     print(f"\nrecorded under fingerprint {rec_fp}")
 

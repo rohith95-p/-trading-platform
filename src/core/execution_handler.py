@@ -32,7 +32,7 @@ MAX_SAME_DIRECTION_POSITIONS = 2
 
 # Hard exposure ceiling, checked against actual open volume (bot + manual) so it
 # holds even if a position is opened outside this handler.
-MAX_TOTAL_VOLUME = 0.02
+MAX_TOTAL_VOLUME = 0.04
 
 ORDER_RETRY_COUNT = 3
 ORDER_RETRY_DELAY_MS = 500
@@ -44,7 +44,8 @@ ORDER_RETRY_DELAY_MS = 500
 # ~$105 account; live evidence 2026-09-02 (tickets 633818770 @0.02, 633822753
 # @0.03). Enforced here because send_order is the single chokepoint every order
 # passes through -- no caller can exceed it.
-FIXED_LOT_SIZE = 0.01
+# (Update 2026-09-23: Bumped to 0.02 lots per position to pursue the $10/day goal)
+FIXED_LOT_SIZE = 0.02
 
 # Market orders were previously sent with no deviation, i.e. zero permitted
 # slippage, against a price captured before the stop calculation ran. Any tick
@@ -285,6 +286,7 @@ class ExecutionHandler:
             "type": close_type,
             "position": position.ticket,
             "price": price,
+            "deviation": ORDER_DEVIATION_POINTS,
             "magic": position.magic,
             "comment": "consolidation_exit",
             "type_time": mt5.ORDER_TIME_GTC,

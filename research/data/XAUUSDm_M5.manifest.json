@@ -2,11 +2,11 @@
   "symbol": "XAUUSDm",
   "timeframe": "M5",
   "bars": 100000,
-  "first_time": "2025-04-08 17:05:00",
-  "last_time": "2026-09-04 20:55:00",
-  "sha256": "4cbbb26bcfa07b9140015704bd4f0d4fad6e3dc4dadb25a8a5a55a213d1e7a96",
+  "first_time": "2025-04-23 14:55:00",
+  "last_time": "2026-09-18 20:55:00",
+  "sha256": "4974457d28ae57cfe3b4ff02d7ffe149d417cbd3d591413894242ce7635e4181",
   "server": "Exness-MT5Trial11",
-  "downloaded_utc": "2026-09-05 21:34:05",
+  "downloaded_utc": "2026-09-19 16:44:13",
   "spec": {
     "symbol": "XAUUSDm",
     "digits": 3,
@@ -19,72 +19,6 @@
     "contract_size": 100.0
   },
   "gaps": [
-    {
-      "after_utc": "2025-04-08 20:55",
-      "missing_bars": 12,
-      "seconds": 3900,
-      "weekend": false
-    },
-    {
-      "after_utc": "2025-04-09 20:55",
-      "missing_bars": 12,
-      "seconds": 3900,
-      "weekend": false
-    },
-    {
-      "after_utc": "2025-04-10 20:55",
-      "missing_bars": 12,
-      "seconds": 3900,
-      "weekend": false
-    },
-    {
-      "after_utc": "2025-04-11 20:55",
-      "missing_bars": 589,
-      "seconds": 177000,
-      "weekend": true
-    },
-    {
-      "after_utc": "2025-04-14 14:00",
-      "missing_bars": 3,
-      "seconds": 1200,
-      "weekend": false
-    },
-    {
-      "after_utc": "2025-04-14 20:55",
-      "missing_bars": 12,
-      "seconds": 3900,
-      "weekend": false
-    },
-    {
-      "after_utc": "2025-04-15 20:55",
-      "missing_bars": 12,
-      "seconds": 3900,
-      "weekend": false
-    },
-    {
-      "after_utc": "2025-04-16 20:55",
-      "missing_bars": 12,
-      "seconds": 3900,
-      "weekend": false
-    },
-    {
-      "after_utc": "2025-04-17 20:55",
-      "missing_bars": 877,
-      "seconds": 263400,
-      "weekend": false
-    },
-    {
-      "after_utc": "2025-04-21 20:55",
-      "missing_bars": 12,
-      "seconds": 3900,
-      "weekend": false
-    },
-    {
-      "after_utc": "2025-04-22 20:55",
-      "missing_bars": 12,
-      "seconds": 3900,
-      "weekend": false
-    },
     {
       "after_utc": "2025-04-23 20:55",
       "missing_bars": 12,
@@ -2229,6 +2163,66 @@
     },
     {
       "after_utc": "2026-09-03 20:55",
+      "missing_bars": 12,
+      "seconds": 3900,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-04 20:55",
+      "missing_bars": 588,
+      "seconds": 176700,
+      "weekend": true
+    },
+    {
+      "after_utc": "2026-09-07 18:25",
+      "missing_bars": 42,
+      "seconds": 12900,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-08 20:55",
+      "missing_bars": 12,
+      "seconds": 3900,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-09 20:55",
+      "missing_bars": 12,
+      "seconds": 3900,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-10 20:55",
+      "missing_bars": 12,
+      "seconds": 3900,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-11 20:55",
+      "missing_bars": 589,
+      "seconds": 177000,
+      "weekend": true
+    },
+    {
+      "after_utc": "2026-09-14 20:55",
+      "missing_bars": 12,
+      "seconds": 3900,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-15 20:55",
+      "missing_bars": 12,
+      "seconds": 3900,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-16 20:55",
+      "missing_bars": 12,
+      "seconds": 3900,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-17 20:55",
       "missing_bars": 12,
       "seconds": 3900,
       "weekend": false

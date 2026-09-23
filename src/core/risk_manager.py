@@ -391,18 +391,16 @@ class RiskManager:
         trail = TRAIL_DISTANCE_ATR * curr_atr
         chunk_size = 0.5 * curr_atr  # Step chunk size
 
-        if position.type == mt5.ORDER_TYPE_BUY:
+        if position.type == 0:  # ORDER_TYPE_BUY (int literal: works with MT5 stub in backtest)
             profit_dist = position.price_current - position.price_open
             if profit_dist > activation:
                 ideal_sl = position.price_current - trail
-                print(f"DEBUG BUY: profit={profit_dist:.3f} > act={activation:.3f} | ideal_sl={ideal_sl:.3f} >= (curr_sl={position.sl:.3f} + {chunk_size:.3f})")
                 if position.sl == 0.0 or ideal_sl >= position.sl + chunk_size:
                     return round(ideal_sl, 3)
-        elif position.type == mt5.ORDER_TYPE_SELL:
+        elif position.type == 1:  # ORDER_TYPE_SELL
             profit_dist = position.price_open - position.price_current
             if profit_dist > activation:
                 ideal_sl = position.price_current + trail
-                print(f"DEBUG SELL: profit={profit_dist:.3f} > act={activation:.3f} | ideal_sl={ideal_sl:.3f} <= (curr_sl={position.sl:.3f} - {chunk_size:.3f})")
                 if position.sl == 0.0 or ideal_sl <= position.sl - chunk_size:
                     return round(ideal_sl, 3)
         return None
