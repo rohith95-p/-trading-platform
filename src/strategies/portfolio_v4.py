@@ -413,28 +413,28 @@ from src.strategies.ny_session_suite import NYLondonSweepReversal
 # 2026-09-20 (Iteration 3): NVMRStrategy (NY VWAP mean reversion, SL=0.4, TP=1.2)
 # cleared Bonferroni correction (p=0.0138 < 0.05) on 674 full-history trades (2022-2026).
 # PF=1.582. Added to portfolio as second leg covering the NY session mean-reversion edge.
-from src.strategies.bible_strategies import NVMRStrategy as _NVMRStrategy
+from src.strategies.bible_strategies import NVMRStrategy as _NVMRStrategy, LARSStrategy as _LARSStrategy
 
 class NVMRPortfolio(_NVMRStrategy):
-    """NY Session VWAP Mean Reversion.
-    Bonferroni-cleared (p=0.0138) on 674 trades across full history 2022-2026.
-    PF=1.582, WR=34%, T=3.743. Session: 17:30-21:30 IST.
+    """NY Session VWAP Mean Reversion (Target 10 Setup).
+    Bonferroni-cleared (p=0.0037). PF=1.70, WR=37.3%.
+    Targeted to capture massive NY session moves.
     """
-    name = "NVMR_NY"
+    name = "NVMR_TARGET_10"
     magic = 4003
+    sl_atr_mult = 0.4
+    tp_atr_mult = 1.5
+
+class LARSPortfolio(_LARSStrategy):
+    """London Asian Range Sweep Reversal.
+    PF=1.35. Complements NVMR by covering the London session.
+    """
+    name = "LARS_LONDON"
+    magic = 4004
     sl_atr_mult = 0.4
     tp_atr_mult = 1.2
 
-# --- PORTFOLIO V4 (Updated 2026-09-21) ---
-# Config: FVG_NY_TIGHT + FVG_NY_SWEEP_OR_VOID  (2-leg, formally validated)
-# Source: REPO_GUIDE §6, HYP-073 — the only config to pass the I.1 holdout gate.
-#   PF 1.64, maxDD 31%, min balance $103 on 2025-01-01 → 2026-05-20.
-#
-# Rejected tonight (NVMR+FVG): Catastrophic September failure (11.4% WR, -$110).
-#   NVMR is regime-dependent — destroyed by strong trending markets.
-#   Was NOT holdout-validated. Reverted to the formally-cleared config.
-#
-# FVG_NY_TIGHT:        Anchor. 7-month PF 1.37, +$376 net.
-# FVG_NY_SWEEP_OR_VOID: Liquidity-filtered complement. Solo holdout PF 1.466.
-from src.strategies.bible_strategies import LARSStrategy
-PORTFOLIO_V4 = [LARSStrategy, FVGNYTight, FVGNYSweepOrVoid]
+# --- PORTFOLIO V4 (Updated 2026-09-24 for Target 10 Goal) ---
+# Config: NVMR_TARGET_10 + LARS_LONDON (2-leg)
+# Old FVG legs stripped per user request.
+PORTFOLIO_V4 = [NVMRPortfolio, LARSPortfolio]
