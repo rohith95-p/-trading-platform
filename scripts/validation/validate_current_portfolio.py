@@ -121,7 +121,7 @@ def monte_carlo_bootstrap(trades: list, n_simulations: int = 10000, starting_bal
     }
 
 
-def random_entry_control(trades: list, bars, config, n_trials: int = 100,
+def random_entry_control(trades: list, bars, config, cost_model, n_trials: int = 100,
                          rng_seed: int = 42) -> dict:
     """
     Random entry control (Gate I.5): replace strategy signals with coin flips.
@@ -390,6 +390,7 @@ def run_validation():
         trades=result.trades,
         bars=bars,
         config=config,
+        cost_model=cost_model,
         n_trials=100,
     )
 

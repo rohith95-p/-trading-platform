@@ -27,6 +27,12 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(".env.local")
+except ImportError:
+    pass
+
 log = logging.getLogger(__name__)
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -56,7 +62,7 @@ def _telegram(text: str) -> bool:
         req = urllib.request.Request(
             f"https://api.telegram.org/bot{token}/sendMessage", data=data)
         with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
-            return 200 <= r.status < 300
+            return bool(200 <= getattr(r, 'status', 500) < 300)
     except (urllib.error.URLError, OSError, ValueError) as e:
         log.warning(f"telegram alert failed: {e}")
         return False
@@ -71,7 +77,7 @@ def _webhook(text: str, severity: str) -> bool:
         req = urllib.request.Request(url, data=payload,
                                      headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
-            return 200 <= r.status < 300
+            return bool(200 <= getattr(r, 'status', 500) < 300)
     except (urllib.error.URLError, OSError, ValueError) as e:
         log.warning(f"webhook alert failed: {e}")
         return False
