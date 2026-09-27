@@ -37,6 +37,7 @@ class EURUSDAsianRangeV5(EURUSDAsianRange):
 class FVGNYTightV5(_LiquidityFilteredFVG):
     name = 'FVG_NY_TIGHT_V5'
     magic = 5005
+    session = (17.5, 21.5)
     sl_atr_mult = 0.1
     tp_atr_mult = 1.0
     

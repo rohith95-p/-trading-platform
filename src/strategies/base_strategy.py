@@ -46,6 +46,14 @@ class BaseStrategy(ABC):
         """
         ...
 
+    def check_pending_confirmation(self, m15_rates: np.ndarray) -> Optional[Signal]:
+        """Check if a previously queued signal is now confirmed by a closed candle.
+        
+        Returns:
+            The confirmed Signal, or None. Default implementation returns None.
+        """
+        return None
+
     # ------------------------------------------------------------------
     # Shared indicator helpers (used by multiple strategies)
     # ------------------------------------------------------------------

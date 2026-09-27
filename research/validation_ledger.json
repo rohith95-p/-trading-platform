@@ -1107,5 +1107,63 @@
         }
       ]
     }
+  },
+  {
+    "fingerprint": "958e63eec57f9a09",
+    "recorded_at": "2026-09-27T22:10:30.182858+00:00",
+    "source": "export_final_backtest.py",
+    "result": {
+      "net_pl": 8951.4,
+      "profit_factor": 1.82,
+      "trades": 19406,
+      "max_drawdown_pct": 2.77
+    },
+    "notes": "9-strategy masterpiece lock-in",
+    "config": {
+      "symbol": "XAUUSDm",
+      "fixed_lot_size": 0.02,
+      "max_concurrent_positions": 2,
+      "max_same_direction_positions": 2,
+      "max_total_volume": 0.04,
+      "enable_trailing": false,
+      "enable_pyramiding": false,
+      "enable_d1_gate": true,
+      "direction_gate": "d1_ema20",
+      "daily_loss_limit_pct": 0.06,
+      "trading_window_ist": [
+        6.0,
+        21.5
+      ],
+      "risk_rules_enforced": false,
+      "macro_override_active": false,
+      "strategies": [
+        {
+          "name": "LARS_LONDON",
+          "magic": 4004,
+          "candidate_id": "",
+          "session": [
+            0.0,
+            24.0
+          ],
+          "sl_atr_mult": 0.1,
+          "tp_atr_mult": 1.0,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "NVMR_TARGET_10",
+          "magic": 4003,
+          "candidate_id": "",
+          "session": [
+            0.0,
+            24.0
+          ],
+          "sl_atr_mult": 0.1,
+          "tp_atr_mult": 1.0,
+          "edge_trigger": false,
+          "execute_immediately": true
+        }
+      ]
+    }
   }
 ]
