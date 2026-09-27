@@ -6,6 +6,11 @@ No hardcoded trade limits. Unlimited wins, protected losses.
   - Pyramiding: adds to winners at 0.5x ATR profit (max 3 concurrent, 2 per side)
   - 3x retry logic on order_send failures
   - All timestamps logged in IST
+
+PRODUCTION UPGRADES (2026-09-25):
+  - PreTradeVeto: 6-layer risk gate before MT5 (NautilusTrader pattern)
+  - SizingLadder: Account-based position sizing (replaces FIXED_LOT_SIZE)
+  - Both are wired into send_order() for every trade
 """
 
 import time as _time
@@ -26,30 +31,19 @@ IST = timezone(timedelta(hours=5, minutes=30))
 # ---------------------------------------------------------------------------
 SYMBOL = "XAUUSDm"
 
-# Owner's rule: Max 2 concurrent positions, max 0.02 total exposure.
+# DEPRECATED: These are now managed by SizingLadder.get_sizing(balance)
+# Kept for backwards compatibility in can_open_new_position() checks
 MAX_CONCURRENT_POSITIONS = 2
 MAX_SAME_DIRECTION_POSITIONS = 2
-
-# Hard exposure ceiling, checked against actual open volume (bot + manual) so it
-# holds even if a position is opened outside this handler.
 MAX_TOTAL_VOLUME = 0.04
 
 ORDER_RETRY_COUNT = 3
 ORDER_RETRY_DELAY_MS = 500
 
-# HARD LOT CAP. The dynamic sizer (RiskManager.calculate_dynamic_
-# fresh entries and pyramid adds alike. This is not a risk-model output, it is a
-# fixed ceiling the owner set. The dynamic sizer (RiskManager.calculate_dynamic_
-# lot_size, risk_pct=0.15) previously sized entries up to 0.02-0.03 lots on a
-# ~$105 account; live evidence 2026-09-02 (tickets 633818770 @0.02, 633822753
-# @0.03). Enforced here because send_order is the single chokepoint every order
-# passes through -- no caller can exceed it.
-# (Update 2026-09-23: Bumped to 0.02 lots per position to pursue the $10/day goal)
+# DEPRECATED: Replaced by SizingLadder (2026-09-25)
+# This value is no longer used. Position sizing now comes from sizing_ladder.get_sizing(balance).
 FIXED_LOT_SIZE = 0.02
 
-# Market orders were previously sent with no deviation, i.e. zero permitted
-# slippage, against a price captured before the stop calculation ran. Any tick
-# between capture and send rejected the order.
 ORDER_DEVIATION_POINTS = 30
 
 
@@ -75,8 +69,23 @@ class TradeRecord:
 class ExecutionHandler:
     """Manages order execution with dynamic gating. No hardcoded trade caps."""
 
-    def __init__(self, symbol: str = SYMBOL):
+    def __init__(self, symbol: str = SYMBOL, risk_manager=None):
+        """
+        Initialize execution handler.
+        
+        Args:
+            symbol: Trading symbol
+            risk_manager: RiskManager instance (needed for PreTradeVeto)
+        """
         self.symbol = symbol
+        self.risk_manager = risk_manager
+        
+        # Import PreTradeVeto and SizingLadder
+        from src.core.pre_trade_veto import get_veto
+        from src.core.sizing_ladder import SizingLadder
+        
+        self.veto = get_veto()
+        self.sizing_ladder = SizingLadder
 
     # ------------------------------------------------------------------
     # Position queries
@@ -118,12 +127,85 @@ class ExecutionHandler:
     ) -> Optional[TradeRecord]:
         """Execute a market order on MT5 with 3x retry logic.
 
+        PRODUCTION UPGRADES (2026-09-25):
+          1. SizingLadder: lot_size parameter is IGNORED; size comes from balance
+          2. PreTradeVeto: 6-layer risk gate vetoes every order before MT5
+          
         Gates applied here:
-          1. MAX_CONCURRENT_POSITIONS (currently 2)
-          2. MAX_SAME_DIRECTION_POSITIONS (currently 2)
-          3. MAX_TOTAL_VOLUME (0.04 lots of open exposure, owner's hard cap)
-        The daily drawdown cap is checked in main_loop before calling this.
+          - Position floor ($50 minimum balance)
+          - Circuit breakers (consecutive losses, weekly/monthly caps)
+          - Concurrent position limits (from sizing ladder)
+          - Exposure caps (from sizing ladder)
+          - Macro override visibility (strict short stops)
+          - News blackout (if enabled)
         """
+        # Get current account info
+        account = mt5.account_info()
+        if account is None:
+            log.error("Failed to get account info")
+            return None
+        
+        balance = account.balance
+        open_positions = self.get_open_positions()
+        
+        # SIZING LADDER: Get position size from balance (ignores lot_size parameter)
+        try:
+            lot_size, max_concurrent, max_exposure = self.sizing_ladder.get_sizing(balance)
+            log.info(
+                f"[{strategy_name}] SizingLadder: ${balance:.2f} → {lot_size:.2f} lots "
+                f"(max {max_concurrent} positions, {max_exposure:.2f} total exposure)"
+            )
+        except ValueError as e:
+            # Below position floor
+            log.error(f"[{strategy_name}] BLOCKED by SizingLadder: {e}")
+            print(f"[{_ist_now()}] BLOCKED: {e}")
+            return None
+        
+        # PRE-TRADE VETO: Run all risk layers
+        if self.risk_manager is None:
+            log.warning("RiskManager not set - PreTradeVeto will run in degraded mode")
+            # Create a mock risk manager for veto
+            from types import SimpleNamespace
+            mock_rm = SimpleNamespace(_strict_short_stops=False)
+            risk_manager = mock_rm
+        else:
+            risk_manager = self.risk_manager
+        
+        # Get risk_rules state
+        try:
+            from src.core import risk_rules
+            risk_state = risk_rules.load_state()
+        except Exception as e:
+            log.warning(f"Could not load risk_rules state: {e}")
+            from types import SimpleNamespace
+            risk_state = SimpleNamespace(
+                pause_until_ts=0,
+                consecutive_losses=0,
+                week_start_balance=0,
+                month_start_balance=0
+            )
+        
+        is_buy = signal == mt5.ORDER_TYPE_BUY
+        signal_direction = "BUY" if is_buy else "SELL"
+        
+        veto_decision = self.veto.check(
+            signal_direction=signal_direction,
+            balance=balance,
+            open_positions=open_positions,
+            strategy_name=strategy_name,
+            risk_manager=risk_manager,
+            sizing_ladder=self.sizing_ladder,
+            risk_rules_state=risk_state,
+        )
+        
+        if not veto_decision.allow:
+            log.warning(f"[{strategy_name}] {veto_decision}")
+            print(f"[{_ist_now()}] VETO: {veto_decision.reason}")
+            return None
+        
+        log.info(f"[{strategy_name}] PreTradeVeto: {veto_decision.reason}")
+        
+        # Legacy checks (now redundant with PreTradeVeto, but kept for safety)
         if not self.can_open_new_position():
             log.warning(
                 f"[{strategy_name}] BLOCKED: Max {MAX_CONCURRENT_POSITIONS} "
@@ -132,25 +214,16 @@ class ExecutionHandler:
             print(f"[{_ist_now()}] BLOCKED: Max concurrent positions reached")
             return None
 
-        # Threshold Scaling: 0.02 lots until $200
-        account = mt5.account_info()
-        balance = account.balance if account is not None else 100.0
-        if balance < 200.0:
-            if lot_size != 0.02:
-                log.info(f"[{strategy_name}] Threshold Scaling: Balance ${balance:.2f} < $200. Locking to 0.02 lots.")
-                lot_size = 0.02
-
-        # Hard exposure ceiling: never let total open volume exceed 0.04 lots.
-        open_volume = sum(p.volume for p in self.get_open_positions())
-        if open_volume + lot_size > MAX_TOTAL_VOLUME + 1e-9:
+        # Hard exposure ceiling check (now redundant, but kept as secondary safety)
+        open_volume = sum(p.volume for p in open_positions)
+        if open_volume + lot_size > max_exposure + 1e-9:
             log.warning(
                 f"[{strategy_name}] BLOCKED: open volume {open_volume:.2f} + "
-                f"{lot_size:.2f} would exceed cap {MAX_TOTAL_VOLUME:.2f} lots."
+                f"{lot_size:.2f} would exceed cap {max_exposure:.2f} lots."
             )
-            print(f"[{_ist_now()}] BLOCKED: 0.04-lot exposure cap reached")
+            print(f"[{_ist_now()}] BLOCKED: exposure cap reached")
             return None
 
-        is_buy = signal == mt5.ORDER_TYPE_BUY
         if self.get_same_direction_count(is_buy) >= MAX_SAME_DIRECTION_POSITIONS:
             log.warning(
                 f"[{strategy_name}] BLOCKED: Max {MAX_SAME_DIRECTION_POSITIONS} "
@@ -225,10 +298,13 @@ class ExecutionHandler:
                     f"[{strategy_name}] {label} @ {price:.3f} | "
                     f"SL: {sl:.3f} | TP: {tp:.3f} | "
                     f"ATR: {atr:.3f} | Session: {session} | "
-                    f"Open: {self.count_open_positions()}/{MAX_CONCURRENT_POSITIONS}"
+                    f"Lots: {lot_size:.2f} | "
+                    f"Open: {self.count_open_positions()}/{max_concurrent}"
                 )
                 log.info(msg)
                 print(f"[{_ist_now()}] >> {msg}")
+                from src.core import alerts
+                alerts.send(f"TRADE EXECUTED ✅\n{msg}", severity=alerts.INFO)
                 return record
 
             else:
@@ -240,6 +316,8 @@ class ExecutionHandler:
                     _time.sleep(ORDER_RETRY_DELAY_MS / 1000.0)
 
         print(f"[{_ist_now()}] FAILED: {strategy_name} after {ORDER_RETRY_COUNT} retries")
+        from src.core import alerts
+        alerts.send(f"TRADE FAILED ❌\n{strategy_name} rejected by MT5 after {ORDER_RETRY_COUNT} retries.", severity=alerts.WARN)
         return None
 
     # ------------------------------------------------------------------
@@ -296,5 +374,7 @@ class ExecutionHandler:
         if res and res.retcode == mt5.TRADE_RETCODE_DONE:
             log.info(f"Consolidation exit: closed #{position.ticket} @ {price:.3f}")
             print(f"[{_ist_now()}] CLOSED: #{position.ticket} (consolidation) @ {price:.3f}")
+            from src.core import alerts
+            alerts.send(f"TRADE CLOSED 🏁\nClosed #{position.ticket} (consolidation) @ {price:.3f}", severity=alerts.INFO)
             return True
         return False

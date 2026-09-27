@@ -87,6 +87,27 @@ class RiskManager:
     # ------------------------------------------------------------------
     # Macro gating (reads DAILY_MARKET_ANALYSIS.md)
     # ------------------------------------------------------------------
+    #
+    # 2026-09-25 audit finding, addressed here: this used to match two loose
+    # lowercased prose substrings anywhere in the file ("bullish macro
+    # momentum" + "shorts must have strict, tight stops"), with no negation
+    # or grammar handling -- a sentence discussing or rejecting that scenario
+    # would trip it identically to an actual recommendation. It was also
+    # loaded once at process start, so a same-day edit to a file literally
+    # named "DAILY" market analysis had no effect until a restart, and the
+    # resulting override was invisible to validation_ledger's config
+    # fingerprint (system_config.py does not read this file) and to the
+    # trade log (main_loop logs the strategy's own sl/tp multipliers, not
+    # what calculate_atr_stops actually returned after this override fired).
+    #
+    # Fixed to require a single unambiguous marker line rather than prose
+    # matching, and re-read on every call instead of once at import time, so
+    # at minimum the trigger can't be accidentally tripped by discussion
+    # text and an edit takes effect on the very next stop calculation.
+    # Still not part of the fingerprinted config or the trade log -- that
+    # requires threading the resulting flag through SystemConfig and
+    # StopLevels, left as a follow-up rather than done silently here.
+    MACRO_OVERRIDE_MARKER = "RISK_OVERRIDE: strict_short_stops=true"
 
     def _load_macro_rules(self):
         plan_path = os.path.join(
@@ -94,15 +115,34 @@ class RiskManager:
         )
         try:
             with open(plan_path, "r", encoding="utf-8") as f:
-                content = f.read().lower()
-                if (
-                    "bullish macro momentum" in content
-                    and "shorts must have strict, tight stops" in content
-                ):
-                    self._strict_short_stops = True
-                    log.info("Macro rule: strict SHORT stops enabled.")
+                content = f.read()
+            triggered = self.MACRO_OVERRIDE_MARKER in content
+            if triggered != self._strict_short_stops:
+                status_str = "ENABLED" if triggered else "DISABLED"
+                log.warning(
+                    "⚠️  MACRO OVERRIDE: strict SHORT stops %s.",
+                    status_str,
+                )
+                # Phase 2.4: make the change visible through the alert channel
+                # so the operator knows the override is active or has been cleared.
+                try:
+                    from src.core import alerts as _alerts
+                    _alerts.send(
+                        f"Macro override: strict SHORT stops {status_str}. "
+                        f"Triggered by marker in DAILY_MARKET_ANALYSIS.md.",
+                        severity=_alerts.WARN,
+                        context={"source": "risk_manager._load_macro_rules"},
+                    )
+                except Exception:
+                    pass  # Alert failure must never crash the risk manager
+            self._strict_short_stops = triggered
         except Exception as e:
             log.warning(f"Could not parse macro analysis: {e}")
+
+
+    def refresh_macro_rules(self):
+        """Re-read the macro override marker. Call at the start of each scan."""
+        self._load_macro_rules()
 
     # ------------------------------------------------------------------
     # ATR calculation

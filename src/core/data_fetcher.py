@@ -94,7 +94,15 @@ class DataFetcher:
         return list(positions) if positions else []
 
     def get_todays_closed_pl(self) -> float:
-        """Sum the P/L of all deals closed today (IST midnight to now)."""
+        """Sum the P/L of all deals closed today (IST midnight to now).
+
+        Feeds RiskManager.check_daily_drawdown() -- the 6% breaker -- so this
+        must match the definition of "realised P/L" used everywhere else in
+        the codebase (main_loop._record_closed_trades / _check_vi3_tripwire),
+        which include swap and commission. This previously summed only
+        deal.profit, letting the breaker under-count today's loss by any
+        commission/swap on today's closed deals (2026-09-25 audit).
+        """
         now_ist = datetime.now(IST)
         midnight_ist = now_ist.replace(hour=0, minute=0, second=0, microsecond=0)
         midnight_utc = midnight_ist.astimezone(timezone.utc)
@@ -107,5 +115,5 @@ class DataFetcher:
         for deal in deals:
             # entry=1 means closing a position (exit deal)
             if deal.entry == 1 and deal.symbol == self.symbol:
-                total_pl += deal.profit
+                total_pl += deal.profit + deal.swap + deal.commission
         return total_pl

@@ -36,7 +36,7 @@ import numpy as np
 
 from src.backtesting.costs import CostModel
 from src.backtesting.data import BarSet, SymbolSpec
-from src.research.market_study import time_of_day_atr
+from src.research.market_study import atr as _flat_atr
 import src.core.market_hours as market_hours
 
 log = logging.getLogger(__name__)
@@ -45,6 +45,91 @@ IST = timezone(timedelta(hours=5, minutes=30))
 
 ORDER_TYPE_BUY = 0
 ORDER_TYPE_SELL = 1
+
+
+def _tod_atr_expanding_state(m15: np.ndarray, bucket_minutes: int, period: int,
+                              min_samples: int) -> Dict[str, Any]:
+    """Point-in-time-safe precompute for the `use_time_of_day_atr` flag.
+
+    2026-09-25 audit finding, fixed here: `time_of_day_atr()` in
+    market_study.py is an intentional whole-sample diagnostic (its own
+    docstring: "nothing calls it yet"). This engine used to call it once on
+    `self.m15` -- the *entire* backtest window -- at the start of run() and
+    reuse that single lookup table for every decision point, so a trade in
+    month 1 had its stop scaled partly by month 24's volatility. That is
+    leakage: any result produced with this flag on could not be reproduced
+    live.
+
+    This precomputes, per hour-of-day bucket, an *expanding* running mean of
+    ATR ordered by time, plus an expanding overall mean, so a query "as of
+    timestamp T" only ever averages bars with time <= T.
+    """
+    flat = _flat_atr(m15, period)
+    times = m15["time"].astype(np.int64)
+    n_buckets = 1440 // bucket_minutes
+
+    minute_of_day = np.array([
+        (lambda d: d.hour * 60 + d.minute)(
+            datetime.fromtimestamp(int(t), tz=timezone.utc).astimezone(IST)
+        )
+        for t in times
+    ])
+    bucket = (minute_of_day // bucket_minutes).astype(np.int64)
+    valid = ~np.isnan(flat)
+    safe = np.where(valid, flat, 0.0)
+
+    cum_sum = np.cumsum(safe)
+    cum_cnt = np.cumsum(valid.astype(np.int64))
+    with np.errstate(invalid="ignore", divide="ignore"):
+        overall_expanding = np.where(cum_cnt > 0, cum_sum / np.maximum(cum_cnt, 1), np.nan)
+
+    per_bucket_times: List[np.ndarray] = []
+    per_bucket_mean: List[np.ndarray] = []
+    for b in range(n_buckets):
+        idx = np.where(bucket == b)[0]
+        if len(idx) == 0:
+            per_bucket_times.append(np.array([], dtype=np.int64))
+            per_bucket_mean.append(np.array([], dtype=float))
+            continue
+        vb = valid[idx]
+        fb = np.where(vb, flat[idx], 0.0)
+        cs = np.cumsum(fb)
+        cc = np.cumsum(vb.astype(np.int64))
+        with np.errstate(invalid="ignore", divide="ignore"):
+            mean_b = np.where(cc >= min_samples, cs / np.maximum(cc, 1), np.nan)
+        per_bucket_times.append(times[idx])
+        per_bucket_mean.append(mean_b)
+
+    return {
+        "times": times,
+        "overall_expanding": overall_expanding,
+        "bucket_minutes": bucket_minutes,
+        "per_bucket_times": per_bucket_times,
+        "per_bucket_mean": per_bucket_mean,
+    }
+
+
+def _tod_atr_ratio_as_of(state: Dict[str, Any], ist_bucket: int, as_of_ts: int) -> float:
+    """Ratio for one bucket using only data with time <= as_of_ts. 1.0 if unknown."""
+    times = state["times"]
+    idx = int(np.searchsorted(times, as_of_ts, side="right")) - 1
+    if idx < 0:
+        return 1.0
+    overall = state["overall_expanding"][idx]
+    if not (overall == overall) or overall == 0:
+        return 1.0
+
+    bt = state["per_bucket_times"][ist_bucket]
+    bm = state["per_bucket_mean"][ist_bucket]
+    if len(bt) == 0:
+        return 1.0
+    bidx = int(np.searchsorted(bt, as_of_ts, side="right")) - 1
+    if bidx < 0:
+        return 1.0
+    bucket_mean = bm[bidx]
+    if not (bucket_mean == bucket_mean):
+        return 1.0
+    return float(bucket_mean / overall)
 
 
 # ---------------------------------------------------------------------------
@@ -199,6 +284,7 @@ class EngineConfig:
     #                    the last choch_lookback_h4 H4 bars
     # Only consulted when enable_d1_bias_gate is True.
     direction_gate: str = "d1_ema20"
+    d1_ema_period: int = 20
     structure_len: int = 10
     gate_prox_atr: float = 0.5
     choch_lookback_h4: int = 3
@@ -440,19 +526,26 @@ class BacktestEngine:
             rm._strict_short_stops = False
 
         if self.cfg.use_time_of_day_atr:
-            tod = time_of_day_atr(self.m15, bucket_minutes=self.cfg.tod_atr_bucket_minutes)
-            bucket_ratio = tod["bucket_ratio"]
             bucket_minutes = self.cfg.tod_atr_bucket_minutes
+            tod_state = _tod_atr_expanding_state(
+                self.m15, bucket_minutes=bucket_minutes, period=14, min_samples=20
+            )
             flat_get_latest_atr = rm.get_latest_atr
 
             def _tod_get_latest_atr(m15_rates, period: int = 14):
                 flat = flat_get_latest_atr(m15_rates, period)
                 if flat is None:
                     return None
-                last_ts = int(m15_rates["time"][-1])
-                ist_dt = datetime.fromtimestamp(last_ts, tz=timezone.utc).astimezone(IST)
-                b = (ist_dt.hour * 60 + ist_dt.minute) // bucket_minutes
-                r = bucket_ratio[b] if b < len(bucket_ratio) and bucket_ratio[b] == bucket_ratio[b] else 1.0
+                # [-1] is the synthesized forming bar (see _forming_bar/_view);
+                # its timestamp gives the current hour-of-day bucket. The ATR
+                # value itself came from the last *closed* bar at [-2], so the
+                # ratio must be looked up as of that bar's time, not the whole
+                # backtest window (see _tod_atr_expanding_state docstring).
+                now_ts = int(m15_rates["time"][-1])
+                closed_ts = int(m15_rates["time"][-2])
+                ist_dt = datetime.fromtimestamp(now_ts, tz=timezone.utc).astimezone(IST)
+                b = int((ist_dt.hour * 60 + ist_dt.minute) // bucket_minutes)
+                r = _tod_atr_ratio_as_of(tod_state, b, closed_ts)
                 return flat * r
 
             rm.get_latest_atr = _tod_get_latest_atr
@@ -784,7 +877,7 @@ class BacktestEngine:
                 d1_atr = None
                 if d1_view is not None and len(d1_view) >= 20:
                     closes = d1_view["close"]
-                    ema_p = 10 if cfg.direction_gate == "d1_ema10" else 20
+                    ema_p = 10 if cfg.direction_gate == "d1_ema10" else getattr(cfg, "d1_ema_period", 20)
                     ema_d = _ema(closes, ema_p)
                     if not np.isnan(ema_d[-1]):
                         daily_bias = "BULLISH" if closes[-1] > ema_d[-1] else "BEARISH"

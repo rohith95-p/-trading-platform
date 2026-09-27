@@ -422,8 +422,8 @@ class NVMRPortfolio(_NVMRStrategy):
     """
     name = "NVMR_TARGET_10"
     magic = 4003
-    sl_atr_mult = 0.4
-    tp_atr_mult = 1.5
+    sl_atr_mult = 0.1
+    tp_atr_mult = 1.0
 
 class LARSPortfolio(_LARSStrategy):
     """London Asian Range Sweep Reversal.
@@ -431,10 +431,35 @@ class LARSPortfolio(_LARSStrategy):
     """
     name = "LARS_LONDON"
     magic = 4004
-    sl_atr_mult = 0.4
-    tp_atr_mult = 1.2
+    sl_atr_mult = 0.1
+    tp_atr_mult = 1.0
 
 # --- PORTFOLIO V4 (Updated 2026-09-24 for Target 10 Goal) ---
 # Config: NVMR_TARGET_10 + LARS_LONDON (2-leg)
 # Old FVG legs stripped per user request.
 PORTFOLIO_V4 = [NVMRPortfolio, LARSPortfolio]
+
+
+# --- PORTFOLIO V5 (New Hyper-Tight Masterpiece - 2026-09-27) ---
+# Super Portfolio combining the top 3 uncorrelated hyper-tight winners.
+from src.strategies.grid_strategies import TrendPullbackStrat, BBMeanReversionStrat
+
+class TrendPullbackV5(TrendPullbackStrat):
+    name = 'TREND_PULLBACK_V5'
+    magic = 5001
+    sl_atr_mult = 0.1
+    tp_atr_mult = 1.0
+
+class BBMeanReversionV5(BBMeanReversionStrat):
+    name = 'BB_MEAN_REVERSION_V5'
+    magic = 5002
+    sl_atr_mult = 0.1
+    tp_atr_mult = 1.0
+    
+class NVMRPortfolioV5(_NVMRStrategy):
+    name = 'NVMR_TARGET_10_V5'
+    magic = 5003
+    sl_atr_mult = 0.1
+    tp_atr_mult = 1.0
+
+PORTFOLIO_V5 = [TrendPullbackV5, BBMeanReversionV5, NVMRPortfolioV5]

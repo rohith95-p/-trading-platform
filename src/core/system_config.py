@@ -50,6 +50,10 @@ class SystemConfig:
     # changes which legs can fire at all, so it belongs in the fingerprint.
     trading_window_ist: Optional[Tuple[float, float]]
     risk_rules_enforced: bool
+    # Macro override: strict short stops from DAILY_MARKET_ANALYSIS.md.
+    # Two configs with different macro states have different fingerprints --
+    # previously this was invisible to validation (2026-09-25 audit finding).
+    macro_override_active: bool
     strategies: Tuple[StrategyConfig, ...]
 
     # ------------------------------------------------------------------
@@ -85,10 +89,20 @@ class SystemConfig:
         from src.core import risk_rules as rr
 
         strategy_instances = [strat_cls() for strat_cls in PORTFOLIO_V4]
+        # Read the macro override state from a temporary RiskManager instance.
+        # This ensures the fingerprint changes when the operator toggles the
+        # RISK_OVERRIDE marker in DAILY_MARKET_ANALYSIS.md.
+        try:
+            from src.core.risk_manager import RiskManager as _RM
+            _rm_tmp = _RM()
+            _macro_active = _rm_tmp._strict_short_stops
+        except Exception:
+            _macro_active = False
         return cls(
             trading_window_ist=(tuple(mh.TRADING_WINDOW_IST)
                                 if mh.ENFORCE_TRADING_WINDOW else None),
             risk_rules_enforced=rr.ENFORCE,
+            macro_override_active=_macro_active,
             symbol=ml.SYMBOL,
             fixed_lot_size=eh.FIXED_LOT_SIZE,
             max_concurrent_positions=eh.MAX_CONCURRENT_POSITIONS,
@@ -111,6 +125,7 @@ class SystemConfig:
         return cls(
             trading_window_ist=tuple(trading_window_ist) if trading_window_ist else None,
             risk_rules_enforced=risk_rules_enforced,
+            macro_override_active=False,  # Backtests don't read DAILY_MARKET_ANALYSIS.md
             symbol=engine_cfg.symbol,
             fixed_lot_size=engine_cfg.fixed_lots,
             max_concurrent_positions=engine_cfg.max_concurrent,
@@ -133,6 +148,7 @@ class SystemConfig:
         tw = d.pop("trading_window_ist", None)
         # Tolerate ledger entries written before these fields existed.
         d.setdefault("risk_rules_enforced", False)
+        d.setdefault("macro_override_active", False)  # added 2026-09-27
         return cls(strategies=strategies,
                    trading_window_ist=tuple(tw) if tw else None, **d)
 

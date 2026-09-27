@@ -34,7 +34,15 @@ IST = timezone(timedelta(hours=5, minutes=30))
 STATE_PATH = os.path.join("logs", "risk_state.json")
 
 # Master switch. See module docstring -- do not flip without re-validating.
-ENFORCE = True
+# 2026-09-25 audit: found flipped to True with no corresponding
+# validation_ledger.record() for the laddered config, and with
+# sizing_for_balance()'s output still unused by main_loop's actual order
+# sizing (FIXED_LOT_SIZE is used regardless) -- i.e. only half-activated:
+# it could silently narrow allow_new_entries against a config nobody
+# backtested, while never applying the sizing half it exists for. Reverted
+# to the documented default until the laddered config is backtested and
+# registered per the paragraph above.
+ENFORCE = False
 
 # --- II.2 sizing ladder ----------------------------------------------------
 # (upper_balance_exclusive, lots_per_order, max_total_volume, max_positions)
@@ -266,11 +274,17 @@ def record_trade_result(pl: float, now: Optional[datetime] = None,
         state.day_losing_trades += 1
         if state.consecutive_losses >= CONSEC_LOSSES_STOP_DAY:
             state.day_stopped_date = now.date().isoformat()
-            log.warning(f"CIRCUIT BREAKER: {state.consecutive_losses} consecutive losses -- stopped for the day.")
+            msg = f"CIRCUIT BREAKER: {state.consecutive_losses} consecutive losses -- stopped for the day."
+            log.warning(msg)
+            from src.core import alerts
+            alerts.send(f"🛑 CIRCUIT BREAKER TRIPPED 🛑\n{msg}", severity=alerts.CRITICAL)
         elif state.consecutive_losses >= CONSEC_LOSSES_PAUSE:
             state.pause_until_ts = (now + timedelta(hours=CONSEC_LOSS_PAUSE_HOURS)).timestamp()
-            log.warning(f"CIRCUIT BREAKER: {state.consecutive_losses} consecutive losses -- "
-                        f"pausing new entries {CONSEC_LOSS_PAUSE_HOURS}h.")
+            msg = (f"CIRCUIT BREAKER: {state.consecutive_losses} consecutive losses -- "
+                   f"pausing new entries {CONSEC_LOSS_PAUSE_HOURS}h.")
+            log.warning(msg)
+            from src.core import alerts
+            alerts.send(f"⚠️ CIRCUIT BREAKER ⚠️\n{msg}", severity=alerts.WARN)
     else:
         state.consecutive_losses = 0
     return state

@@ -192,3 +192,29 @@ def note_fetch_result(mt5: Any, got_data: bool, fail_count: int) -> int:
             return 0
         log.error("MT5: reconnect attempt failed -- will retry.")
     return fail_count
+
+
+# ---------------------------------------------------------------------------
+# External heartbeat push (Phase 3.4 of PRODUCTION_READINESS_PLAN.md)
+# ---------------------------------------------------------------------------
+
+def push_heartbeat_external() -> None:
+    """Push a GET ping to an external uptime monitor (e.g. healthchecks.io).
+
+    Configure via: ULTRA_HEARTBEAT_URL=https://hc-ping.com/<uuid>
+    Without the env var this is a silent no-op. Failures are logged at DEBUG
+    level and never propagate -- a heartbeat failure must not stop trading.
+
+    Call from main_loop.py on every scan alongside resilience.heartbeat().
+    """
+    url = os.environ.get("ULTRA_HEARTBEAT_URL")
+    if not url:
+        return
+    try:
+        import urllib.request
+        with urllib.request.urlopen(url, timeout=8) as resp:
+            if resp.status < 200 or resp.status >= 300:
+                log.debug(f"External heartbeat: unexpected status {resp.status}")
+    except Exception as e:
+        log.debug(f"External heartbeat push failed (non-fatal): {e}")
+

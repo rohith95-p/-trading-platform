@@ -1,22 +1,22 @@
 {
-  "symbol": "XAUUSDm",
+  "symbol": "USDJPYm",
   "timeframe": "D1",
-  "bars": 1528,
+  "bars": 1537,
   "first_time": "2021-10-27 00:00:00",
-  "last_time": "2026-09-24 00:00:00",
-  "sha256": "3daa91bd2f1ecf4dba9351d9c06eec54c0f23f9087f347eeaaa9a9264d1b0ef4",
+  "last_time": "2026-09-25 00:00:00",
+  "sha256": "6e00790fbee2e10b15aa08c4ceb5f0ff220e18cf8e362868829a41d7692bbc5a",
   "server": "Exness-MT5Trial11",
-  "downloaded_utc": "2026-09-24 16:51:29",
+  "downloaded_utc": "2026-09-27 14:01:12",
   "spec": {
-    "symbol": "XAUUSDm",
+    "symbol": "USDJPYm",
     "digits": 3,
     "point": 0.001,
     "trade_tick_size": 0.001,
-    "trade_tick_value": 0.1,
+    "trade_tick_value": 0.6357036603816765,
     "volume_min": 0.01,
-    "volume_max": 200.0,
+    "volume_max": 300.0,
     "volume_step": 0.01,
-    "contract_size": 100.0
+    "contract_size": 100000.0
   },
   "gaps": [
     {
@@ -68,10 +68,10 @@
       "weekend": true
     },
     {
-      "after_utc": "2021-12-23 00:00",
-      "missing_bars": 2,
-      "seconds": 259200,
-      "weekend": false
+      "after_utc": "2021-12-24 00:00",
+      "missing_bars": 1,
+      "seconds": 172800,
+      "weekend": true
     },
     {
       "after_utc": "2021-12-31 00:00",
@@ -164,10 +164,10 @@
       "weekend": true
     },
     {
-      "after_utc": "2022-04-14 00:00",
-      "missing_bars": 2,
-      "seconds": 259200,
-      "weekend": false
+      "after_utc": "2022-04-15 00:00",
+      "missing_bars": 1,
+      "seconds": 172800,
+      "weekend": true
     },
     {
       "after_utc": "2022-04-22 00:00",
@@ -381,14 +381,14 @@
     },
     {
       "after_utc": "2022-12-23 00:00",
-      "missing_bars": 2,
-      "seconds": 259200,
+      "missing_bars": 1,
+      "seconds": 172800,
       "weekend": true
     },
     {
       "after_utc": "2022-12-30 00:00",
-      "missing_bars": 2,
-      "seconds": 259200,
+      "missing_bars": 1,
+      "seconds": 172800,
       "weekend": true
     },
     {
@@ -470,10 +470,10 @@
       "weekend": true
     },
     {
-      "after_utc": "2023-04-06 00:00",
-      "missing_bars": 2,
-      "seconds": 259200,
-      "weekend": false
+      "after_utc": "2023-04-07 00:00",
+      "missing_bars": 1,
+      "seconds": 172800,
+      "weekend": true
     },
     {
       "after_utc": "2023-04-14 00:00",
@@ -776,10 +776,10 @@
       "weekend": true
     },
     {
-      "after_utc": "2024-03-28 00:00",
-      "missing_bars": 2,
-      "seconds": 259200,
-      "weekend": false
+      "after_utc": "2024-03-29 00:00",
+      "missing_bars": 1,
+      "seconds": 172800,
+      "weekend": true
     },
     {
       "after_utc": "2024-04-05 00:00",
@@ -1106,10 +1106,10 @@
       "weekend": true
     },
     {
-      "after_utc": "2025-04-17 00:00",
-      "missing_bars": 2,
-      "seconds": 259200,
-      "weekend": false
+      "after_utc": "2025-04-18 00:00",
+      "missing_bars": 1,
+      "seconds": 172800,
+      "weekend": true
     },
     {
       "after_utc": "2025-04-25 00:00",
@@ -1406,10 +1406,10 @@
       "weekend": true
     },
     {
-      "after_utc": "2026-04-02 00:00",
-      "missing_bars": 2,
-      "seconds": 259200,
-      "weekend": false
+      "after_utc": "2026-04-03 00:00",
+      "missing_bars": 1,
+      "seconds": 172800,
+      "weekend": true
     },
     {
       "after_utc": "2026-04-10 00:00",

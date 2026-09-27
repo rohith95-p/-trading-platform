@@ -25,6 +25,7 @@ import logging
 import numpy as np
 import MetaTrader5 as _mt5
 from typing import Any
+from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
 
 mt5: Any = _mt5
@@ -44,7 +45,7 @@ from src.core import news_filter  # III.5 -- blocks entries around tier-1 macro 
 # EMAStack (rohith phase 2, HYP-027) superseded 2026-09-01 by the 4-leg
 # portfolio below -- kept in src/strategies/ema_stack.py for reference but
 # no longer imported here.
-from src.strategies.portfolio_v4 import PORTFOLIO_V4  # 2 legs: NVMR_TARGET_10 + LARS_LONDON (see portfolio_v4.py)
+from src.strategies.portfolio_v4 import PORTFOLIO_V5  # 3 legs: TrendPullback, BBMeanReversion, NVMR
 
 # IST offset
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -93,7 +94,12 @@ LOOP_INTERVAL = 60  # seconds between scans
 # entry, more extended, with its own full stop -- so a reversal loses on both.
 #
 # Positions now run to their fixed SL/TP, exactly as validated.
-ENABLE_TRAILING = True
+# 2026-09-25 audit: this had been silently flipped to True by the 2026-09-24
+# "repository cleanup" commit (b8ab85c), contradicting this comment, the
+# module docstring, and REPO_GUIDE.md's explicit "if you see it True again,
+# that's a regression" warning. Trailing was backtested net-negative
+# (PF 0.592, -$93.59). Reverted to the documented/validated default.
+ENABLE_TRAILING = False
 ENABLE_PYRAMIDING = False
 CLOSE_ONLY_TRAIL = True
 
@@ -121,11 +127,14 @@ def _calc_ema(closes: np.ndarray, period: int) -> np.ndarray:
 
 def _close_all_positions(fetcher, executor, reason: str) -> None:
     """Flatten every open position on the symbol (kill switch)."""
+    from src.core import alerts
+    alerts.send(f"⚠️ KILL SWITCH ACTIVATED ⚠️\nReason: {reason}", severity=alerts.CRITICAL)
     for pos in fetcher.get_positions():
         if executor.close_position(pos):
             log.warning(f"KILL SWITCH: closed #{pos.ticket} ({reason})")
         else:
             log.error(f"KILL SWITCH: FAILED to close #{pos.ticket} -- close it manually.")
+            alerts.send(f"🚨 KILL SWITCH FAILED to close #{pos.ticket} -- close it manually!", severity=alerts.CRITICAL)
 
 
 def run():
@@ -183,7 +192,7 @@ def _run_guarded():
     # Validated together (PF 1.512, $703 net/~100d) is not the same claim as
     # "EMAStack plus these 4" -- that 5-strategy combination was never tested,
     # so EMAStack is not run alongside them. See HYP-036/038.
-    strategies = [cls() for cls in PORTFOLIO_V4]
+    strategies = [cls() for cls in PORTFOLIO_V5]
 
     # Daily drawdown shutdown flag
     drawdown_shutdown = False
@@ -253,6 +262,7 @@ def _run_guarded():
                     log.error(f"Failed to send daily report: {e}")
                 current_date = now_ist.date()
             resilience.heartbeat()
+            resilience.push_heartbeat_external()  # Phase 3.4: external uptime monitor ping
             resilience.save_state(last_fired_candle, drawdown_shutdown, shutdown_date)
 
             # Feed closed-trade results to the risk_rules streak breakers. Runs
@@ -347,6 +357,7 @@ def _run_guarded():
             # ----------------------------------------------------------
             # Fetch data & Macro Bias
             # ----------------------------------------------------------
+            risk.refresh_macro_rules()  # re-read DAILY_MARKET_ANALYSIS.md's marker each scan
             m15_rates = fetcher.get_m15_rates(250)
             m5_rates = fetcher.get_m5_rates(100)
 
@@ -359,11 +370,18 @@ def _run_guarded():
             d1_bias = None
             if ENABLE_D1_GATE:
                 d1_rates_macro = fetcher.get_d1_rates(50)
-                if d1_rates_macro is not None and len(d1_rates_macro) >= 20:
+                if d1_rates_macro is not None and len(d1_rates_macro) >= 21:
+                    # get_d1_rates() uses copy_rates_from_pos(..., 0, n), whose
+                    # index 0 (and therefore [-1]) is today's still-forming D1
+                    # candle, not the last closed one. Every other bias/signal
+                    # check in this file reads the closed bar at [-2]
+                    # (see signal_candle above); this gate previously read
+                    # [-1] directly, letting the daily bias flip intraday as
+                    # gold moves rather than only on a closed daily candle.
                     d1_closes = d1_rates_macro["close"]
                     d1_ema20 = _calc_ema(d1_closes, 20)
-                    if not np.isnan(d1_ema20[-1]):
-                        d1_bias = "BULLISH" if d1_closes[-1] > d1_ema20[-1] else "BEARISH"
+                    if not np.isnan(d1_ema20[-2]):
+                        d1_bias = "BULLISH" if d1_closes[-2] > d1_ema20[-2] else "BEARISH"
 
             # ----------------------------------------------------------
             # Session info
@@ -785,7 +803,9 @@ def _manage_open_positions(fetcher, risk, executor):
         
     try:
         import json
-        with open("logs/virtual_sl.json", "r") as f:
+        import os as _os
+        _vsl_path = _os.path.join(resilience._LOGS, "virtual_sl.json")
+        with open(_vsl_path, "r") as f:
             virtual_sls = json.load(f)
     except Exception:
         virtual_sls = {}
@@ -796,14 +816,24 @@ def _manage_open_positions(fetcher, risk, executor):
         # Trailing stop -- OFF by default, see ENABLE_TRAILING above.
         if ENABLE_TRAILING:
             ticket_str = str(pos.ticket)
-            actual_broker_sl = pos.sl
-            
+
+            # `pos` comes straight from mt5.positions_get() -- MetaTrader5's
+            # TradePosition is a read-only C struct sequence (subclasses
+            # tuple), so `pos.sl = ...` raises AttributeError on a real
+            # connection. Build a plain, mutable stand-in instead of
+            # mutating the broker object in place.
+            effective_sl = pos.sl
             if CLOSE_ONLY_TRAIL and ticket_str in virtual_sls:
-                pos.sl = virtual_sls[ticket_str]
-                
-            new_sl = risk.calculate_trailing_stop(pos, curr_atr)
-            pos.sl = actual_broker_sl  # Restore
-            
+                effective_sl = virtual_sls[ticket_str]
+
+            trail_input = SimpleNamespace(
+                sl=effective_sl,
+                price_current=pos.price_current,
+                price_open=pos.price_open,
+                type=pos.type,
+            )
+            new_sl = risk.calculate_trailing_stop(trail_input, curr_atr)
+
             if new_sl is not None:
                 if CLOSE_ONLY_TRAIL:
                     virtual_sls[ticket_str] = new_sl
@@ -836,7 +866,9 @@ def _manage_open_positions(fetcher, risk, executor):
     if state_changed:
         try:
             import json
-            with open("logs/virtual_sl.json", "w") as f:
+            import os as _os
+            _vsl_path = _os.path.join(resilience._LOGS, "virtual_sl.json")
+            with open(_vsl_path, "w") as f:
                 json.dump(virtual_sls, f)
         except Exception as e:
             log.error(f"Failed to save virtual SL state: {e}")

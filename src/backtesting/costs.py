@@ -138,7 +138,15 @@ SCENARIOS = {
     # What the broker actually charged, per bar.
     "observed": CostModel(spread_source="bar", slippage_points=0.0),
     # Observed spread plus a modest, always-adverse slip on market and stop fills.
+    # NOTE: Exness Standard is spread-only (zero commission), but ECN accounts
+    # typically charge $3.50-7.00 per roundtrip. Use "realistic_ecn" for that.
     "realistic": CostModel(spread_source="bar", slippage_points=20.0),
+    # Realistic costs for ECN accounts (commission + spread + slippage)
+    "realistic_ecn": CostModel(
+        spread_source="bar", 
+        slippage_points=20.0,
+        commission_per_lot_roundtrip=3.50  # $3.50 per 1.0 lot roundtrip
+    ),
     # Stress: spreads double and slippage triples. Roughly a news print.
     "stressed": CostModel(spread_source="bar", spread_multiplier=2.0, slippage_points=60.0),
     # The assumption every previous backtest in this repo made, kept only so the
