@@ -69,7 +69,6 @@ Generated automatically prior to live deployment.
 * **Net Profit:** ${st.net_pl:.2f}
 * **Max Drawdown:** {st.max_drawdown_pct:.2f}%
 * **Win Rate:** {st.win_rate:.2f}%
-* **P(Ruin):** {st.p_ruin_mc:.2f}%
 
 ## Pytest Validation
 All 55 system tests have PASSED.
