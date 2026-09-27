@@ -3,12 +3,6 @@ numpy==1.26.2
 pandas==2.1.3
 yfinance==1.6.0
 
-# HMM Regime Detection (hmm_regime.py dependencies)
-hmmlearn>=0.3.0
-scipy>=1.11.0
-scikit-learn>=1.3.0
-joblib>=1.3.0
-
 # Testing
 pytest>=7.4.0
 pytest-mock>=3.11.0
