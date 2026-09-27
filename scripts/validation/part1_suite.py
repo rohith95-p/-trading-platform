@@ -31,7 +31,7 @@ import numpy as np
 from src.backtesting.data import load_bars
 from src.backtesting.engine import BacktestEngine, EngineConfig
 from src.backtesting.costs import SCENARIOS
-from src.strategies.portfolio_v4 import PORTFOLIO_V4
+from src.strategies.portfolio_v5_9_leg import PORTFOLIO as PORTFOLIO_V5
 
 IST = timezone(timedelta(hours=5, minutes=30))
 OUT_DIR = os.path.join("research", "validation")
@@ -104,7 +104,7 @@ def verdict(s: dict) -> dict:
 
 def run_window(bars, cfg, start, end, strategies=None):
     eng = BacktestEngine(bars=bars, cost=SCENARIOS["realistic"], config=cfg)
-    strats = strategies if strategies is not None else [c() for c in PORTFOLIO_V4]
+    strats = strategies if strategies is not None else [c() for c in PORTFOLIO_V5]
     return eng.run(strats, start_ts=_ts(start), end_ts=_ts(end))
 
 
@@ -220,7 +220,7 @@ def t_perturb():
     rows = []
     for scale in [0.8, 0.9, 1.0, 1.1, 1.2]:
         strategies = []
-        for cls in PORTFOLIO_V4:
+        for cls in PORTFOLIO_V5:
             s = cls()
             s.sl_atr_mult = cls.sl_atr_mult * scale
             s.tp_atr_mult = cls.tp_atr_mult * scale
@@ -264,7 +264,7 @@ def t_randomentry(n_iter=1000):
     rng = np.random.default_rng(5)
     results = {}
 
-    for cls in PORTFOLIO_V4:
+    for cls in PORTFOLIO_V5:
         real = run_window(bars, live_config(), OOS_START, OOS_END, [cls()])
         real_s = stats(real.trades)
         n_real = real_s.get("n", 0)
@@ -398,7 +398,7 @@ def t_cost():
             slippage_points=base.slippage_points * mult,
         )
         eng = BacktestEngine(bars=bars, cost=cost, config=live_config())
-        res = eng.run([c() for c in PORTFOLIO_V4],
+        res = eng.run([c() for c in PORTFOLIO_V5],
                       start_ts=_ts(OOS_START), end_ts=_ts(OOS_END))
         s = stats(res.trades)
         rows.append(dict(cost_multiple=mult, **s))

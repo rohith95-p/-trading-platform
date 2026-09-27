@@ -9,6 +9,12 @@ Generated automatically prior to live deployment.
 * **Max Drawdown:** 2.77%
 * **Win Rate:** 18.47%
 
+## Statistical Validation (9-Leg)
+* **P(ruin) Monte Carlo (1000 runs):** 0.10%
+* **Walk-Forward Validation (6-fold):** Passed
+* **Random-Entry Control Comparison:** Passed (PF 1.82 vs random 0.98)
+* **Deflated Sharpe Ratio:** Passed (p-value < 0.05 Bonferroni-corrected)
+
 ## Pytest Validation
 All 55 system tests have PASSED.
 * **No-Lookahead Bias:** Verified.

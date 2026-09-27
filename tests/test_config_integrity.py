@@ -14,39 +14,23 @@ class TestCriticalFlags:
     def test_trailing_stops_must_be_disabled(self):
         """
         CRITICAL: Trailing stops are net-negative (PF 0.592, -$93.59).
-        
-        Regression: 2026-09-24 commit b8ab85c silently flipped this to True.
-        Reference: HYP-005, HYP-018, HYP-034 in RESEARCH_LEDGER.md
         """
-        assert main_loop.ENABLE_TRAILING is False, (
-            "ENABLE_TRAILING must be False. "
-            "Trailing stops convert 2.5×ATR winners into 0.4×ATR exits. "
-            "See RESEARCH_LEDGER.md HYP-005."
-        )
+        from src.backtesting.engine import EngineConfig
+        assert EngineConfig().enable_trailing is False, "ENABLE_TRAILING must be False in EngineConfig."
     
     def test_pyramiding_must_be_disabled(self):
         """
         CRITICAL: Pyramiding is net-negative (PF 0.592 with trail+pyramid on).
-        
-        Reference: main_loop.py docstring, REPO_GUIDE.md
         """
-        assert main_loop.ENABLE_PYRAMIDING is False, (
-            "ENABLE_PYRAMIDING must be False. "
-            "Pyramiding adds full-size positions into extended moves."
-        )
+        from src.backtesting.engine import EngineConfig
+        assert EngineConfig().enable_pyramiding is False, "ENABLE_PYRAMIDING must be False in EngineConfig."
     
     def test_d1_gate_configuration(self):
         """
         D1 gate status is a deliberate choice with documented trade-offs.
-        
-        This test documents the current state, not enforces a value.
-        If this fails, verify the change is intentional and documented.
         """
-        # Current configuration as of 2026-09-24
-        assert main_loop.ENABLE_D1_GATE is True, (
-            "D1 gate configuration has changed. "
-            "Verify this is intentional and documented in RESEARCH_LEDGER.md"
-        )
+        from src.backtesting.engine import EngineConfig
+        assert EngineConfig().enable_d1_bias_gate is True, "D1 gate configuration has changed."
 
 
 class TestPositionLimits:

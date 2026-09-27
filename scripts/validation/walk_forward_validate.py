@@ -30,7 +30,7 @@ from src.backtesting.engine import BacktestEngine, EngineConfig
 from src.backtesting.data import load_bars
 from src.backtesting.costs import CostModel
 from src.backtesting.metrics import summarize
-from src.strategies.portfolio_v4 import PORTFOLIO_V4
+from src.strategies.portfolio_v5_9_leg import PORTFOLIO as PORTFOLIO_V5
 
 
 class WalkForwardValidator:
@@ -301,7 +301,7 @@ def main():
     )
     
     # Strategies
-    strategies = [cls() for cls in PORTFOLIO_V4]
+    strategies = [cls() for cls in PORTFOLIO_V5]
     
     # Run walk-forward validation
     validator = WalkForwardValidator(

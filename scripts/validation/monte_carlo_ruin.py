@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.backtesting.engine import BacktestEngine, EngineConfig
 from src.backtesting.data import load_bars
 from src.backtesting.costs import SCENARIOS
-from src.strategies.portfolio_v4 import PORTFOLIO_V4
+from src.strategies.portfolio_v5_9_leg import PORTFOLIO as PORTFOLIO_V5
 
 def run_monte_carlo():
     sym = "XAUUSDm"
@@ -24,7 +24,7 @@ def run_monte_carlo():
     )
 
     eng = BacktestEngine(bars=bars, cost=SCENARIOS["realistic_ecn"], config=cfg)
-    instances = [s() for s in PORTFOLIO_V4]
+    instances = [s() for s in PORTFOLIO_V5]
     print("Running baseline backtest to collect trades...")
     res = eng.run(instances)
     
@@ -56,7 +56,7 @@ def run_monte_carlo():
     print("\n" + "="*50)
     print("MONTE CARLO ACCOUNT FEASIBILITY")
     print("="*50)
-    print(f"Strategy: PORTFOLIO_V4 (XAUUSDm)")
+    print(f"Strategy: PORTFOLIO_V5 (XAUUSDm)")
     print(f"Simulations: {simulations}")
     print(f"Original Trades: {n_trades}")
     print(f"Margin Floor: ${margin_floor:.2f}")

@@ -123,6 +123,11 @@ class RiskManager:
                     "⚠️  MACRO OVERRIDE: strict SHORT stops %s.",
                     status_str,
                 )
+                try:
+                    from src.core import trade_log
+                    trade_log.write("macro_override", strict_short_stops=triggered)
+                except Exception:
+                    pass
                 # Phase 2.4: make the change visible through the alert channel
                 # so the operator knows the override is active or has been cleared.
                 try:

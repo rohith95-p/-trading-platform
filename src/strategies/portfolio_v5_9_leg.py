@@ -8,7 +8,7 @@ from src.strategies.forex_session_momentum import ForexSessionMomentum
 from src.strategies.liquidity_sweep_reversal import LiquiditySweepReversal
 from src.strategies.bible_strategies import PDHLRStrategy
 from src.strategies.ny_liquidity_expansion import NYLiquidityExpansion
-from src.strategies.fvg_strategies import _LiquidityFilteredFVG
+from src.strategies.portfolio_v4 import _LiquidityFilteredFVG
 
 class TrendPullbackV5(TrendPullbackStrat):
     name = 'TREND_PULLBACK_V5'

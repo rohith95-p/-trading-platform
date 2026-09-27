@@ -10,11 +10,11 @@ Ultra Core is a fully automated, backtested, and live-validated algorithmic trad
 
 | Metric | Value |
 |:---|:---|
-| **2-Year Net Profit** | +$4,465 (starting $100) |
-| **Profit Factor** | 3.05 |
-| **Max Drawdown** | 0.89% |
-| **Win Rate** | 25.47% |
-| **P(ruin) Monte Carlo** | 0.0% |
+| **2-Year Net Profit** | +$8,951 (starting $100) |
+| **Profit Factor** | 1.82 |
+| **Max Drawdown** | 2.77% |
+| **Win Rate** | 18.47% |
+| **P(ruin) Monte Carlo** | 0.10% |
 | **Walk-Forward OOS** | Passed (6-fold) |
 
 ---
