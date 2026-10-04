@@ -1,27 +1,43 @@
-# Live Trade History Ledger
+# LIVE TRADE HISTORY — Ultra Core XAUUSDm
 
-| Date (IST) | Ticket (Pos ID) | Direction | Asset | Entry Price | Close Price | Profit |
+> Account: Real | Balance: $163.24 | Leverage: 200x | Currency: USD
+
+_Last updated: 2026-09-30 11:19 IST_
+
+---
+
+## Sep 28, 2026 — TREND_PULLBACK_V5 + FVG_NY_TIGHT_V5
+
+> ⚠️ **ALL TRADES WENT LONG ON A -127pt CRASH DAY**
+> D1 EMA20 gate should have enforced SHORT-ONLY. LONGS were entered.
+> All 8 trades closed at stop-loss. Total session loss: **-$7.90**
+
+| Time (IST) | Ticket | Strategy | Dir | Entry | Exit (SL) | P&L |
 |---|---|---|---|---|---|---|
-| 2026-08-24 08:07:58 | 618772140 | LONG | XAUUSDm | 4640.679 | 4642.197 | $1.52 |
-| 2026-08-25 02:52:13 | 620706952 | SHORT | XAUUSDm | 4632.847 | 4624.613 | $8.24 |
-| 2026-08-25 02:52:13 | 620704887 | SHORT | XAUUSDm | 4634.617 | 4624.613 | $10.01 |
-| 2026-08-25 02:59:00 | 620721153 | SHORT | XAUUSDm | 4628.371 | 4624.504 | $3.87 |
-| 2026-08-25 06:23:47 | 620732283 | SHORT | XAUUSDm | 4623.866 | 4651.676 | $-27.81 |
-| 2026-08-25 06:24:44 | 620718021 | SHORT | XAUUSDm | 4624.418 | 4652.190 | $-27.77 |
-| 2026-08-25 12:12:00 | 621414245 | SHORT | XAUUSDm | 4637.056 | 4641.681 | $-4.62 |
-| 2026-08-25 13:19:27 | 621543777 | SHORT | XAUUSDm | 4621.825 | 4628.184 | $-6.35 |
-| 2026-08-26 13:05:01 | 622910168 | SHORT | XAUUSDm | 4633.299 | 4627.012 | $6.29 |
-| 2026-08-26 13:06:01 | 622910984 | SHORT | XAUUSDm | 4633.934 | 4627.012 | $6.92 |
-| 2026-08-26 14:05:13 | 622961648 | SHORT | XAUUSDm | 4628.404 | 4620.910 | $14.99 |
-| 2026-08-26 14:06:14 | 622962300 | SHORT | XAUUSDm | 4629.023 | 4620.910 | $16.23 |
-| 2026-09-02 09:28:28 | 633818770 | SHORT | XAUUSDm | 4319.711 | 4308.549 | $22.32 |
-| 2026-09-02 09:28:28 | 633822753 | SHORT | XAUUSDm | 4313.797 | 4308.549 | $15.74 |
-| 2026-09-02 10:16:58 | 633836998 | SHORT | XAUUSDm | 4308.550 | 4308.000 | $1.65 |
-| 2026-09-02 14:21:01 | 634320174 | SHORT | XAUUSDm | 4387.300 | 4395.984 | $-8.68 |
-| 2026-09-02 16:52:46 | 634451967 | SHORT | XAUUSDm | 4373.014 | 4368.305 | $4.70 |
-| 2026-09-02 17:44:16 | 634421903 | SHORT | XAUUSDm | 4370.930 | 4376.637 | $-5.71 |
-| 2026-09-08 07:15:53 | 641934492 | SHORT | XAUUSDm | 4401.996 | 4388.000 | $14.00 |
-| 2026-09-09 12:33:40 | 644342198 | SHORT | XAUUSDm | 4393.512 | 4396.426 | $-2.92 |
-| 2026-09-09 12:45:29 | 644366547 | SHORT | XAUUSDm | 4396.335 | 4399.482 | $-3.14 |
-| 2026-09-09 13:36:07 | 644470460 | LONG | XAUUSDm | 4430.256 | 4426.402 | $-3.86 |
-*Trade log automatically audited and updated by mt5-trade-auditor skill.*
+| 18:04 | 673412644 | TREND_PULLBACK_V5 | LONG | 4151.42 | 4152.34 | **-$0.92** |
+| 18:15 | 673435106 | TREND_PULLBACK_V5 | LONG | 4145.83 | 4146.73 | **-$0.90** |
+| 18:45 | 673493818 | TREND_PULLBACK_V5 | LONG | 4146.82 | 4147.69 | **-$0.87** |
+| 19:00 | 673526115 | TREND_PULLBACK_V5 | LONG | 4144.28 | 4145.28 | **-$1.00** |
+| 19:45 | 673650137 | TREND_PULLBACK_V5 | LONG | 4138.96 | 4139.92 | **-$0.96** |
+| 20:00 | 673681223 | FVG_NY_TIGHT_V5 | LONG | 4139.51 | 4140.65 | **-$1.14** |
+| 20:30 | 673772486 | FVG_NY_TIGHT_V5 | LONG | 4119.03 | 4120.05 | **-$1.02** |
+| 21:00 | 673837252 | FVG_NY_TIGHT_V5 | LONG | 4125.07 | 4126.16 | **-$1.09** |
+| | | | | | **DAY TOTAL** | **-$7.90** |
+
+### Notes
+- All exits were stop-loss hits (`[sl ...]` comment in MT5)
+- 0.01 lots per trade, no concurrent positions exceeded
+- 5/8 trades within London/NY overlap (IST 18:30–22:00)
+- Gold was in free-fall: Sep 28 candle range was 4261 → 4111 (-150 pts)
+
+---
+
+## Running P&L Summary
+
+| Date | Day P&L | Cumulative |
+|---|---|---|
+| 2026-09-28 | -$7.90 | See prior history |
+
+---
+
+_Deposit / internal balance transfers excluded. Only live market trades shown._

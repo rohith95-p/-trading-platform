@@ -2,11 +2,11 @@
   "symbol": "XAUUSDm",
   "timeframe": "M5",
   "bars": 100000,
-  "first_time": "2025-04-29 11:15:00",
-  "last_time": "2026-09-24 16:50:00",
-  "sha256": "e90b13fd84bfe1cdcc743bc0d21235a82ef734081b1759d6e186568758913b77",
+  "first_time": "2025-05-07 14:50:00",
+  "last_time": "2026-10-02 20:20:00",
+  "sha256": "7225fb878b3a40e5a05ce69c90b57b5b15be39c0a22ae609e0b5a98dfec1338b",
   "server": "Exness-MT5Trial11",
-  "downloaded_utc": "2026-09-24 16:51:30",
+  "downloaded_utc": "2026-10-02 20:23:27",
   "spec": {
     "symbol": "XAUUSDm",
     "digits": 3,
@@ -19,42 +19,6 @@
     "contract_size": 100.0
   },
   "gaps": [
-    {
-      "after_utc": "2025-04-29 20:55",
-      "missing_bars": 12,
-      "seconds": 3900,
-      "weekend": false
-    },
-    {
-      "after_utc": "2025-04-30 20:55",
-      "missing_bars": 12,
-      "seconds": 3900,
-      "weekend": false
-    },
-    {
-      "after_utc": "2025-05-01 20:55",
-      "missing_bars": 12,
-      "seconds": 3900,
-      "weekend": false
-    },
-    {
-      "after_utc": "2025-05-02 20:55",
-      "missing_bars": 589,
-      "seconds": 177000,
-      "weekend": true
-    },
-    {
-      "after_utc": "2025-05-05 20:55",
-      "missing_bars": 12,
-      "seconds": 3900,
-      "weekend": false
-    },
-    {
-      "after_utc": "2025-05-06 20:55",
-      "missing_bars": 12,
-      "seconds": 3900,
-      "weekend": false
-    },
     {
       "after_utc": "2025-05-07 20:55",
       "missing_bars": 12,
@@ -2223,6 +2187,42 @@
     },
     {
       "after_utc": "2026-09-23 20:55",
+      "missing_bars": 12,
+      "seconds": 3900,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-24 20:55",
+      "missing_bars": 12,
+      "seconds": 3900,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-25 20:55",
+      "missing_bars": 588,
+      "seconds": 176700,
+      "weekend": true
+    },
+    {
+      "after_utc": "2026-09-28 20:55",
+      "missing_bars": 12,
+      "seconds": 3900,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-29 20:55",
+      "missing_bars": 12,
+      "seconds": 3900,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-09-30 20:55",
+      "missing_bars": 12,
+      "seconds": 3900,
+      "weekend": false
+    },
+    {
+      "after_utc": "2026-10-01 20:55",
       "missing_bars": 12,
       "seconds": 3900,
       "weekend": false

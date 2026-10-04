@@ -5,6 +5,19 @@ computed from a fixed +/-$5 payoff, which made them functions of the win count
 alone. These metrics are computed from realised exit prices, and include the
 excursion and duration measures needed to tell a strategy with an edge apart
 from one whose exits happen to be lucky.
+
+Added 2026-09-28 (rohith research note):
+  - calmar_ratio: annualised return / max drawdown.  No normality assumption.
+  - omega_ratio:  integral of P(R>r) / P(R<r) above a threshold (default 0).
+    Captures the full return distribution without assuming Gaussian tails.
+  - sortino_ratio: mean return / downside deviation.  Penalises only losing
+    volatility, unlike Sharpe which penalises upside volatility equally.
+  - k_eff_correction(): standalone function.  Computes the Vertox/eigenspectrum
+    effective number of tested strategies (K_eff) from the correlation matrix
+    of variant return series.  Use this instead of the raw strategy count when
+    applying a Bonferroni / Deflated-Sharpe multiple-testing penalty -- DePrado
+    assumes independence between trials, which massively overstates the penalty
+    when parameter variants are correlated.
 """
 
 from __future__ import annotations
@@ -76,6 +89,13 @@ class TradeStats:
     start_balance: float = 0.0
     end_balance: float = 0.0
     return_pct: float = 0.0
+
+    # --- Distribution-agnostic risk-adjusted return metrics ---
+    # None of these use standard deviation of the *full* return series, so
+    # they remain valid for the fat-tailed, skewed XAUUSD trade P&L distribution.
+    calmar_ratio: float = 0.0          # annualised_return / max_drawdown_pct
+    omega_ratio: float = 0.0           # integral above threshold / integral below
+    sortino_ratio: float = 0.0         # mean_trade_pl / downside_std (losses only)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -213,6 +233,36 @@ def summarize(trades: Sequence[Any], equity: Sequence[Any],
 
     s.end_balance = round(trades[-1].balance_after, 2)
     s.return_pct = round(_safe_div(s.net_pl, start_balance) * 100, 2)
+
+    # --- Calmar Ratio ---
+    # Annualised return (assume ~252 trading days, scale by avg trade duration).
+    # Using trade-count-based annualisation: trades_per_year = n / years.
+    if s.avg_minutes_open > 0 and s.trades > 0:
+        minutes_in_year = 252 * 6.5 * 60  # ~252 trading days, 6.5h/day
+        trades_per_year = minutes_in_year / s.avg_minutes_open
+        annualised_return_pct = s.expectancy * trades_per_year / start_balance * 100
+    else:
+        annualised_return_pct = s.return_pct
+    s.calmar_ratio = round(_safe_div(annualised_return_pct, s.max_drawdown_pct), 3)
+
+    # --- Omega Ratio (threshold = 0, i.e. every dollar counts) ---
+    # Omega = sum(gains above threshold) / sum(losses below threshold).
+    # This is literally just Profit Factor when threshold=0, but expressed as
+    # a ratio of partial expectations -- distribution-free by construction.
+    # A threshold > 0 can be set to represent a minimum acceptable return.
+    threshold = 0.0
+    gains_above = float(np.sum(np.maximum(pls - threshold, 0)))
+    losses_below = float(np.sum(np.maximum(threshold - pls, 0)))
+    s.omega_ratio = round(_safe_div(gains_above, losses_below,
+                                    float('inf') if gains_above else 0.0), 3)
+
+    # --- Sortino Ratio ---
+    # Uses only the *downside* semi-deviation, so large winners don't inflate
+    # the denominator the way they would in Sharpe.  Threshold = 0.
+    downside = pls[pls < threshold] - threshold          # negative deviations
+    downside_std = float(np.std(downside)) if len(downside) > 1 else 0.0
+    s.sortino_ratio = round(_safe_div(float(pls.mean()), downside_std), 3)
+
     return s
 
 
@@ -297,3 +347,114 @@ def drop_best_worst(trades: Sequence[Any]) -> Dict[str, Any]:
         _safe_div(top3, sum(p for p in pls if p > 0)) * 100, 1
     )
     return out
+
+
+# ---------------------------------------------------------------------------
+# Correlation-aware multiple-testing correction  (Vertox K_eff, 2026-05-14)
+# ---------------------------------------------------------------------------
+
+
+def k_eff_correction(
+    return_series: Sequence[Sequence[float]],
+    n_tested_raw: int,
+) -> Dict[str, Any]:
+    """Compute the effective number of independent strategies (K_eff).
+
+    DePrado's Deflated Sharpe Ratio corrects for multiple testing by applying
+    a Bonferroni penalty scaled by the *raw* number of trials (n_tested_raw).
+    This dramatically overstates the penalty when parameter variants are
+    correlated -- testing SL=0.4 vs SL=0.5 is not two independent experiments.
+
+    Vertox (2026-05-14) defines K_eff via the eigenspectrum of the return
+    correlation matrix Sigma:
+
+        p_i   = lambda_i / sum(lambda)          # normalised eigenvalues
+        H     = -sum(p_i * log(p_i))            # Shannon entropy of spectrum
+        K_eff = exp(H)                           # effective count in [1, K]
+
+    Intuition:
+      - All strategies identical  -> one dominant eigenvalue -> H=0 -> K_eff=1
+      - All strategies independent -> flat eigenspectrum   -> H=log(K) -> K_eff=K
+      - Real portfolios land somewhere in between.
+
+    The Bonferroni p-value threshold to use is alpha / K_eff rather than
+    alpha / K, making the multiple-testing correction correlation-aware.
+
+    Args:
+        return_series: list/array of per-trade P&L series, one per strategy
+                       variant.  Series need not be the same length -- shorter
+                       ones are aligned to the overlapping window.
+        n_tested_raw:  raw number of strategy configurations tested (K).
+
+    Returns dict with keys:
+        k_raw          -- the raw count you passed in
+        k_eff          -- correlation-aware effective count
+        reduction_pct  -- how much smaller K_eff is vs K (pct)
+        eigenvalues    -- sorted eigenvalues of the correlation matrix
+        bonferroni_raw -- alpha=0.05 / K
+        bonferroni_keff-- alpha=0.05 / K_eff  (the honest threshold)
+    """
+    if not return_series or n_tested_raw < 2:
+        return {
+            "k_raw": n_tested_raw,
+            "k_eff": float(n_tested_raw),
+            "reduction_pct": 0.0,
+            "eigenvalues": [],
+            "bonferroni_raw": round(0.05 / max(n_tested_raw, 1), 6),
+            "bonferroni_keff": round(0.05 / max(n_tested_raw, 1), 6),
+            "note": "Need >= 2 series to compute correlation structure.",
+        }
+
+    # Align series lengths to the minimum common length (latest window).
+    min_len = min(len(s) for s in return_series)
+    if min_len < 5:
+        return {
+            "k_raw": n_tested_raw,
+            "k_eff": float(n_tested_raw),
+            "reduction_pct": 0.0,
+            "eigenvalues": [],
+            "bonferroni_raw": round(0.05 / n_tested_raw, 6),
+            "bonferroni_keff": round(0.05 / n_tested_raw, 6),
+            "note": "Too few overlapping trades to estimate correlation.",
+        }
+
+    mat = np.array([list(s)[-min_len:] for s in return_series], dtype=float)
+
+    # Correlation matrix (use numpy corrcoef; handles constant series gracefully).
+    corr = np.corrcoef(mat)                    # shape (K, K)
+    # Clip to [-1, 1] to handle floating-point edge cases.
+    corr = np.clip(corr, -1.0, 1.0)
+
+    # Eigenvalue decomposition.  corrcoef is symmetric so eigvalsh is stable.
+    eigenvalues = np.linalg.eigvalsh(corr)     # ascending order
+    eigenvalues = np.maximum(eigenvalues, 0)   # numerical noise -> tiny negatives
+
+    total = eigenvalues.sum()
+    if total == 0:
+        k_eff = float(n_tested_raw)
+    else:
+        p = eigenvalues / total                # normalised (sums to 1)
+        # Shannon entropy of eigenspectrum.
+        # Filter to strictly positive entries before log to avoid divide-by-zero
+        # warnings (numpy evaluates both branches of np.where before masking).
+        p_nz = p[p > 0]
+        h = -float(np.sum(p_nz * np.log(p_nz)))
+        k_eff = math.exp(h)                    # in [1, K] by construction
+
+    k_eff = min(k_eff, float(n_tested_raw))    # cap at K (numerical safety)
+    reduction_pct = round((1.0 - k_eff / n_tested_raw) * 100, 1)
+
+    return {
+        "k_raw": n_tested_raw,
+        "k_eff": round(k_eff, 2),
+        "reduction_pct": reduction_pct,
+        "eigenvalues": [round(float(e), 4) for e in sorted(eigenvalues, reverse=True)],
+        "bonferroni_raw": round(0.05 / n_tested_raw, 6),
+        "bonferroni_keff": round(0.05 / k_eff, 6),
+        "interpretation": (
+            f"Your {n_tested_raw} tested configs are effectively {k_eff:.1f} "
+            f"independent experiments ({reduction_pct:.0f}% correlation overlap). "
+            f"Use p < {0.05/k_eff:.4f} as your significance threshold, "
+            f"not p < {0.05/n_tested_raw:.4f}."
+        ),
+    }

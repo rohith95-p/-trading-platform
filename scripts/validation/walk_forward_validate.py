@@ -148,9 +148,9 @@ class WalkForwardValidator:
             print(f"  Efficiency: {efficiency:.3f} (degradation: {degradation_pct:.1f}%)")
             
             if efficiency < self.efficiency_threshold:
-                print(f"  ⚠️  FAIL: Efficiency < {self.efficiency_threshold:.2f}")
+                print(f"  FAIL: Efficiency < {self.efficiency_threshold:.2f}")
             else:
-                print(f"  ✓ PASS: Efficiency >= {self.efficiency_threshold:.2f}")
+                print(f"  PASS: Efficiency >= {self.efficiency_threshold:.2f}")
             
             print()
             
@@ -194,9 +194,9 @@ class WalkForwardValidator:
         print()
         
         if overall_pass:
-            print(f"✓ OVERALL: PASS (efficiency {avg_efficiency:.3f} >= {self.efficiency_threshold:.2f})")
+            print(f"OVERALL: PASS (efficiency {avg_efficiency:.3f} >= {self.efficiency_threshold:.2f})")
         else:
-            print(f"✗ OVERALL: FAIL (efficiency {avg_efficiency:.3f} < {self.efficiency_threshold:.2f})")
+            print(f"OVERALL: FAIL (efficiency {avg_efficiency:.3f} < {self.efficiency_threshold:.2f})")
         
         print()
         print("Interpretation:")

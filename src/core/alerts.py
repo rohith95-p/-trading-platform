@@ -58,7 +58,7 @@ def _telegram(text: str) -> bool:
     if not token or not chat:
         return False
     try:
-        data = urllib.parse.urlencode({"chat_id": chat, "text": text}).encode()
+        data = urllib.parse.urlencode({"chat_id": chat, "text": text, "parse_mode": "HTML"}).encode()
         req = urllib.request.Request(
             f"https://api.telegram.org/bot{token}/sendMessage", data=data)
         with urllib.request.urlopen(req, timeout=TIMEOUT) as r:

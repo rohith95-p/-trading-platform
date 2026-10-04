@@ -31,7 +31,7 @@ import numpy as np
 from src.backtesting.data import load_bars
 from src.backtesting.engine import BacktestEngine, EngineConfig
 from src.backtesting.costs import SCENARIOS
-from src.strategies.portfolio_v5_9_leg import PORTFOLIO as PORTFOLIO_V5
+from src.strategies.portfolio_v5_6_leg import PORTFOLIO as PORTFOLIO_V5
 
 IST = timezone(timedelta(hours=5, minutes=30))
 OUT_DIR = os.path.join("research", "validation")

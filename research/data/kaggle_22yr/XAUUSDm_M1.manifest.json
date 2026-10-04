@@ -1,0 +1,24 @@
+{
+  "symbol": "XAUUSDm",
+  "timeframe": "M1",
+  "bars": 6822714,
+  "first_time": "2004-06-11 07:18:00",
+  "last_time": "2026-02-27 05:41:00",
+  "sha256": "2f91ffac9cc959b910392a7ee651a5dd2395dc915950ab983451a9a75ea02d17",
+  "server": "KAGGLE_IMPORT",
+  "downloaded_utc": "2026-09-07 19:19:43",
+  "spec": {
+    "symbol": "XAUUSDm",
+    "digits": 3,
+    "point": 0.001,
+    "trade_tick_size": 0.001,
+    "trade_tick_value": 0.1,
+    "volume_min": 0.01,
+    "volume_max": 200.0,
+    "volume_step": 0.01,
+    "contract_size": 100.0
+  },
+  "gaps": [],
+  "zero_volume_bars": 0,
+  "notes": "Imported from 22-Year Kaggle Dataset"
+}

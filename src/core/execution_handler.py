@@ -294,17 +294,26 @@ class ExecutionHandler:
                     timestamp_ist=_ist_now(),
                 )
 
-                msg = (
-                    f"[{strategy_name}] {label} @ {price:.3f} | "
-                    f"SL: {sl:.3f} | TP: {tp:.3f} | "
-                    f"ATR: {atr:.3f} | Session: {session} | "
-                    f"Lots: {lot_size:.2f} | "
-                    f"Open: {self.count_open_positions()}/{max_concurrent}"
-                )
-                log.info(msg)
-                print(f"[{_ist_now()}] >> {msg}")
+                # Keep flat string for logs
+                log_msg = f"[{strategy_name}] {label} @ {price:.3f} | SL: {sl:.3f} | TP: {tp:.3f} | ATR: {atr:.3f} | Session: {session} | Lots: {lot_size:.2f} | Open: {self.count_open_positions()}/{max_concurrent}"
+                log.info(log_msg)
+                print(f"[{_ist_now()}] >> {log_msg}")
+                
                 from src.core import alerts
-                alerts.send(f"TRADE EXECUTED ✅\n{msg}", severity=alerts.INFO)
+                # HTML formatted columns for Telegram
+                tg_msg = (
+                    f"🟢 <b>TRADE OPENED</b>\n"
+                    f"<pre>\n"
+                    f"Time     | {_ist_now()}\n"
+                    f"Strategy | {strategy_name}\n"
+                    f"Action   | {label} {lot_size:.2f} lots\n"
+                    f"Entry    | {price:.3f}\n"
+                    f"Stop     | {sl:.3f}\n"
+                    f"Target   | {tp:.3f}\n"
+                    f"P&L      | $0.00 (Open)\n"
+                    f"</pre>"
+                )
+                alerts.send(tg_msg, severity=alerts.INFO)
                 return record
 
             else:

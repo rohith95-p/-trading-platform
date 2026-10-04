@@ -1,22 +1,14 @@
-# Environment
+# Secrets and Environment
 .env
 .env.local
 .env.*.local
+*.pem
+*.key
 
-# Deployment Info (contains secrets)
-RAILWAY_DEPLOYMENT_INFO.md
-SUPABASE_DEPLOYMENT_INFO.md
-VERCEL_DEPLOYMENT_INFO.md
-*_DEPLOYMENT_INFO.md
-
-# Railway
-railway.json
-.railway/
-
-# Large directories (exclude from repo)
-git repos/
-graphify-out/
-MIND_FUCK/
+# Logs
+logs/
+*.log
+*.jsonl
 
 # Python
 __pycache__/
@@ -36,16 +28,35 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
-# Virtual environments
+# Virtual Environment
 venv/
 ENV/
 env/
+.venv
 
-# IDE
+# Testing
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+pytestdebug.log
+
+# IDEs
 .vscode/
 .idea/
 *.swp
@@ -53,67 +64,27 @@ env/
 *~
 .DS_Store
 
-# Testing
-.pytest_cache/
-.hypothesis/
-.coverage
-htmlcov/
-.tox/
-.tmp/
-.ppo_model_cache/
+# MT5 / Trading
+*.ex5
+*.dll
+*.mq5
+terminal.ini
+terminal64.exe
 
-# Node
-node_modules/
-npm-debug.log
-yarn-error.log
-*.tsbuildinfo
+# Temporary files
+*.tmp
+temp/
+tmp/
+*.bak
+*.backup
 
-# Build
-dist/
-build/
-.next/
-frontend/.next/
-
-# Logs
-*.log
-logs/
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Cache
-.cache/
-*.cache
-
-# OS
-.DS_Store
-Thumbs.db
-
-# --- rohith-2 cleanup (2026-09-03) ---
-# Regenerable from MT5 via scripts/fetch_history.py -- do not bloat the repo
-research/data/*.npy
+# Large data files (keep manifests, exclude actual data)
 *.npy
-# Backtest scratch output
-logs/*.log
-# Per-trade backtest dumps -- regenerable by re-running the script; keep manifests/summaries
-research/runs/**/trades*.json
-research/runs/**/*trades*.json
+research/data/*.npy
 
-# kill switch (local only)
-STOP
+# Sensitive reports (optional - uncomment if you don't want these in git)
+# reports/LAST_WEEK_ANALYSIS_AND_RISK_ASSESSMENT.md
+# reports/PATH_TO_10_USD_PER_DAY.md
 
-# Scratch / one-off files
-scratch_*.py
-fetch_market.py
-generate_pinescripts.py
-
-# Generated output
-20_Year_Audit/
-pine scripts/
-scratch_repos/
-AUDIT_REPORT_*.md
-
-# Kaggle data (huge, regenerable)
-research/data/kaggle_22yr/
+# Lock files
+*.lock

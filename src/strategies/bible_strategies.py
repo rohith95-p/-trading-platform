@@ -263,6 +263,12 @@ class PDHLRStrategy(BaseStrategy):
 
     Expected WR: 65-72% | PF: 1.5-2.0 | DD: Low
     Works best in 2025-2026 where gold sweeps key structural levels frequently.
+
+    2026-10-02 REGIME FILTER added: Block entries when the intraday M15 trend
+    is too strong (|close - EMA20| > strong_trend_atr_mult * ATR). PDHLR is a
+    reversal/liquidity-raid strategy — it requires a ranging or sweep-and-return
+    regime. In a strong momentum trend it produces counter-trend entries that are
+    immediately overrun. The threshold is set at 3.0x ATR by default (configurable).
     """
     name = "PDHLR"
     magic = 4007
@@ -273,6 +279,9 @@ class PDHLRStrategy(BaseStrategy):
     _min_sweep_atr = 0.05      # Wick must exceed level by at least 0.05x ATR
     sl_atr_mult = 0.4
     tp_atr_mult = 1.2
+    # Regime filter: block if price is more than this many ATRs away from EMA20
+    # (indicates a strong trend — PDHLR is a reversal strategy, not a trend-follow)
+    strong_trend_atr_mult: float = 3.0
 
     def evaluate(self, m15_rates: np.ndarray, m5_rates=None) -> Optional[Signal]:
         if m15_rates is None or len(m15_rates) < self._min_bars:
@@ -293,6 +302,18 @@ class PDHLRStrategy(BaseStrategy):
         cur_atr = atr14[i]
         if cur_atr <= 0:
             return None
+
+        # --- REGIME FILTER (2026-10-02) ---
+        # Block if the market is in a strong momentum trend. Compute EMA20 on
+        # the M15 close series and compare displacement to ATR. If |close - EMA20|
+        # exceeds strong_trend_atr_mult * ATR the market is trending hard and
+        # a reversal-style setup is regime-mismatched.
+        if len(cl) >= 22 and self.strong_trend_atr_mult > 0:
+            ema20 = _ema(cl, 20)
+            displacement = abs(cl[i] - ema20[i])
+            if displacement > self.strong_trend_atr_mult * cur_atr:
+                return None  # Strong trend — reversal entry blocked
+        # --- END REGIME FILTER ---
 
         # Identify start of current day (IST midnight = UTC 18:30 previous day)
         cur_ts = int(ts[i])

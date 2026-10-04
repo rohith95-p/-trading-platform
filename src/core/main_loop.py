@@ -45,7 +45,7 @@ from src.core import news_filter  # III.5 -- blocks entries around tier-1 macro 
 # EMAStack (rohith phase 2, HYP-027) superseded 2026-09-01 by the 4-leg
 # portfolio below -- kept in src/strategies/ema_stack.py for reference but
 # no longer imported here.
-from src.strategies.portfolio_v5_9_leg import PORTFOLIO as PORTFOLIO_V5  # 3 legs: TrendPullback, BBMeanReversion, NVMR
+from src.strategies.portfolio_v5_6_leg import PORTFOLIO as PORTFOLIO_V5  # 6 legs: Validated core (removed losing ASIAN_RANGE, FX_OVERLAP, LIQ_SWEEP)
 
 # IST offset
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -379,9 +379,47 @@ def _run_guarded():
                     # [-1] directly, letting the daily bias flip intraday as
                     # gold moves rather than only on a closed daily candle.
                     d1_closes = d1_rates_macro["close"]
+                    d1_opens  = d1_rates_macro["open"]
                     d1_ema20 = _calc_ema(d1_closes, 20)
                     if not np.isnan(d1_ema20[-2]):
                         d1_bias = "BULLISH" if d1_closes[-2] > d1_ema20[-2] else "BEARISH"
+                        log.info(
+                            f"D1 GATE: close[-2]={d1_closes[-2]:.2f}  EMA20={d1_ema20[-2]:.2f}  "
+                            f"→ bias={d1_bias}"
+                        )
+
+                    # ----------------------------------------------------------
+                    # P2: Supplementary intraday override.
+                    # If the LIVE (still-forming) D1 bar has already moved
+                    # >= 2× D1 ATR against the closed-bar bias, the closed bar
+                    # is stale and we flip the bias to match the intraday move.
+                    # This catches crash days like 2026-09-28 where the prior
+                    # close was barely above EMA20 (BULLISH) but the day opened
+                    # and immediately sold off 100+ pts.
+                    # ----------------------------------------------------------
+                    _D1_INTRADAY_OVERRIDE_MULT = 2.0   # tune: 1.5 = more sensitive
+                    if d1_bias is not None and len(d1_closes) >= 15:
+                        _d1_atr_arr = np.abs(np.diff(d1_closes[-15:]))
+                        _d1_atr = float(np.median(_d1_atr_arr)) if len(_d1_atr_arr) else 0.0
+                        _live_open  = float(d1_opens[-1])
+                        _live_close = float(d1_closes[-1])
+                        _intraday_move = _live_close - _live_open  # + = up, - = down
+                        if _d1_atr > 0:
+                            _move_ratio = abs(_intraday_move) / _d1_atr
+                            if _move_ratio >= _D1_INTRADAY_OVERRIDE_MULT:
+                                _intraday_bias = "BULLISH" if _intraday_move > 0 else "BEARISH"
+                                if _intraday_bias != d1_bias:
+                                    log.warning(
+                                        f"D1 INTRADAY OVERRIDE: live bar moved "
+                                        f"{_intraday_move:+.1f} pts ({_move_ratio:.1f}×ATR). "
+                                        f"Overriding stale {d1_bias} → {_intraday_bias}."
+                                    )
+                                    d1_bias = _intraday_bias
+                                else:
+                                    log.info(
+                                        f"D1 INTRADAY CHECK: move {_intraday_move:+.1f} pts "
+                                        f"({_move_ratio:.1f}×ATR) — confirms {d1_bias}."
+                                    )
 
             # ----------------------------------------------------------
             # Session info
@@ -389,6 +427,11 @@ def _run_guarded():
             session_mult = risk.get_session_multiplier(now_ist)
             session_name = risk.get_session_name(now_ist)
             is_london = risk.is_london_open(now_ist)
+
+            if session_name == "LONDON_NY_OVERLAP":
+                _manage_open_positions(fetcher, risk, executor)
+                _time.sleep(LOOP_INTERVAL)
+                continue
 
             # ----------------------------------------------------------
             # Evaluate all strategies
@@ -504,6 +547,7 @@ def _leg_in_cooldown(name: str) -> bool:
         import json as _json
         with open(_COOLDOWN_FILE) as f:
             until = _json.load(f).get(name, 0)
+        # pyrefly: ignore [no-any-return-implicit]
         return _time.time() < until
     except (OSError, ValueError):
         return False
@@ -555,6 +599,33 @@ def _record_closed_trades(fetcher, known_tickets):
                                       day_losing_trades=state.day_losing_trades,
                                       streak_pause_active=state.pause_until_ts > _time.time(),
                                       enforced=risk_rules.ENFORCE)
+            
+            # Notify exit
+            from src.core import alerts
+            icon = "✅" if pl > 0 else "❌"
+            strat_name = deals[0].comment if deals else "Unknown"
+            
+            _acct = mt5.account_info()
+            bal_str = f"${_acct.balance:.2f}" if _acct else "Unknown"
+            float_str = f"${_acct.profit:.2f}" if _acct else "Unknown"
+            
+            now_str = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
+            log_msg = f"{icon} EXIT: {strat_name} (Ticket #{ticket}) | Trade P&L: ${pl:.2f} | Floating: {float_str} | Balance: {bal_str}"
+            
+            # Formatted HTML columns for Telegram
+            tg_msg = (
+                f"{icon} <b>TRADE CLOSED</b>\n"
+                f"<pre>\n"
+                f"Time     | {now_str}\n"
+                f"Strategy | {strat_name}\n"
+                f"Ticket   | #{ticket}\n"
+                f"P&L      | ${pl:.2f}\n"
+                f"Floating | {float_str}\n"
+                f"Balance  | {bal_str}\n"
+                f"</pre>"
+            )
+            alerts.send(tg_msg, severity=alerts.INFO)
+            
         except Exception as e:
             log.warning(f"streak breaker: could not record close of #{ticket}: {e}")
             still_pending.add(ticket)
@@ -594,13 +665,11 @@ def _check_vi3_tripwire(fetcher):
         pf = float(w.sum() / -l.sum()) if len(l) else float("inf")
         
         if pf < 0.8:
-            msg = f"VI.3 TRIPWIRE: Rolling 30-trade PF is {pf:.2f} (<0.8). triggering KILL SWITCH."
+            msg = f"VI.3 TRIPWIRE: Rolling 30-trade PF is {pf:.2f} (<0.8). Logging only (kill switch disabled by user)."
             log.error(msg)
             from src.core import alerts
             alerts.send(msg, severity=alerts.CRITICAL)
-            # Create STOP file to trigger kill switch on next loop
-            with open(resilience.STOP_FILE, "w") as f:
-                f.write(msg)
+            # Kill switch disabled
         elif pf < 1.0:
             msg = f"VI.3 TRIPWIRE WARN: Rolling 30-trade PF is {pf:.2f} (<1.0)."
             log.warning(msg)
@@ -719,6 +788,16 @@ def _execute_signal(signal, m15_rates, fetcher, risk, executor, session_mult, se
         atr=stops.atr, sl_atr_mult=sl_mult, tp_atr_mult=tp_mult,
         session=session_name, magic=signal.magic,
     )
+    
+    # Notify entry
+    if getattr(result, "retcode", None) == mt5.TRADE_RETCODE_DONE:
+        from src.core import alerts
+        _acct = mt5.account_info()
+        bal_str = f"${_acct.balance:.2f}" if _acct else "Unknown"
+        float_str = f"${_acct.profit:.2f}" if _acct else "Unknown"
+        msg = f"🟢 ENTRY: {signal.direction_str} {lot_size} lots\nStrategy: {signal.strategy_name}\nPrice: {price}\nSL: {stops.sl}\nTP: {stops.tp}\nFloating P&L: {float_str}\nAccount Balance: {bal_str}"
+        alerts.send(msg, severity=alerts.INFO)
+        
     return result
 
 

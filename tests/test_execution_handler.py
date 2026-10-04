@@ -12,6 +12,24 @@ from unittest.mock import Mock, patch, MagicMock
 from src.core.execution_handler import ExecutionHandler, FIXED_LOT_SIZE, MAX_TOTAL_VOLUME
 
 
+@pytest.fixture(autouse=True)
+def _silence_alerts():
+    """Block ALL Telegram/webhook alerts during tests.
+
+    execution_handler.py imports alerts lazily inside send_order() via
+    `from src.core import alerts`, so we patch the send function on the
+    actual alerts module rather than trying to patch it as an attribute of
+    execution_handler (which doesn't exist at import time).
+
+    Without this fixture the test suite fires live Telegram messages for every
+    test that exercises the TRADE_RETCODE_DONE success path -- appearing as
+    [TEST] BUY orders on the user's phone and incorrectly tripping the
+    circuit-breaker risk state.
+    """
+    with patch('src.core.alerts.send', return_value=False) as mock_send:
+        yield mock_send
+
+
 class TestOrderRetryLogic:
     """Tests for the 3-attempt retry mechanism."""
 
