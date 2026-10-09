@@ -61,21 +61,19 @@ ultra_core/
 
 ---
 
-## The 9 Strategies (Portfolio V5)
+## The 6 Live Strategies (Portfolio V5)
 
-| Strategy | Edge | PF | Net (2yr) | Max DD |
-|:---|:---|:---|:---|:---|
-| `TrendPullbackStrat` | EMA trend + pullback entry | 2.65 | +$1,120 | 1.74% |
-| `EURUSDAsianRange` | Asian range London breakout | 3.31 | +$968 | 2.40% |
-| `FVGNYTight` | Fair Value Gap NY session | 3.33 | +$907 | 1.56% |
-| `ForexSessionMomentum` | Session open momentum | 3.23 | +$672 | 1.08% |
-| `BBMeanReversionStrat` | Bollinger Band mean reversion | 3.82 | +$641 | 1.77% |
-| `NVMRStrategy` | NY VWAP mean reversion | 3.90 | +$428 | 1.96% |
-| `LiquiditySweepReversal` | ICT liquidity sweep reversal | 3.06 | +$406 | 2.63% |
-| `PDHLRStrategy` | Previous day high/low reversal | 2.59 | +$203 | 6.35% |
-| `NYLiquidityExpansion` | NY volatility expansion | 3.68 | +$124 | 3.75% |
+| Strategy | Edge |
+|:---|:---|
+| `TREND_PULLBACK` | EMA trend + pullback entry |
+| `BB_MR` | Bollinger Band mean reversion |
+| `NVMR_NY` | NY VWAP mean reversion |
+| `BaseStrategy` | Core execution layer |
+| `PDHLR` | Previous day high/low reversal |
+| `NY_LIQUIDITY_EXPANSION` | NY volatility expansion |
 
-**Risk Config:** `sl_atr_mult=0.1`, `tp_atr_mult=1.0` | `max_concurrent=3` | `0.01 lots fixed`
+**Live Risk Config:** `sl_atr_mult=0.5` · `tp_atr_mult=1.5` · `0.02 lots` · `max_concurrent=3`  
+**D1 bias gate:** BEARISH → SELL only · BULLISH → BUY only
 
 ---
 
