@@ -24,24 +24,24 @@ class TrendPullbackV5(TrendPullbackStrat):
         super().__init__()
         self.name = 'TREND_PULLBACK_V5'
         self.magic = 5001
-        self.sl_atr_mult = 0.1
-        self.tp_atr_mult = 2.0
+        self.sl_atr_mult = 0.5
+        self.tp_atr_mult = 1.5
 
 class BBMeanReversionV5(BBMeanReversionStrat):
     def __init__(self):
         super().__init__()
         self.name = 'BB_MEAN_REVERSION_V5'
         self.magic = 5002
-        self.sl_atr_mult = 0.1
-        self.tp_atr_mult = 2.0
+        self.sl_atr_mult = 0.5
+        self.tp_atr_mult = 1.5
     
 class NVMRPortfolioV5(_NVMRStrategy):
     def __init__(self):
         super().__init__()
         self.name = 'NVMR_TARGET_10_V5'
         self.magic = 5003
-        self.sl_atr_mult = 0.1
-        self.tp_atr_mult = 2.0
+        self.sl_atr_mult = 0.5
+        self.tp_atr_mult = 1.5
 
 class FVGNYTightV5(_LiquidityFilteredFVG):
     def __init__(self):
@@ -49,24 +49,24 @@ class FVGNYTightV5(_LiquidityFilteredFVG):
         self.name = 'FVG_NY_TIGHT_V5'
         self.magic = 5005
         self.session = (17.5, 21.5)
-        self.sl_atr_mult = 0.1
-        self.tp_atr_mult = 2.0
+        self.sl_atr_mult = 0.5
+        self.tp_atr_mult = 1.5
 
 class PDHLRStrategyV5(PDHLRStrategy):
     def __init__(self):
         super().__init__()
         self.name = 'PDHLR_STRATEGY_V5'
         self.magic = 5008
-        self.sl_atr_mult = 0.1
-        self.tp_atr_mult = 2.0
+        self.sl_atr_mult = 0.5
+        self.tp_atr_mult = 1.5
 
 class NYLiquidityExpansionV5(NYLiquidityExpansion):
     def __init__(self):
         super().__init__()
         self.name = 'NY_LIQUIDITY_EXPANSION_V5'
         self.magic = 5009
-        self.sl_atr_mult = 0.1
-        self.tp_atr_mult = 2.0
+        self.sl_atr_mult = 0.5
+        self.tp_atr_mult = 1.5
 
 PORTFOLIO = [
     TrendPullbackV5, 
