@@ -1,8 +1,8 @@
 # Ultra Core — Algorithmic Trading System
 
-> **Status: PRODUCTION READY** | Last validated: 2026-09-28 | Python 3.11 | MT5 Live
+> **Status: LIVE TRADING** | Last validated: 2026-09-28 | Python 3.11 | MT5 Live | Week 1: Oct 6–10 2026
 
-Ultra Core is a fully automated, backtested, and live-validated algorithmic trading system for **XAUUSDm (Gold)** on MetaTrader 5. It runs a 9-strategy portfolio under a **hyper-tight 1:10 Reward-to-Risk model** that mathematically eliminates ruin risk on a $100 standard-lot account.
+Ultra Core is a fully automated, backtested, and live-validated algorithmic trading system for **XAUUSDm (Gold)** on MetaTrader 5. It runs a 9-strategy portfolio with a **D1 bias gate, ATR-based stops, and a full risk management stack** on a live demo account.
 
 ---
 
@@ -19,6 +19,19 @@ Ultra Core is a fully automated, backtested, and live-validated algorithmic trad
 
 ---
 
+## Live Trading Results
+
+| Week | Dates | Trades | Net P&L | Balance |
+|:---|:---|:---|:---|:---|
+| Week 1 | Oct 6–10, 2026 | 6 | +$2.51 | $175.21 |
+
+**Starting balance:** $172.70 (demo) | **Current balance:** $175.21  
+**Active config:** `sl_atr_mult=0.5`, `tp_atr_mult=1.5` | D1 BEARISH → SELL only this week
+
+> Live trading began Oct 6, 2026. Tuesday: +$13.14 (4 trades). Wednesday: -$10.63 (dedup bug cost 3 hours of NY session). Thursday: $0.00 (flat market). System running clean after dedup fix deployed.
+
+---
+
 ## Architecture
 
 ```
@@ -29,11 +42,16 @@ ultra_core/
 │   ├── backtesting/    # Tick-level M1 backtesting engine with ECN costs
 │   └── research/       # Feature engineering, candidate library
 ├── scripts/
+│   ├── hourly_monitor.py           # Telegram hourly updates during trading
+│   ├── pre_market_check.py         # Daily pre-market checklist
+│   ├── daily_stats.py              # Quick account + trade stats
+│   ├── end_of_day.py               # End-of-day report generator
+│   ├── dedup_monitor.py            # Early warning for dedup bug
+│   ├── restart_bot.py              # Quick bot recovery
 │   ├── campaign_hypertight.py      # Full 36-strategy sweep
 │   ├── campaign_portfolio_sweep.py # Portfolio concurrency sweep
-│   ├── daily_pnl_log.py            # Daily P&L from MT5 balance
-│   ├── recent_period_backtest.py   # Last week/month results
-│   └── validation/                 # Full audit suite (Part I: PF, DD, ruin, walk-forward)
+│   └── validation/                 # Full audit suite (PF, DD, ruin, walk-forward)
+├── daily_trade_progress/           # Per-day trade reports (live)
 ├── tests/              # 55 unit tests (config, execution, no-lookahead, strategy)
 ├── docs/
 │   ├── research/       # Research ledger, strategy registry, readiness rating
