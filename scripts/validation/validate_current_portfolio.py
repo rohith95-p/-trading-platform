@@ -332,7 +332,7 @@ def run_validation():
         'stats': stats,
     }
     
-    print(f"GATE I.1: {'PASS ✓' if i1_pass else 'FAIL ✗'}")
+    print(f"GATE I.1: {'[PASS]' if i1_pass else '[FAIL]'}")
     if not i1_pass:
         for reason in i1_reasons:
             print(f"  - {reason}")
@@ -372,7 +372,7 @@ def run_validation():
         'results': mc_results,
     }
     
-    print(f"GATE I.3: {'PASS ✓' if i3_pass else 'FAIL ✗'}")
+    print(f"GATE I.3: {'[PASS]' if i3_pass else '[FAIL]'}")
     if not i3_pass:
         for reason in i3_reasons:
             print(f"  - {reason}")
@@ -428,11 +428,11 @@ def run_validation():
         if results['gates'][gate]['pass'] is not None
     )
     
-    print(f"Overall: {'PASS ✓' if all_pass else 'FAIL ✗'}")
+    print(f"Overall: {'[PASS]' if all_pass else '[FAIL]'}")
     print()
     print("Gate Results:")
     for gate_name, gate_result in results['gates'].items():
-        status = '✓ PASS' if gate_result['pass'] else '✗ FAIL' if gate_result['pass'] is False else '⊘ SKIP'
+        status = '[PASS]' if gate_result['pass'] else '[FAIL]' if gate_result['pass'] is False else '[SKIP]'
         print(f"  {gate_name}: {status}")
         if gate_result['reasons']:
             for reason in gate_result['reasons']:
@@ -471,7 +471,7 @@ def run_validation():
                 f"Monte Carlo P(ruin)={mc_results['prob_ruin']*100:.1f}%"
             )
         )
-        print("✓ Recorded in validation_ledger.json")
+        print("[RECORDED] in validation_ledger.json")
     else:
         print("\nOne or more gates FAILED. NOT recording in validation_ledger.json")
         print("Fix issues and re-run validation.")

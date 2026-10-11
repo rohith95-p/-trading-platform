@@ -38,6 +38,7 @@ The baseline configuration is hashed and recorded in `research/validation_ledger
 | **Profit Factor** | **1.112** | ≥ 1.30 | MARGINAL |
 | **Max Drawdown** | 33.88% ($1,846.81) | ≤ 20.0% | ELEVATED |
 | **Max Consec. Losses**| 38 trades | ≤ 15 trades | CRITICAL RISK |
+| **Monte Carlo P(ruin)**| **48.6%** ($100 bal / $50 floor) | < 1.0% | CRITICAL RISK |
 | **Recovery Factor** | 2.15 | ≥ 2.0 | PASS |
 | **Sortino Ratio** | 0.104 | ≥ 1.5 | LOW |
 | **Omega Ratio** | 1.112 | ≥ 1.30 | MARGINAL |

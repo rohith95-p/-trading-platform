@@ -64,9 +64,9 @@ def run_monte_carlo():
     print("="*50)
     
     if p_ruin < 1.0:
-        print("✓ PASS: P(ruin) < 1%")
+        print("[PASS] P(ruin) < 1%")
     else:
-        print("✗ FAIL: P(ruin) >= 1%")
+        print("[FAIL] P(ruin) >= 1%")
 
 if __name__ == "__main__":
     run_monte_carlo()
