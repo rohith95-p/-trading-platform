@@ -187,7 +187,7 @@ def _run_guarded():
     # --- Modules ---
     fetcher = DataFetcher(SYMBOL)
     risk = RiskManager(SYMBOL)
-    executor = ExecutionHandler(SYMBOL)
+    executor = ExecutionHandler(SYMBOL, risk_manager=risk)
     # rohith phase 3 (2026-09-01): portfolio_v4 replaces EMAStack alone.
     # Validated together (PF 1.512, $703 net/~100d) is not the same claim as
     # "EMAStack plus these 4" -- that 5-strategy combination was never tested,
