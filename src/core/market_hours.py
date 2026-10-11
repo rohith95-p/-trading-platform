@@ -51,13 +51,18 @@ def in_trading_window(now: Optional[datetime] = None) -> bool:
 
 
 def is_weekend(now: Optional[datetime] = None) -> bool:
-    """Market closed: Saturday, or Sunday before the ~03:30 IST reopen."""
+    """Market closed: all of Saturday, all of Sunday, and Monday before ~03:30 IST reopen
+    (which corresponds to Sunday 22:00 UTC / 17:00 EST global market open).
+    """
     now = now or datetime.now(IST)
     if now.weekday() == SATURDAY:
         return True
     if now.weekday() == SUNDAY:
+        return True
+    if now.weekday() == 0:  # Monday morning before Sunday 22:00 UTC open
         return now.time() < time(3, 30)
     return False
+
 
 
 def in_rollover_window(now: Optional[datetime] = None) -> bool:

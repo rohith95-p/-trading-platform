@@ -323,19 +323,28 @@ class TestMarketHours:
         sat = datetime(2026, 6, 6, 12, 0, tzinfo=IST)
         assert is_weekend(sat) is True
 
-    def test_sunday_before_open_is_closed(self):
-        """Sunday before 03:30 IST is closed."""
+    def test_sunday_all_day_is_closed(self):
+        """Sunday is closed all day in IST (reopens Monday ~03:30 IST)."""
         from src.core.market_hours import is_weekend
         # June 7, 2026 is a Sunday (weekday=6)
         sun_early = datetime(2026, 6, 7, 2, 0, tzinfo=IST)
+        sun_late = datetime(2026, 6, 7, 14, 0, tzinfo=IST)
         assert is_weekend(sun_early) is True
+        assert is_weekend(sun_late) is True
 
-    def test_sunday_after_open_is_open(self):
-        """Sunday from 03:30 IST onwards is open."""
+    def test_monday_early_is_closed(self):
+        """Monday before 03:30 IST is closed."""
         from src.core.market_hours import is_weekend
-        # June 7, 2026 is a Sunday
-        sun_late = datetime(2026, 6, 7, 4, 0, tzinfo=IST)
-        assert is_weekend(sun_late) is False
+        # June 8, 2026 is a Monday (weekday=0)
+        mon_early = datetime(2026, 6, 8, 2, 0, tzinfo=IST)
+        assert is_weekend(mon_early) is True
+
+    def test_monday_after_open_is_open(self):
+        """Monday from 03:30 IST onwards is open."""
+        from src.core.market_hours import is_weekend
+        # June 8, 2026 is a Monday
+        mon_open = datetime(2026, 6, 8, 4, 0, tzinfo=IST)
+        assert is_weekend(mon_open) is False
 
     def test_tuesday_is_not_weekend(self):
         """Tuesday is always a trading day."""

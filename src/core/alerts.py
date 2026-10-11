@@ -53,7 +53,14 @@ def _record(line: str) -> None:
         pass
 
 
+def _alerts_disabled() -> bool:
+    """True if running in a test suite or if explicitly suppressed via env var."""
+    return bool("PYTEST_CURRENT_TEST" in os.environ or os.environ.get("ULTRA_DISABLE_ALERTS") == "1")
+
+
 def _telegram(text: str) -> bool:
+    if _alerts_disabled():
+        return False
     token = os.environ.get("ULTRA_ALERT_TELEGRAM_TOKEN")
     chat = os.environ.get("ULTRA_ALERT_TELEGRAM_CHAT")
     if not token or not chat:
@@ -70,6 +77,8 @@ def _telegram(text: str) -> bool:
 
 
 def _webhook(text: str, severity: str) -> bool:
+    if _alerts_disabled():
+        return False
     url = os.environ.get("ULTRA_ALERT_WEBHOOK")
     if not url:
         return False
@@ -86,6 +95,8 @@ def _webhook(text: str, severity: str) -> bool:
 
 def send(message: str, severity: str = WARN, context: Optional[dict] = None) -> bool:
     """Fire an alert on every configured channel. Returns True if any delivered."""
+    if _alerts_disabled():
+        return False
     now = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S IST")
     text = f"[{severity}] ULTRA CORE {now}\n{message}"
     if context:
