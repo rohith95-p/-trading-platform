@@ -83,12 +83,12 @@ class SystemConfig:
         from src.core import execution_handler as eh
         from src.core import main_loop as ml
         from src.core import risk_manager as rm
-        from src.strategies.portfolio_v4 import PORTFOLIO_V4
+        from src.strategies.portfolio_v5_6_leg import PORTFOLIO
 
         from src.core import market_hours as mh
         from src.core import risk_rules as rr
 
-        strategy_instances = [strat_cls() for strat_cls in PORTFOLIO_V4]
+        strategy_instances = [strat_cls() for strat_cls in PORTFOLIO]
         # Read the macro override state from a temporary RiskManager instance.
         # This ensures the fingerprint changes when the operator toggles the
         # RISK_OVERRIDE marker in DAILY_MARKET_ANALYSIS.md.

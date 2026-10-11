@@ -441,9 +441,9 @@ def _run_guarded():
             signal_candle = int(m15_rates[-2]["time"])
             
             # Clear stale dedup entries older than 30 minutes
-            current_time = int(time.time())
+            current_time = int(_time.time())
             stale_cutoff = current_time - 1800  # 30 minutes
-            last_fired_candle = {k: v for k, v in last_fired_candle.items() if v >= stale_cutoff}
+            last_fired_candle = {k: v for k, v in last_fired_candle.items() if v is not None and v >= stale_cutoff}
             
             actionable_signals = []
 
@@ -618,17 +618,15 @@ def _record_closed_trades(fetcher, known_tickets):
             now_str = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
             log_msg = f"{icon} EXIT: {strat_name} (Ticket #{ticket}) | Trade P&L: ${pl:.2f} | Floating: {float_str} | Balance: {bal_str}"
             
-            # Formatted HTML columns for Telegram
+            # Formatted columns for Telegram
             tg_msg = (
-                f"{icon} <b>TRADE CLOSED</b>\n"
-                f"<pre>\n"
+                f"{icon} TRADE CLOSED\n"
                 f"Time     | {now_str}\n"
                 f"Strategy | {strat_name}\n"
                 f"Ticket   | #{ticket}\n"
                 f"P&L      | ${pl:.2f}\n"
                 f"Floating | {float_str}\n"
                 f"Balance  | {bal_str}\n"
-                f"</pre>"
             )
             alerts.send(tg_msg, severity=alerts.INFO)
             

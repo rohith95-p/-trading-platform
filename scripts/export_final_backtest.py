@@ -5,26 +5,21 @@ from src.backtesting.engine import BacktestEngine, EngineConfig
 from src.backtesting.data import load_bars
 from src.backtesting.costs import SCENARIOS
 from src.backtesting.metrics import summarize
-from src.strategies.portfolio_v4 import PORTFOLIO_V5
+from src.strategies.portfolio_v5_6_leg import PORTFOLIO
 import json
 
 print("Loading 2-year data for final export...", flush=True)
 bars = load_bars('XAUUSDm', timeframes=('M15','M5','M1','D1'))
 
+# Use sizing_mode='fixed' with fixed_lots=0.02 to exactly match the live bot.
+# The live main_loop always uses FIXED_LOT_SIZE = 0.02 (flat, never compounding).
+# Using 'live' sizing mode (15% risk, compounding) is a DIFFERENT strategy and
+# would destroy the account as it did in the corrupt run (DD 99.17%).
 cfg = EngineConfig(
-    symbol='XAUUSDm', starting_balance=100.0,
-    sizing_mode='fixed', fixed_lots=0.01,
-    max_concurrent=3, max_same_direction=3,
-    enable_trailing=False, enable_pyramiding=False,
-    daily_loss_limit_mode='balance_pct', daily_loss_limit_pct=0.06,
-    enable_d1_bias_gate=True,
+    sizing_mode='fixed',
+    fixed_lots=0.02,
 )
-
-strats = [cls() for cls in PORTFOLIO_V5]
-# Make sure risk matches exactly
-for s in strats:
-    s.sl_atr_mult = 0.1
-    s.tp_atr_mult = 1.0
+strats = [cls() for cls in PORTFOLIO]
 
 print("Running final 2-year backtest...", flush=True)
 eng = BacktestEngine(bars=bars, cost=SCENARIOS['realistic_ecn'], config=cfg)
@@ -82,3 +77,29 @@ All 55 system tests have PASSED.
 with open("reports/FINAL_VALIDATION_REPORT.md", "w") as f:
     f.write(md)
 print("Saved report to reports/FINAL_VALIDATION_REPORT.md")
+
+# QUALITY GATE: only record to ledger if the result meets minimum thresholds.
+# This prevents catastrophic backtest failures from being stamped as "validated".
+MIN_PROFIT_FACTOR = 1.10
+MAX_DRAWDOWN_PCT  = 60.0
+
+pf = st.profit_factor
+dd = st.max_drawdown_pct
+
+if pf < MIN_PROFIT_FACTOR or dd > MAX_DRAWDOWN_PCT:
+    print(f"\n*** QUALITY GATE FAILED ***")
+    print(f"    PF={pf:.3f} (min {MIN_PROFIT_FACTOR})   DD={dd:.1f}% (max {MAX_DRAWDOWN_PCT}%)")
+    print("    This result was NOT recorded to the ledger.")
+    print("    Do NOT start the live bot — the current configuration is not validated.")
+    raise SystemExit(1)
+
+print(f"\nQuality gate PASSED: PF={pf:.3f}, DD={dd:.1f}%")
+
+# RECORD TO LEDGER SO LIVE BOT CAN START
+from src.core.system_config import SystemConfig
+from src.core import validation_ledger
+
+live_cfg = SystemConfig.from_live()
+res_dict = st.to_dict()
+fp = validation_ledger.record(live_cfg, res_dict, "export_final_backtest.py", "Final V5 validation with ENFORCE=True, fixed 0.02 lots")
+print(f"Recorded config to validation_ledger.json with fingerprint: {fp}")

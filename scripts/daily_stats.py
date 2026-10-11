@@ -149,7 +149,7 @@ def main():
         print("❌ MT5 connection failed")
         return
     
-    if not mt5.login(198874999, 'Rohith@95', 'Exness-MT5Trial11'):
+    if not mt5.login(198874999, '<REDACTED_PASSWORD>', 'Exness-MT5Trial11'):
         print("❌ MT5 login failed")
         mt5.shutdown()
         return

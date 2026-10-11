@@ -222,7 +222,7 @@ python scripts/check_market_status.py
 
 **MT5 Issues:**
 - Reconnect MT5 manually
-- Verify login (198874999 / Rohith@95 / Exness-MT5Trial11)
+- Verify login (198874999 / <REDACTED_PASSWORD> / Exness-MT5Trial11)
 
 **Spread Issues:**
 - Run: `python scripts/check_market_status.py`

@@ -166,7 +166,7 @@ cd $env:USERPROFILE\ultra_core
 # Create .env.local with your settings
 @"
 # Telegram Alerts
-ULTRA_ALERT_TELEGRAM_TOKEN=8892992871:AAEFmwIinFQ_fvAPo2JaiHAKF23jq5fmc_U
+ULTRA_ALERT_TELEGRAM_TOKEN=<YOUR_TELEGRAM_BOT_TOKEN>
 ULTRA_ALERT_TELEGRAM_CHAT=6536063986
 
 # Add other secrets as needed

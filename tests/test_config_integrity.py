@@ -78,18 +78,11 @@ class TestRiskControls:
     
     def test_risk_rules_enforcement_status(self):
         """
-        Document the current enforcement status of risk_rules.py circuit breakers.
-        
-        This is NOT enforcing a value, just making the status visible in tests.
+        Risk rules MUST be enforced to prevent bypassing circuit breakers.
         """
         from src.core import risk_rules
         
-        # As of 2026-09-25: shadow mode (tracking but not blocking)
-        enforcement_status = getattr(risk_rules, 'ENFORCE', None)
-        
-        # This test documents the status, doesn't enforce a value
-        print(f"\nINFO: risk_rules.ENFORCE = {enforcement_status}")
-        print("      (True = blocking trades, False = shadow mode)")
+        assert getattr(risk_rules, 'ENFORCE', False) is True, "Circuit breakers must be enforced, not in shadow mode."
 
 
 class TestPortfolioConfiguration:

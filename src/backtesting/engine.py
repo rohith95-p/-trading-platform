@@ -261,13 +261,15 @@ class EngineConfig:
     loop_interval_sec: int = 60
     resignal_interval_sec: int = 300  # strategies re-evaluated on M5 boundaries
 
-    # Behaviour switches (defaults reproduce HEAD)
+    # Behaviour switches (defaults reproduce the VALIDATED live config -- see
+    # main_loop.py ENABLE_TRAILING / ENABLE_PYRAMIDING and the A/B test at
+    # lines 82-96 proving both are net-negative at PF 0.592 / -$93.59).
     dedup_per_candle: bool = False
-    max_concurrent: int = 3
+    max_concurrent: int = 2           # live validated with 2 concurrent positions
     max_same_direction: int = 2
-    enable_pyramiding: bool = True
+    enable_pyramiding: bool = False   # net-negative; see main_loop.py ENABLE_PYRAMIDING
     enable_consolidation_exit: bool = True
-    enable_trailing: bool = True
+    enable_trailing: bool = False     # net-negative; see main_loop.py ENABLE_TRAILING
     close_only_trail: bool = False  # Ignore wicks, check trailing stop only at candle close
     enable_d1_bias_gate: bool = True
     # Direction gate variant (rohith-2 research). "d1_ema20" reproduces HEAD.
@@ -303,7 +305,7 @@ class EngineConfig:
     spread_gate_points: float = 350.0
     spread_gate_blocks_management: bool = True   # HIGH-7: the bug at HEAD
     lot_cap: Optional[float] = None              # the lost 0.01 guard
-    daily_loss_limit_mode: str = "atr_price"     # "atr_price" (HEAD) | "balance_pct" | "off"
+    daily_loss_limit_mode: str = "balance_pct"   # matches live RiskManager: DAILY_LOSS_LIMIT_PCT fraction of balance
     daily_loss_limit_pct: float = 0.06
     load_macro_rules: bool = False               # markdown-driven bias, off for reproducibility
 

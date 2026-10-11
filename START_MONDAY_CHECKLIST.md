@@ -42,14 +42,14 @@ cat src/core/risk.py | grep "def calculate_lots"
 ### 4. Test Telegram Alerts
 
 Your alerts are configured:
-- Token: 8892992871:AAEFmwIinFQ_fvAPo2JaiHAKF23jq5fmc_U
+- Token: <YOUR_TELEGRAM_BOT_TOKEN>
 - Chat ID: 6536063986
 
 Test alert:
 ```python
 python -c "
 import requests
-token = '8892992871:AAEFmwIinFQ_fvAPo2JaiHAKF23jq5fmc_U'
+token = '<YOUR_TELEGRAM_BOT_TOKEN>'
 chat = '6536063986'
 msg = '🚀 Ultra Core Bot Ready for Monday!'
 url = f'https://api.telegram.org/bot{token}/sendMessage'

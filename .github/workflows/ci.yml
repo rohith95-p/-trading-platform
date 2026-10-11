@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  test:
+    name: Run test suite (Python 3.11)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # MetaTrader5 is Windows-only; install the stub so imports don't crash
+          pip install -r requirements.txt || true
+          pip install pytest pytest-anyio
+
+      - name: Create MT5 stub so tests can import without a real terminal
+        run: |
+          mkdir -p MetaTrader5_stub
+          python - <<'EOF'
+          import sys, types
+
+          # Minimal MT5 stub: just the constants and no-op functions tests need.
+          mt5 = types.ModuleType("MetaTrader5")
+          mt5.ORDER_TYPE_BUY = 0
+          mt5.ORDER_TYPE_SELL = 1
+          mt5.TRADE_ACTION_DEAL = 1
+          mt5.TRADE_ACTION_SLTP = 6
+          mt5.ORDER_TIME_GTC = 0
+          mt5.ORDER_FILLING_IOC = 1
+          mt5.TRADE_RETCODE_DONE = 10009
+          mt5.initialize = lambda *a, **kw: True
+          mt5.shutdown = lambda: None
+          mt5.account_info = lambda: None
+          mt5.symbol_info = lambda s: None
+          mt5.symbol_info_tick = lambda s: None
+          mt5.positions_get = lambda **kw: []
+          mt5.order_send = lambda r: None
+          sys.modules["MetaTrader5"] = mt5
+          EOF
+
+      - name: Run tests
+        run: python -m pytest tests/ -v --tb=short

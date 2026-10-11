@@ -1,7 +1,7 @@
 import MetaTrader5 as mt5
 
 mt5.initialize()
-mt5.login(198874999, 'Rohith@95', 'Exness-MT5Trial11')
+mt5.login(198874999, '<REDACTED_PASSWORD>', 'Exness-MT5Trial11')
 
 acc = mt5.account_info()
 pos = mt5.positions_get()

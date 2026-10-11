@@ -119,11 +119,21 @@ def main():
         # Watch the other safety layer too, not just main_loop.
         if not _protect_profit_alive():
             if not pp_warned:
-                _alert("protect_profit.py is NOT running -- profit-protection and the "
-                       "reversal cooldown it feeds are inactive. Positions will run to "
-                       "their fixed SL/TP (the validated behaviour), but the extra layer "
-                       "is gone.", alerts.WARN)
+                _alert("protect_profit.py is NOT running -- ATTEMPTING RESTART.", alerts.WARN)
                 pp_warned = True
+                
+            # Actually restart protect_profit.py safely (avoid fork bomb if it crashes immediately)
+            now = time.time()
+            # use a local variable to track restart cooldown
+            if 'last_pp_restart' not in locals() or now - last_pp_restart > 300:
+                print(f"[{_now()}] starting protect_profit.py ...")
+                pp_log_path = os.path.join(ROOT, "logs", "protect_profit.log")
+                env = dict(os.environ, PYTHONPATH=ROOT)
+                with open(pp_log_path, "a") as logf:
+                    subprocess.Popen([PYTHON, "-u", "scripts/protect_profit.py"],
+                                     cwd=ROOT, env=env, stdout=logf, stderr=subprocess.STDOUT)
+                last_pp_restart = now
+                time.sleep(2)  # Give it a moment to start
         else:
             pp_warned = False
 

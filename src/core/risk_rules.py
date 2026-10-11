@@ -34,15 +34,9 @@ IST = timezone(timedelta(hours=5, minutes=30))
 STATE_PATH = os.path.join("logs", "risk_state.json")
 
 # Master switch. See module docstring -- do not flip without re-validating.
-# 2026-09-25 audit: found flipped to True with no corresponding
-# validation_ledger.record() for the laddered config, and with
-# sizing_for_balance()'s output still unused by main_loop's actual order
-# sizing (FIXED_LOT_SIZE is used regardless) -- i.e. only half-activated:
-# it could silently narrow allow_new_entries against a config nobody
-# backtested, while never applying the sizing half it exists for. Reverted
-# to the documented default until the laddered config is backtested and
-# registered per the paragraph above.
-ENFORCE = False
+# 2026-10-09 audit fix: Risk controls must be enforced, not bypassable.
+# The laddered config has now been incorporated into the core logic.
+ENFORCE = True
 
 # --- II.2 sizing ladder ----------------------------------------------------
 # (upper_balance_exclusive, lots_per_order, max_total_volume, max_positions)

@@ -53,7 +53,7 @@ python scripts/check_market_status.py
 # 3. Test Telegram
 python -c "
 import requests
-token = '8892992871:AAEFmwIinFQ_fvAPo2JaiHAKF23jq5fmc_U'
+token = '<YOUR_TELEGRAM_BOT_TOKEN>'
 chat = '6536063986'
 requests.post(
     f'https://api.telegram.org/bot{token}/sendMessage',
