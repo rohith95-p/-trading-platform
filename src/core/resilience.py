@@ -33,7 +33,7 @@ HEARTBEAT_FILE = os.path.join(_LOGS, "heartbeat")
 STATE_FILE = os.path.join(_LOGS, "loop_state.json")
 
 # Expected account identity -- refuse to start against anything else.
-EXPECTED_LOGIN = 198874999
+EXPECTED_LOGIN = int(os.environ.get("MT5_LOGIN", 198874999))
 BALANCE_RANGE = (20.0, 10000.0)  # wide: catches wrong-account, not normal swings
 
 

@@ -440,9 +440,8 @@ def _run_guarded():
             # It is the deduplication key: it stays constant for 15 minutes.
             signal_candle = int(m15_rates[-2]["time"])
             
-            # Clear stale dedup entries older than 30 minutes
-            current_time = int(_time.time())
-            stale_cutoff = current_time - 1800  # 30 minutes
+            # Clear stale dedup entries older than 2 hours (8 candles) based on candle timestamp
+            stale_cutoff = signal_candle - 7200
             last_fired_candle = {k: v for k, v in last_fired_candle.items() if v is not None and v >= stale_cutoff}
             
             actionable_signals = []
@@ -492,13 +491,24 @@ def _run_guarded():
             # HIGHLANDER RULE: Execute only the highest conviction signal
             # ----------------------------------------------------------
             if actionable_signals:
-                # Rank by conviction based on strategy name
+                # Rank by conviction based on validated risk-adjusted expectancy
                 rank_order = {
+                    "NVMR_TARGET_10_V5": 6,
+                    "NVMR_TARGET_10": 6,
+                    "BB_MEAN_REVERSION_V5": 5,
+                    "BB_MEAN_REVERSION": 5,
                     "FVG_NY_SWEEP_OR_VOID": 5,
                     "FVG_NY_SWEEP": 4,
                     "FVG_NY_VOID": 3,
+                    "FVG_NY_TIGHT_V5": 2,
                     "FVG_NY_TIGHT": 2,
+                    "TREND_PULLBACK_V5": 2,
+                    "TREND_PULLBACK": 2,
                     "FVG_ASIA_SWEEP": 1,
+                    "NY_LIQUIDITY_EXPANSION_V5": 1,
+                    "NY_LIQUIDITY_EXPANSION": 1,
+                    "PDHLR_STRATEGY_V5": 1,
+                    "PDHLR_STRATEGY": 1,
                 }
                 
                 # Sort signals by rank (descending)

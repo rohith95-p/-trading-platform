@@ -28,30 +28,5 @@ jobs:
           pip install -r requirements.txt || true
           pip install pytest pytest-anyio
 
-      - name: Create MT5 stub so tests can import without a real terminal
-        run: |
-          mkdir -p MetaTrader5_stub
-          python - <<'EOF'
-          import sys, types
-
-          # Minimal MT5 stub: just the constants and no-op functions tests need.
-          mt5 = types.ModuleType("MetaTrader5")
-          mt5.ORDER_TYPE_BUY = 0
-          mt5.ORDER_TYPE_SELL = 1
-          mt5.TRADE_ACTION_DEAL = 1
-          mt5.TRADE_ACTION_SLTP = 6
-          mt5.ORDER_TIME_GTC = 0
-          mt5.ORDER_FILLING_IOC = 1
-          mt5.TRADE_RETCODE_DONE = 10009
-          mt5.initialize = lambda *a, **kw: True
-          mt5.shutdown = lambda: None
-          mt5.account_info = lambda: None
-          mt5.symbol_info = lambda s: None
-          mt5.symbol_info_tick = lambda s: None
-          mt5.positions_get = lambda **kw: []
-          mt5.order_send = lambda r: None
-          sys.modules["MetaTrader5"] = mt5
-          EOF
-
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short

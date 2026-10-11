@@ -1,7 +1,14 @@
+import os
 import MetaTrader5 as mt5
 
 mt5.initialize()
-mt5.login(198874999, '<REDACTED_PASSWORD>', 'Exness-MT5Trial11')
+login = int(os.environ.get("MT5_LOGIN", 198874999))
+password = os.environ.get("MT5_PASSWORD", "")
+server = os.environ.get("MT5_SERVER", "Exness-MT5Trial11")
+if password:
+    mt5.login(login, password, server)
+else:
+    mt5.login(login, server=server)
 
 acc = mt5.account_info()
 pos = mt5.positions_get()

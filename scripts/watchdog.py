@@ -43,17 +43,25 @@ def _alert(msg: str, severity: str = alerts.WARN):
 
 
 def _protect_profit_alive() -> bool:
-    """IV.1 gap found 2026-09-06: watchdog monitored main_loop but had no
-    awareness of protect_profit.py, so that safety layer could die silently
-    (and did, Sept 3-5). main_loop's `_leg_in_cooldown` fails safe without it,
-    but nobody would know the layer was gone."""
+    """Check if protect_profit.py is running without relying on deprecated wmic."""
     try:
-        out = subprocess.run(
-            ["wmic", "process", "where", "name='python.exe'", "get", "commandline"],
-            capture_output=True, text=True, timeout=15)
-        return "protect_profit" in (out.stdout or "")
+        import psutil
+        for proc in psutil.process_iter(['name', 'cmdline']):
+            try:
+                cmdline = " ".join(proc.info.get('cmdline') or [])
+                if "protect_profit" in cmdline:
+                    return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+        return False
     except Exception:
-        return True  # can't tell -> don't cry wolf
+        try:
+            out = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_Process | Select-Object -ExpandProperty CommandLine"],
+                capture_output=True, text=True, timeout=10)
+            return "protect_profit" in (out.stdout or "")
+        except Exception:
+            return True  # can't tell -> don't cry wolf
 
 
 def _loop_alive() -> bool:

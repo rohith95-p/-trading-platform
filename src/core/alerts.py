@@ -61,8 +61,8 @@ def _alerts_disabled() -> bool:
 def _telegram(text: str) -> bool:
     if _alerts_disabled():
         return False
-    token = os.environ.get("ULTRA_ALERT_TELEGRAM_TOKEN")
-    chat = os.environ.get("ULTRA_ALERT_TELEGRAM_CHAT")
+    token = os.environ.get("ULTRA_ALERT_TELEGRAM_TOKEN") or os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat = os.environ.get("ULTRA_ALERT_TELEGRAM_CHAT") or os.environ.get("TELEGRAM_CHAT_ID")
     if not token or not chat:
         return False
     try:

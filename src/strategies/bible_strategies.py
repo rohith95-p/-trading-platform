@@ -315,11 +315,10 @@ class PDHLRStrategy(BaseStrategy):
                 return None  # Strong trend — reversal entry blocked
         # --- END REGIME FILTER ---
 
-        # Identify start of current day (IST midnight = UTC 18:30 previous day)
+        # Identify start of current day in IST (IST midnight = UTC 18:30 previous day)
         cur_ts = int(ts[i])
-        ist_day_start_utc = (cur_ts // 86400) * 86400 - 19800  # IST midnight in UTC
-        if ist_day_start_utc > cur_ts:
-            ist_day_start_utc -= 86400
+        ist_ts = cur_ts + 19800  # Shift to IST epoch seconds
+        ist_day_start_utc = (ist_ts // 86400) * 86400 - 19800  # IST midnight in UTC
         prev_day_start_utc = ist_day_start_utc - 86400
 
         # Find previous day bars

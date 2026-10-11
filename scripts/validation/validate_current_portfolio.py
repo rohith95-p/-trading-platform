@@ -28,7 +28,7 @@ from src.backtesting.engine import BacktestEngine, EngineConfig
 from src.backtesting.data import load_bars
 from src.backtesting.costs import CostModel
 from src.backtesting.metrics import summarize
-from src.strategies.portfolio_v4 import PORTFOLIO_V4
+from src.strategies.portfolio_v5_6_leg import PORTFOLIO as PORTFOLIO_V5
 from src.core.system_config import SystemConfig
 from src.core import validation_ledger
 
@@ -240,12 +240,12 @@ def run_validation():
     print("ULTRA CORE - CURRENT PORTFOLIO VALIDATION")
     print("="*70)
     print(f"Timestamp: {datetime.now().isoformat()}")
-    print(f"Portfolio: {[cls().name for cls in PORTFOLIO_V4]}")
+    print(f"Portfolio: {[cls().name for cls in PORTFOLIO_V5]}")
     print()
     
     # Load data
     print("Loading data...")
-    bars = load_bars(timeframes=("M15", "M5", "M1", "D1"))
+    bars = load_bars(symbol="XAUUSDm", timeframes=("M15", "M5", "M1", "D1"))
     cost_model = CostModel.realistic()
     
     # Configuration matching live system
@@ -265,7 +265,7 @@ def run_validation():
     )
     
     # Build SystemConfig snapshot
-    strategy_instances = [cls() for cls in PORTFOLIO_V4]
+    strategy_instances = [cls() for cls in PORTFOLIO_V5]
     sys_config = SystemConfig.from_engine_config(
         engine_cfg=config,
         strategy_instances=strategy_instances,
@@ -279,7 +279,7 @@ def run_validation():
     results = {
         'fingerprint': fingerprint,
         'timestamp': datetime.now().isoformat(),
-        'strategies': [cls().name for cls in PORTFOLIO_V4],
+        'strategies': [cls().name for cls in PORTFOLIO_V5],
         'gates': {},
     }
     
@@ -295,7 +295,7 @@ def run_validation():
 
     # Run backtest on the OOS holdout window only
     engine = BacktestEngine(bars, cost_model, config)
-    strategies = [cls() for cls in PORTFOLIO_V4]
+    strategies = [cls() for cls in PORTFOLIO_V5]
     
     print("Running backtest...")
     result = engine.run(strategies)

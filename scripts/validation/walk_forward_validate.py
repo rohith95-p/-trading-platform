@@ -30,7 +30,7 @@ from src.backtesting.engine import BacktestEngine, EngineConfig
 from src.backtesting.data import load_bars
 from src.backtesting.costs import CostModel
 from src.backtesting.metrics import summarize
-from src.strategies.portfolio_v5_9_leg import PORTFOLIO as PORTFOLIO_V5
+from src.strategies.portfolio_v5_6_leg import PORTFOLIO as PORTFOLIO_V5
 
 
 class WalkForwardValidator:
@@ -291,9 +291,9 @@ def main():
         sizing_mode="fixed",
         max_concurrent=1,
         max_same_direction=1,
-        enable_trailing=True,
+        enable_trailing=False,
         enable_pyramiding=False,
-        enable_d1_bias_gate=False,
+        enable_d1_bias_gate=True,
         direction_gate="d1_ema20",
         daily_loss_limit_mode="balance_pct",
         daily_loss_limit_pct=0.06,

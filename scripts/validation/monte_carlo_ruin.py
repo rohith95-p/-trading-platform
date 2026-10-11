@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.backtesting.engine import BacktestEngine, EngineConfig
 from src.backtesting.data import load_bars
 from src.backtesting.costs import SCENARIOS
-from src.strategies.portfolio_v5_9_leg import PORTFOLIO as PORTFOLIO_V5
+from src.strategies.portfolio_v5_6_leg import PORTFOLIO as PORTFOLIO_V5
 
 def run_monte_carlo():
     sym = "XAUUSDm"

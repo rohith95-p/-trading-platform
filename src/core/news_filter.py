@@ -44,38 +44,38 @@ ENABLE_NEWS_FILTER = True       # set False to bypass entirely (e.g. in tests)
 # ---------------------------------------------------------------------------
 TIER1_EVENTS: Dict[str, List[dict]] = {
     # ---- September 2026 ----
-    "2026-09-18": [{"name": "FOMC Rate Decision", "utc_time": "18:00"},
+    "2026-09-16": [{"name": "FOMC Rate Decision", "utc_time": "18:00"},
                    {"name": "FOMC Press Conference", "utc_time": "18:30"}],
-    "2026-09-26": [{"name": "US PCE Price Index", "utc_time": "12:30"}],
+    "2026-09-25": [{"name": "US PCE Price Index", "utc_time": "12:30"}],
 
     # ---- October 2026 ----
-    "2026-10-03": [{"name": "US Non-Farm Payrolls", "utc_time": "12:30"},
+    "2026-10-02": [{"name": "US Non-Farm Payrolls", "utc_time": "12:30"},
                    {"name": "US Unemployment Rate", "utc_time": "12:30"}],
-    "2026-10-10": [{"name": "US CPI m/m", "utc_time": "12:30"},
+    "2026-10-14": [{"name": "US CPI m/m", "utc_time": "12:30"},
                    {"name": "US Core CPI m/m", "utc_time": "12:30"}],
-    "2026-10-17": [{"name": "US Retail Sales", "utc_time": "12:30"}],
-    "2026-10-24": [{"name": "US GDP q/q Advance", "utc_time": "12:30"}],
-    "2026-10-31": [{"name": "US PCE Price Index", "utc_time": "12:30"}],
+    "2026-10-15": [{"name": "US Retail Sales", "utc_time": "12:30"}],
+    "2026-10-29": [{"name": "US GDP q/q Advance", "utc_time": "12:30"}],
+    "2026-10-30": [{"name": "US PCE Price Index", "utc_time": "12:30"}],
 
     # ---- November 2026 ----
-    "2026-11-06": [{"name": "FOMC Rate Decision", "utc_time": "19:00"},
+    "2026-11-05": [{"name": "FOMC Rate Decision", "utc_time": "19:00"},
                    {"name": "FOMC Press Conference", "utc_time": "19:30"}],
-    "2026-11-07": [{"name": "US Non-Farm Payrolls", "utc_time": "13:30"},
+    "2026-11-06": [{"name": "US Non-Farm Payrolls", "utc_time": "13:30"},
                    {"name": "US Unemployment Rate", "utc_time": "13:30"}],
-    "2026-11-13": [{"name": "US CPI m/m", "utc_time": "13:30"},
+    "2026-11-12": [{"name": "US CPI m/m", "utc_time": "13:30"},
                    {"name": "US Core CPI m/m", "utc_time": "13:30"}],
-    "2026-11-27": [{"name": "US GDP q/q Second", "utc_time": "13:30"}],
-    "2026-11-28": [{"name": "US PCE Price Index", "utc_time": "13:30"}],
+    "2026-11-25": [{"name": "US GDP q/q Second", "utc_time": "13:30"}],
+    "2026-11-27": [{"name": "US PCE Price Index", "utc_time": "13:30"}],
 
     # ---- December 2026 ----
     "2026-12-04": [{"name": "US Non-Farm Payrolls", "utc_time": "13:30"},
                    {"name": "US Unemployment Rate", "utc_time": "13:30"}],
-    "2026-12-10": [{"name": "US CPI m/m", "utc_time": "13:30"},
+    "2026-12-11": [{"name": "US CPI m/m", "utc_time": "13:30"},
                    {"name": "US Core CPI m/m", "utc_time": "13:30"}],
     "2026-12-16": [{"name": "FOMC Rate Decision", "utc_time": "19:00"},
                    {"name": "FOMC Press Conference", "utc_time": "19:30"}],
-    "2026-12-19": [{"name": "US PCE Price Index", "utc_time": "13:30"}],
-    "2026-12-23": [{"name": "US GDP q/q Third", "utc_time": "13:30"}],
+    "2026-12-18": [{"name": "US PCE Price Index", "utc_time": "13:30"}],
+    "2026-12-22": [{"name": "US GDP q/q Third", "utc_time": "13:30"}],
 }
 
 
@@ -131,21 +131,18 @@ def is_near_news_event(now: Optional[datetime] = None) -> Tuple[bool, str]:
     try:
         now = (now or datetime.now(IST)).astimezone(UTC)
         calendar = _load_calendar()
+        yesterday_str = (now - timedelta(days=1)).strftime("%Y-%m-%d")
         today_str = now.strftime("%Y-%m-%d")
         tomorrow_str = (now + timedelta(days=1)).strftime("%Y-%m-%d")
 
-        # Check today and tomorrow (events near midnight can span both)
-        for date_str in (today_str, tomorrow_str):
+        # Check yesterday, today, and tomorrow (events near midnight span adjacent days)
+        for date_str in (yesterday_str, today_str, tomorrow_str):
             for event in calendar.get(date_str, []):
                 try:
                     h, m = map(int, event["utc_time"].split(":"))
-                    event_utc = now.replace(
-                        hour=h, minute=m, second=0, microsecond=0,
-                        tzinfo=UTC
+                    event_utc = datetime.strptime(date_str, "%Y-%m-%d").replace(
+                        hour=h, minute=m, second=0, microsecond=0, tzinfo=UTC
                     )
-                    # Adjust date if we're checking tomorrow's events
-                    if date_str == tomorrow_str:
-                        event_utc += timedelta(days=1)
 
                     delta_min = abs((now - event_utc).total_seconds()) / 60
                     if delta_min <= NEWS_BLACKOUT_MINUTES:

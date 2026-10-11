@@ -33,7 +33,7 @@ from src.backtesting.metrics import (
     drop_best_worst,
     k_eff_correction,
 )
-from src.strategies.portfolio_v5_9_leg import PORTFOLIO as PORTFOLIO_V5
+from src.strategies.portfolio_v5_6_leg import PORTFOLIO as PORTFOLIO_V5
 
 # -- Config mirrors live system -----------------------------------------------
 CFG = EngineConfig(
@@ -64,7 +64,7 @@ def main():
     print(SEP)
     print("  ULTRA CORE -- FULL METRICS REPORT")
     print(f"  Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S IST')}")
-    print(f"  Portfolio: portfolio_v5_9_leg  ({len(PORTFOLIO_V5)} strategies)")
+    print(f"  Portfolio: portfolio_v5_6_leg  ({len(PORTFOLIO_V5)} strategies)")
     print(SEP)
 
     print("\nLoading XAUUSD data (M15/M5/M1/D1)...")
@@ -236,7 +236,7 @@ def main():
     out_path.parent.mkdir(parents=True, exist_ok=True)
     report = {
         "generated_at": datetime.now().isoformat(),
-        "portfolio": "portfolio_v5_9_leg",
+        "portfolio": "portfolio_v5_6_leg",
         "n_trades": stats.trades,
         "core_metrics": stats.to_dict(),
         "bootstrap": bs,

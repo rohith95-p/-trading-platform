@@ -1041,13 +1041,24 @@ class BacktestEngine:
                         actionable_signals.append((s, sig))
 
                     if actionable_signals:
-                        # HIGHLANDER RULE
+                        # HIGHLANDER RULE: Execute only highest conviction signal
                         rank_order = {
+                            "NVMR_TARGET_10_V5": 6,
+                            "NVMR_TARGET_10": 6,
+                            "BB_MEAN_REVERSION_V5": 5,
+                            "BB_MEAN_REVERSION": 5,
                             "FVG_NY_SWEEP_OR_VOID": 5,
                             "FVG_NY_SWEEP": 4,
                             "FVG_NY_VOID": 3,
+                            "FVG_NY_TIGHT_V5": 2,
                             "FVG_NY_TIGHT": 2,
+                            "TREND_PULLBACK_V5": 2,
+                            "TREND_PULLBACK": 2,
                             "FVG_ASIA_SWEEP": 1,
+                            "NY_LIQUIDITY_EXPANSION_V5": 1,
+                            "NY_LIQUIDITY_EXPANSION": 1,
+                            "PDHLR_STRATEGY_V5": 1,
+                            "PDHLR_STRATEGY": 1,
                         }
                         actionable_signals.sort(key=lambda x: rank_order.get(x[0].name.upper(), 0), reverse=True)
                         best_s, best_sig = actionable_signals[0]

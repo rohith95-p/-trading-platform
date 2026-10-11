@@ -90,19 +90,25 @@ class TestPortfolioConfiguration:
     
     def test_portfolio_strategy_count(self):
         """Current portfolio must match documented configuration."""
-        from src.strategies.portfolio_v4 import PORTFOLIO_V4
+        from src.strategies.portfolio_v5_6_leg import PORTFOLIO as PORTFOLIO_V5
         
-        assert len(PORTFOLIO_V4) == 2, (
-            f"PORTFOLIO_V4 has {len(PORTFOLIO_V4)} strategies, expected 2. "
-            "Current config: NVMR_TARGET_10 + LARS_LONDON"
+        assert len(PORTFOLIO_V5) == 6, (
+            f"PORTFOLIO_V5 has {len(PORTFOLIO_V5)} strategies, expected 6."
         )
     
     def test_portfolio_strategy_names(self):
         """Verify expected strategies are in the portfolio."""
-        from src.strategies.portfolio_v4 import PORTFOLIO_V4
+        from src.strategies.portfolio_v5_6_leg import PORTFOLIO as PORTFOLIO_V5
         
-        strategy_names = [cls().name for cls in PORTFOLIO_V4]
-        expected = {'NVMR_TARGET_10', 'LARS_LONDON'}
+        strategy_names = [cls().name for cls in PORTFOLIO_V5]
+        expected = {
+            'TREND_PULLBACK_V5',
+            'BB_MEAN_REVERSION_V5',
+            'NVMR_TARGET_10_V5',
+            'FVG_NY_TIGHT_V5',
+            'PDHLR_STRATEGY_V5',
+            'NY_LIQUIDITY_EXPANSION_V5'
+        }
         actual = set(strategy_names)
         
         assert actual == expected, (
