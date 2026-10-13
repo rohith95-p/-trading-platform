@@ -84,6 +84,13 @@ class TestRiskControls:
         
         assert getattr(risk_rules, 'ENFORCE', False) is True, "Circuit breakers must be enforced, not in shadow mode."
 
+    def test_default_risk_pct(self):
+        """P0-5: Default risk per trade must not exceed 2% (0.02)."""
+        from src.core.risk_manager import DEFAULT_RISK_PCT
+        assert DEFAULT_RISK_PCT <= 0.02, (
+            f"DEFAULT_RISK_PCT is {DEFAULT_RISK_PCT}, expected <= 0.02 (2%)"
+        )
+
 
 class TestPortfolioConfiguration:
     """Tests for current live portfolio composition."""

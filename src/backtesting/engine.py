@@ -252,7 +252,7 @@ class EngineConfig:
 
     symbol: str = "XAUUSDm"
     starting_balance: float = 105.74
-    risk_pct: float = 0.15
+    risk_pct: float = 0.02
 
     # Live-loop fidelity
     history_bars: int = 250          # M15 bars main_loop hands strategies

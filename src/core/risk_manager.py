@@ -44,11 +44,8 @@ DAILY_LOSS_LIMIT_PCT = 0.06     # Halt for the day after -6% of balance
 # RISK PER TRADE. Backtesting on 17 months of broker data shows this is the
 # single largest threat to the account: at 0.15 the minimum tradeable position
 # on XAUUSDm already risks 15-20% of a $105 balance, and three losses in a row
-# is roughly -45%. Left at the documented value pending an explicit decision --
-# see account_growth_rule.md. 0.02 or lower is the defensible setting, and it
-# only becomes reachable above roughly $800 of balance because the broker's
-# 0.01 lot floor sets a hard minimum risk of ~$15.84 per trade at current ATR.
-DEFAULT_RISK_PCT = 0.15
+# is roughly -45%. Lowered to 0.02 (2% per trade) per audit P0-5.
+DEFAULT_RISK_PCT = 0.02
 
 MAX_SPREAD_POINTS = 350         # ~$0.35 on XAUUSDm (digits=3, point=0.001)
 
@@ -304,7 +301,7 @@ class RiskManager:
         Args:
             entry_price: The expected entry price.
             sl_price: The calculated stop-loss price.
-            risk_pct: The percentage of the account balance to risk (default 15%).
+            risk_pct: The percentage of the account balance to risk (default 2%).
             
         Returns:
             The normalized lot size (clamped by broker limits).
