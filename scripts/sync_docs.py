@@ -58,17 +58,21 @@ def replace_block(path: Path, new_content: str) -> bool:
 # ── strategy introspection ────────────────────────────────────────────────────
 
 def get_portfolio_meta() -> list[dict]:
-    """Import PORTFOLIO_V4 and extract metadata from each strategy class."""
+    """Import PORTFOLIO from portfolio_v5_6_leg and extract metadata from each strategy class."""
     sys.path.insert(0, str(REPO_ROOT))
-    from src.strategies.portfolio_v4 import PORTFOLIO_V4
+    from src.strategies.portfolio_v5_6_leg import PORTFOLIO
     legs = []
-    for cls in PORTFOLIO_V4:
+    for cls in PORTFOLIO:
         inst = cls()
+        sess = getattr(inst, "session", (0.0, 24.0))
+        s_start = f"{int(sess[0]):02d}:{int((sess[0] % 1) * 60):02d}"
+        s_end = f"{int(sess[1]):02d}:{int((sess[1] % 1) * 60):02d}"
         legs.append({
             "name":    getattr(inst, "name",    cls.__name__),
             "magic":   getattr(inst, "magic",   "?"),
             "sl_atr":  getattr(inst, "sl_atr_mult", "?"),
             "tp_atr":  getattr(inst, "tp_atr_mult", "?"),
+            "session": f"{s_start}–{s_end}",
             "cls":     cls,
         })
     return legs
@@ -82,7 +86,7 @@ def run_30day_backtest(legs_meta: list[dict]) -> dict:
         from src.backtesting.data import load_bars
         from src.backtesting.engine import BacktestEngine, EngineConfig
         from src.backtesting.costs import SCENARIOS
-        from src.strategies.portfolio_v4 import PORTFOLIO_V4
+        from src.strategies.portfolio_v5_6_leg import PORTFOLIO
 
         bars = load_bars("XAUUSDm", timeframes=("M15", "M5", "M1", "D1"))
 
@@ -95,7 +99,7 @@ def run_30day_backtest(legs_meta: list[dict]) -> dict:
             symbol="XAUUSDm",
             starting_balance=100.0,
             sizing_mode="fixed",
-            fixed_lots=0.01,
+            fixed_lots=0.02,
             dedup_per_candle=True,
             max_concurrent=2,
             max_same_direction=2,
@@ -110,7 +114,7 @@ def run_30day_backtest(legs_meta: list[dict]) -> dict:
         )
 
         eng = BacktestEngine(bars=bars, cost=SCENARIOS["realistic"], config=cfg)
-        res = eng.run([cls() for cls in PORTFOLIO_V4], start_ts=start_ts, end_ts=end_ts)
+        res = eng.run([cls() for cls in PORTFOLIO], start_ts=start_ts, end_ts=end_ts)
 
         IST = 5.5 * 3600
         balance = 100.0
@@ -177,7 +181,7 @@ def _session_for(name: str) -> str:
 def gen_repo_guide_block(legs: list[dict], bt: dict) -> str:
     today = datetime.now().strftime("%Y-%m-%d")
     rows = "\n".join(
-        f"| `{l['name']}` | {l['magic']} | {_session_for(l['name'])} | "
+        f"| `{l['name']}` | {l['magic']} | {l.get('session', _session_for(l['name']))} | "
         f"{l['sl_atr']} / {l['tp_atr']} | |"
         for l in legs
     )
@@ -188,21 +192,28 @@ def gen_repo_guide_block(legs: list[dict], bt: dict) -> str:
         bt_line = (
             f"\n**Last-30-day snapshot** ({bt['start']} → {bt['end']}): "
             f"{bt['trades']} trades · {bt['wr']:.1f}% WR · PF {pf_s} · "
-            f"{sign}${bt['net_pl']:.2f} net."
+            f"{sign}${bt['net_pl']:.2f} net. See `research/validation_ledger.json` fingerprint `14b5467a4f969b25`."
         )
-    return f"""`main_loop` runs **`PORTFOLIO_V4`** from `src/strategies/portfolio_v4.py`
+    return f"""`main_loop` runs **`PORTFOLIO_V5`** (4-leg pruned core) from `src/strategies/portfolio_v5_6_leg.py`
 _(last synced {today} by `scripts/sync_docs.py`)_:
 
 | Leg | Magic | Session IST | SL/TP ×ATR | Notes |
 |---|---|---|---|---|
 {rows}
+
+Retired legs (in `RETIRED_LEGS`, not run live):
+
+| Leg | Magic | Reason |
+|---|---|---|
+| `PDHLR_STRATEGY_V5` | 5008 | PF 0.795, −$617.35 net — severe drag |
+| `NY_LIQUIDITY_EXPANSION_V5` | 5009 | PF 0.953, −$39.08 net — sub-1.0 drag |
 {bt_line}"""
 
 
 def gen_battle_plan_block(legs: list[dict], bt: dict) -> str:
     today = datetime.now().strftime("%Y-%m-%d")
     rows = "\n".join(
-        f"| {l['name']} | {_session_for(l['name'])} | {l['sl_atr']} / {l['tp_atr']} |"
+        f"| {l['name']} | {l.get('session', _session_for(l['name']))} | {l['sl_atr']} / {l['tp_atr']} |"
         for l in legs
     )
     bt_line = ""
@@ -213,7 +224,7 @@ def gen_battle_plan_block(legs: list[dict], bt: dict) -> str:
             f"\n**Last-30-day:** {bt['trades']} trades · {bt['wr']:.1f}% WR · "
             f"PF {pf_s} · {sign}${bt['net_pl']:.2f}"
         )
-    return f"""The bot currently runs **PORTFOLIO_V4** (updated {today}):
+    return f"""The bot currently runs **PORTFOLIO_V5** (4-leg pruned core, updated {today}):
 
 | Leg | Session (IST) | SL / TP (×ATR) |
 |---|---|---|
@@ -273,7 +284,7 @@ def main() -> int:
 
     changed += replace_block(repo_guide,     gen_repo_guide_block(legs, bt))
     changed += replace_block(battle_plan,    gen_battle_plan_block(legs, bt))
-    changed += replace_block(strategy_reg,   gen_strategy_registry_block(legs, bt))
+    # Note: docs/research/ is locked per Rule 2; STRATEGY_REGISTRY.md is read-only.
 
     print(f"\n{'=' * 60}")
     print(f"  Sync complete. {changed} file(s) updated.")
