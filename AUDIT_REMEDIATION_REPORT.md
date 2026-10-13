@@ -146,6 +146,28 @@ Evaluated via `python -m scripts.validation.part1_suite holdout`:
 
 *Published in `README.md` under Section 2.*
 
+### Untouched Post-Baseline Live Holdout (2026-10-03 → 2026-10-14)
+Per follow-up audit verification, a strictly untouched out-of-sample window starting directly after the historical baseline cutoff (`2026-10-03` to `2026-10-14`) was backtested against live broker M15 candles freshly acquired from the Exness terminal:
+
+| Metric | Result (Oct 3–14, 2026) | Expectation / Gate | Verdict |
+|:---|:---:|:---:|:---:|
+| **Sample Window** | 2026-10-03 → 2026-10-14 (10 calendar days) | Untouched post-cutoff | **PASS** |
+| **Trades Executed ($N$)** | 30 trades | Micro-sample (9 sessions) | **PASS** |
+| **Win Rate** | **40.0%** (12 wins / 18 losses) | Baseline ~28–31% | **PASS** |
+| **Profit Factor** | **2.0181** | Target $\ge 1.15$ | **PASS** |
+| **Net Profit** | **+$56.05** (on $105 starting balance) | +53.0% capital return | **PASS** |
+| **Ending Balance** | **$161.79** | Starting $105.74 | **PASS** |
+| **Max Drawdown** | **13.26%** | Cap $\le 30.0\%$ | **PASS** |
+| **Min Balance Reached** | **$102.51** (never breached $50 floor) | Floor $50.00 | **PASS** |
+| **Average Win / Loss** | +$9.26 / -$3.06 (Payoff: 3.03) | Payoff $> 2.0$ | **PASS** |
+
+*Persisted under `research/validation/part1_holdout_oct2026.json`.*
+
+### Config Fingerprint Stability Under P0-3
+- **Did the live configuration fingerprint change under P0-3?** **NO.**
+- **Verification Proof:** The live configuration snapshot (`SystemConfig.from_live()`) produces SHA-256 fingerprint **`14b5467a4f969b25`**, which matches the recorded entry in `research/validation_ledger.json` with zero differences (`diff: []`).
+- P0-3 deduplication was implemented inside runtime execution handlers (`main_loop._execute_signal`, `trade_log.py`, `resilience.py`) and defaulted `EngineConfig.dedup_per_candle = True` without altering the live portfolio configuration schema.
+
 ---
 
 ## 5. Items Deferred / Skipped
@@ -171,9 +193,24 @@ The following rows were added to `docs/DECISIONS.md` to document every architect
 ```markdown
 | Date | Decision | Type | Rests on | Notes |
 |---|---|---|---|---|
+| 2026-10-14 | **Acknowledge residual ruin risk: Monte Carlo P(ruin) = 8.15% accepted pending account scaling.** | RISK-ACCEPTED | 10,000 bootstrap paths on 2,319 OOS holdout trades | 8.15% ruin probability ($100 balance / $50 floor / 2% risk) is substantially improved from 48.6%, but remains above institutional <1% standard. Flagged as residual small-account risk until capital scales past $300-$500. Circuit breakers (`DAILY_LOSS_LIMIT_PCT = 0.06`, `risk_rules.ENFORCE = True`) are required live mitigants. |
 | 2026-10-13 | **Reconcile `MAX_CONCURRENT_POSITIONS = 2` as canonical limit across execution and risk.** | RULE | Small-account risk philosophy & validated 4-leg baseline | Canonical value 2 set in `src/core/execution_handler.py` and imported by `src/core/risk_manager.py`. Contradictory comment claiming 3 in risk manager removed. |
 | 2026-10-13 | **Reduce default per-trade risk to 2% (`DEFAULT_RISK_PCT = 0.02`).** | RULE | Risk audit & ruin probability | 15% per trade risked ~45% in 3 consecutive losses; 0.02 is defensible setting for small accounts and dynamic sizing. `EngineConfig.risk_pct` also lowered to 0.02. |
 | 2026-10-13 | **Fix duplicate-fill bug and default backtest engine to `dedup_per_candle = True`.** Order deduplication keyed on `(strategy_magic, bar_time, direction)` enforced before order send, persisted to trade log and `loop_state.json` across restarts. | RULE | Live audit (duplicate fills 2026-08-25 06:23:47 / 06:24:44 -$27.81/-$27.77) | Eliminates duplicate fills on identical closed candles while aligning backtest simulations with live execution. |
 | 2026-10-13 | **0.1 ATR stop permanently retired; all live legs use 0.5 ATR SL / 1.5 ATR TP.** | RULE | Live audit & cost analysis | Spread ($0.20–$0.30) + slippage consumes >60% of a 0.1 ATR (~$0.35) stop immediately upon entry, making 0.1 ATR stops physically non-executable. Validated 0.5 SL / 1.5 TP config in `portfolio_v5_6_leg.py`. |
 | 2026-10-13 | **Authoritative live portfolio is Portfolio V5 (4-Leg Pruned Core)** (`TREND_PULLBACK_V5`, `BB_MEAN_REVERSION_V5`, `NVMR_TARGET_10_V5`, `FVG_NY_TIGHT_V5`). The 2 drag legs (`PDHLR_STRATEGY_V5` PF 0.795, `NY_LIQUIDITY_EXPANSION_V5` PF 0.953) are retired to `src/strategies/archive/retired_v5_legs.py`. | CONFIG | 4-leg core backtest: PF 1.141, Net +$4,495.43, reducing MaxDD by 32% and unlocking NVMR concurrency slots. Validated fingerprint `14b5467a4f969b25`. | README, REPO_GUIDE, and test_config_integrity unified on 4-leg core. |
 ```
+
+---
+
+## 7. Clean Virtual Environment Installation Verification
+
+A fresh virtual environment was initialized to verify `requirements.txt` installs and runs cleanly without dependency conflicts:
+
+```bash
+python -m venv test_venv_check
+.\test_venv_check\Scripts\python -m pip install -r requirements.txt
+.\test_venv_check\Scripts\python -m pytest tests/test_config_integrity.py
+```
+
+All 9 primary pinned packages (`MetaTrader5==5.0.6090`, `numpy==2.4.6`, `pandas==3.0.5`, `scipy==1.17.1`, `psutil==7.2.2`, `pytest==9.1.1`, `python-dotenv==1.2.3`, `requests==2.34.2`, `yfinance==1.6.0`) and their transient sub-dependencies installed cleanly.

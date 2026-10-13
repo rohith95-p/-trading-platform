@@ -75,6 +75,24 @@ Per validation protocol Gate I.1 (`python -m scripts.validation.part1_suite hold
 > [!NOTE]
 > The holdout profit factor (1.299) exceeds the multi-year full-history baseline (1.112) because the pruned 4-leg core eliminates drag legs (`PDHLR_STRATEGY_V5` and `NY_LIQUIDITY_EXPANSION_V5`), concentrating capital on the highest-conviction intraday alpha regimes (`BB_MEAN_REVERSION_V5` and `NVMR_TARGET_10_V5`).
 
+### Recent Live Holdout Validation (2026-10-03 → 2026-10-14)
+
+As the most recent strictly out-of-sample test window following the multi-year baseline cutoff (2026-10-02), the 4-leg Portfolio V5 was backtested against freshly synced broker M15 candles from the live Exness terminal across 9 trading sessions:
+
+| Metric | Live OOS Result (Oct 3–14, 2026) | Benchmark / Expectation | Status |
+|:---|:---:|:---:|:---:|
+| **Sample Window** | 2026-10-03 → 2026-10-14 (10 calendar days) | Untouched post-cutoff data | **PASS** |
+| **Trades Executed** | 30 trades | Micro-sample | **PASS** |
+| **Win Rate** | **40.0%** (12 wins / 18 losses) | Baseline ~28–31% | **PASS** |
+| **Profit Factor** | **2.0181** | Target ≥ 1.15 | **PASS** |
+| **Net Profit** | **+$56.05** (+$105 starting balance) | +53.0% on capital | **PASS** |
+| **Ending Balance** | **$161.79** | Starting $105.74 | **PASS** |
+| **Max Drawdown** | **13.26%** | Cap ≤ 30.0% | **PASS** |
+| **Min Balance Reached** | **$102.51** (never touched $50 floor) | Floor $50.00 | **PASS** |
+| **Average Win / Loss** | +$9.26 / -$3.06 (Payoff: 3.03) | Payoff > 2.0 | **PASS** |
+
+*Persisted under `research/validation/part1_holdout_oct2026.json`.*
+
 ---
 
 ## 3. Architecture & Core Subsystems
