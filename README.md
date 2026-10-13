@@ -147,8 +147,8 @@ ultra_core/
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/rohith95-p/-trading-platform.git
-cd -trading-platform
+git clone https://github.com/rohith95-p/trading-platform.git
+cd trading-platform
 
 # 2. Install dependencies
 pip install -r requirements.txt
