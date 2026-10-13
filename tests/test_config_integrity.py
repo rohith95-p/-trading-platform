@@ -119,6 +119,12 @@ class TestPortfolioConfiguration:
         assert len(PORTFOLIO_6_LEG) == 6
         assert len(RETIRED_LEGS) == 2
 
+    def test_main_loop_portfolio_matches(self):
+        """main_loop's PORTFOLIO_V5 must exactly match portfolio_v5_6_leg.PORTFOLIO."""
+        from src.core.main_loop import PORTFOLIO_V5
+        from src.strategies.portfolio_v5_6_leg import PORTFOLIO
+        assert PORTFOLIO_V5 == PORTFOLIO
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

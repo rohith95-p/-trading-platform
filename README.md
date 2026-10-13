@@ -1,7 +1,7 @@
 # Ultra Core — Algorithmic Trading Platform
 
 > **Status: DEMO / PAPER-TRADING VALIDATION** | Platform: MetaTrader 5 | Symbol: `XAUUSDm` (Gold Spot CFD) | Python 3.11  
-> **Active Portfolio:** Portfolio V5 (6-Leg Core) | **Config Fingerprint:** `17a0b9e6f716de82` | **Enforce Circuit Breakers:** `True`
+> **Active Portfolio:** Portfolio V5 (4-Leg Pruned Core) | **Config Fingerprint:** `14b5467a4f969b25` | **Enforce Circuit Breakers:** `True`
 
 ---
 
@@ -13,7 +13,7 @@ Ultra Core is an automated quantitative trading platform engineered for gold spo
 
 While historical backtests in coarse environments claimed astronomical returns (e.g., $8,000+ profit and 3.3+ profit factors under a theoretical 0.1 ATR micro-stop), comprehensive forensic audits revealed that **0.1 ATR stop loss (~$0.35 on gold) is physically unviable in live market execution** due to gold spreads ($0.20–$0.30) and slippage consuming over 60% of the stop distance immediately upon entry. Furthermore, coarse 15-minute historical backtests suffered from intra-bar execution artifacts where wicks were not checked on the entry candle.
 
-Under realistic ECN cost models (spread + slippage + commission) and validated tick/minute execution, the live 6-leg Portfolio V5 (`sl_atr_mult=0.5, tp_atr_mult=1.5`) exhibits:
+Under realistic ECN cost models (spread + slippage + commission) and validated tick/minute execution, the live 4-leg Portfolio V5 (`sl_atr_mult=0.5, tp_atr_mult=1.5`) exhibits:
 - **Profit Factor:** **1.112** (Long-run 4.2-year validation)
 - **Net Profit:** +$3,963.03 (on 4.2 years of historical data)
 - **Max Drawdown:** **$1,846.81 (33.88%)** with a duration of **314.9 days**
@@ -45,7 +45,7 @@ The baseline configuration is hashed and recorded in `research/validation_ledger
 
 ### Leg-by-Leg Attribution
 
-Forensic analysis of the 6 legs reveals that portfolio alpha is concentrated in 4 core strategies, while 2 legs dilute performance:
+Forensic analysis of all 6 tracked strategies (4 active + 2 retired) reveals that portfolio alpha is concentrated in 4 core strategies. The 2 drag legs were retired from the live `PORTFOLIO` list and moved to `RETIRED_LEGS` for audit traceability:
 
 | Strategy | Magic | Session (IST) | Trades | Win Rate | Net P&L | Profit Factor | Status |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -75,7 +75,7 @@ ultra_core/
 │   │   ├── validation_ledger.py# SystemConfig SHA-256 fingerprint validation
 │   │   └── alerts.py           # Telegram bot & webhook dispatch
 │   ├── strategies/             # Strategy implementations
-│   │   ├── portfolio_v5_6_leg.py # Active 6-leg portfolio definition
+│   │   ├── portfolio_v5_6_leg.py # Active 4-leg portfolio (PORTFOLIO) + RETIRED_LEGS + PORTFOLIO_6_LEG audit ref
 │   │   ├── grid_strategies.py  # TrendPullback & BBMeanReversion
 │   │   ├── bible_strategies.py # NVMR & PDHLR (repaired date math)
 │   │   └── ny_liquidity_expansion.py
@@ -101,7 +101,7 @@ ultra_core/
 ## 4. Key Engineering Fixes & Structural Alignment
 
 1. **Highlander Conviction Arbiter Alignment**:
-   `src/core/main_loop.py` and `src/backtesting/engine.py` were using legacy portfolio keys in `rank_order`. Both now map all active portfolio strategies (`NVMR_TARGET_10_V5`, `BB_MEAN_REVERSION_V5`, `FVG_NY_TIGHT_V5`, `TREND_PULLBACK_V5`, `PDHLR_STRATEGY_V5`, `NY_LIQUIDITY_EXPANSION_V5`, and aliases), correctly executing only the highest risk-adjusted conviction signal per candle.
+   `src/core/main_loop.py` and `src/backtesting/engine.py` were using legacy portfolio keys in `rank_order`. Both now map all tracked strategies (`NVMR_TARGET_10_V5`, `BB_MEAN_REVERSION_V5`, `FVG_NY_TIGHT_V5`, `TREND_PULLBACK_V5`, and aliases), correctly executing only the highest risk-adjusted conviction signal per candle.
 
 2. **Candle Deduplication Clock Independence**:
    Replaced local system epoch eviction with broker-candle timestamp math (`signal_candle - 7200`), completely eliminating clock drift and premature signal re-firing.

@@ -45,7 +45,7 @@ from src.core import news_filter  # III.5 -- blocks entries around tier-1 macro 
 # EMAStack (rohith phase 2, HYP-027) superseded 2026-09-01 by the 4-leg
 # portfolio below -- kept in src/strategies/ema_stack.py for reference but
 # no longer imported here.
-from src.strategies.portfolio_v5_6_leg import PORTFOLIO as PORTFOLIO_V5  # 6 legs: Validated core (removed losing ASIAN_RANGE, FX_OVERLAP, LIQ_SWEEP)
+from src.strategies.portfolio_v5_6_leg import PORTFOLIO as PORTFOLIO_V5  # 4 legs: Validated core (pruned from 6)
 
 # IST offset
 IST = timezone(timedelta(hours=5, minutes=30))

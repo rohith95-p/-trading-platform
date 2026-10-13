@@ -100,9 +100,9 @@ src/
     validation_ledger.py      config fingerprint record + startup check
     system_config.py          the dataclass that gets fingerprinted
     trade_log.py              structured JSONL event log → logs/trades/YYYY-MM-DD.jsonl
-    alerts.py                 alert stubs (no channel wired yet)
+    alerts.py                 Telegram bot & webhook dispatch (requires ULTRA_ALERT_TELEGRAM_TOKEN + ULTRA_ALERT_TELEGRAM_CHAT in .env.local)
   strategies/
-    portfolio_v4.py           LIVE: PORTFOLIO_V4 list + every leg class (live + benched)
+    portfolio_v5_6_leg.py     LIVE: PORTFOLIO list (4 legs) + RETIRED_LEGS + PORTFOLIO_6_LEG audit reference
     base_strategy.py          BaseStrategy / Signal / mt5 shim
     ema_stack.py, luxalgo_fvg.py, supertrend_ema.py, trend_sniper_sar.py
                               RESEARCH ONLY — not imported by main_loop
@@ -197,33 +197,21 @@ on every leg).
 
 ## 6. Known loose ends (as of 2026-09-17)
 
-1. **Config-integrity gate — CLEARED.** The live config is 3 legs
-   (`EMASTACK_LONDON_TIGHT` + `FVG_NY_TIGHT` + `FVG_NY_SWEEP_OR_VOID`),
-   D1-gate-ON, fingerprint **`710d28770d67e362`**, recorded in
+1. **Config-integrity gate — CLEARED.** The live config is 4 legs (PORTFOLIO_V5:
+   `TREND_PULLBACK_V5` + `BB_MEAN_REVERSION_V5` + `NVMR_TARGET_10_V5` + `FVG_NY_TIGHT_V5`),
+   D1-gate-ON, fingerprint **`14b5467a4f969b25`**, recorded in
    `research/validation_ledger.json`. `main_loop` starts.
-   **But the recorded OOS holdout (2025-01-01 → 2026-05-20) FAILS I.1 on
-   drawdown:** n=768, PF 1.23, net +$792, min balance $104.20, **maxDD 50.68%
-   (> the 45% bar)**. NY-only FVG legs correlate; `EMASTACK` adds a London
-   session but is itself net-negative solo (PF 0.81). The gate only checks
-   "was this run and written down", not "was it good" — the I.1 failure is in
-   the ledger entry. Live by owner decision; **drawdown is the thing to watch**.
 2. **`ENABLE_TRAILING` is `False`** — correct and must stay that way. If you see
    it `True` again, that's a regression (DECISIONS.md 2026-09-03).
-3. **`README.md` is stale** — describes the 4-leg session-specialist portfolio.
-   This guide supersedes it.
+3. **`README.md` and `REPO_GUIDE.md` are now in sync** with the code (audit fix P0-1, 2026-10-13).
 4. **`docs/trade_logs/LIVE_TRADE_HISTORY.md` stops at 2026-09-09** —
    re-run the mt5-trade-auditor skill to update.
 5. **`scripts/paper_test_review.py` has stale magics** (`3011–3014` = the old
    legs). The live magics are `3012` + `3013` + `3022`. Fix before relying on
    the weekly live-vs-backtest comparison.
-6. **Rulebook partially written.** `risk_rules.py` contains the full II.3/II.4/II.5
-   logic but `ENFORCE=False`. Flip only after backtesting the laddered config.
-7. **EMASTACK removal (open owner decision).** HYP-073 is now the THIRD
-   independent result showing that removing `EMASTACK_LONDON_TIGHT` from the
-   portfolio improves I.1, I.3, and I.7 gate passage. The 2-leg FVG config
-   (TIGHT+SOV) passes I.1 (PF 1.64, maxDD 31%). EMASTACK addition causes the
-   3-leg config to fail all three gates. Owner decision needed per `DECISIONS.md`
-   open item 5.
+6. **Rulebook fully enforced.** `risk_rules.py` contains the full II.3/II.4/II.5
+   logic and `ENFORCE=True`. The laddered config is active.
+7. **EMASTACK removal — RESOLVED (2026-09-17).** Owner decided: remove EMASTACK and run the 2-leg FVG config. Portfolio was subsequently upgraded to V5 4-leg core (2026-10-02).
 8. **News filter now wired** (`src/core/news_filter.py`). Calendar covers Q4-2026.
    Update `docs/plans/news_calendar.json` monthly with events from Forex Factory.
    Telegram alert credentials still needed in `.env.local`.

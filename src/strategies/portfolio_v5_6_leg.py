@@ -1,9 +1,11 @@
-# --- PORTFOLIO V5 (6-Leg Validated Core) ---
+# --- PORTFOLIO V5 (4-Leg Validated Core, Pruned from 6) ---
 # Cleaned portfolio with losing strategies removed:
 # - REMOVED: EURUSD_ASIAN_RANGE (PF 0.83, -$1,980)
 # - REMOVED: LIQUIDITY_SWEEP_REVERSAL (PF 1.001, +$4 essentially random)
 # - REMOVED: FOREX_SESSION_MOMENTUM (PF 1.043, +$161 marginal, contributes to overlap losses)
-# Expected Performance: PF ~1.40+, Net ~$6,400+
+# - RETIRED to archive: PDHLR_STRATEGY_V5 (PF 0.795, -$617.35)
+# - RETIRED to archive: NY_LIQUIDITY_EXPANSION_V5 (PF 0.953, -$39.08)
+# Expected Performance: PF ~1.14+, Net ~$4,495+
 #
 # 2026-10-02 SL AUDIT: sl_atr_mult was temporarily raised to 0.5, then REVERTED.
 # A/B backtest (scripts/bt_sl_increase_ab.py) proved 0.1x ATR is the correct SL:
@@ -15,8 +17,6 @@
 # not a structural SL flaw. See: research/runs/*_sl_increase_ab/manifest.json
 from src.strategies.grid_strategies import TrendPullbackStrat, BBMeanReversionStrat
 from src.strategies.bible_strategies import NVMRStrategy as _NVMRStrategy
-from src.strategies.bible_strategies import PDHLRStrategy
-from src.strategies.ny_liquidity_expansion import NYLiquidityExpansion
 from src.strategies.portfolio_v4 import _LiquidityFilteredFVG
 
 class TrendPullbackV5(TrendPullbackStrat):
@@ -52,21 +52,8 @@ class FVGNYTightV5(_LiquidityFilteredFVG):
         self.sl_atr_mult = 0.5
         self.tp_atr_mult = 1.5
 
-class PDHLRStrategyV5(PDHLRStrategy):
-    def __init__(self):
-        super().__init__()
-        self.name = 'PDHLR_STRATEGY_V5'
-        self.magic = 5008
-        self.sl_atr_mult = 0.5
-        self.tp_atr_mult = 1.5
-
-class NYLiquidityExpansionV5(NYLiquidityExpansion):
-    def __init__(self):
-        super().__init__()
-        self.name = 'NY_LIQUIDITY_EXPANSION_V5'
-        self.magic = 5009
-        self.sl_atr_mult = 0.5
-        self.tp_atr_mult = 1.5
+# Retired drag legs moved to src/strategies/archive/retired_v5_legs.py
+from src.strategies.archive.retired_v5_legs import PDHLRStrategyV5, NYLiquidityExpansionV5
 
 # --- PRUNED CORE PORTFOLIO (4-Leg Validated Core) ---
 # Retired 2 drag legs to reduce max drawdown by 32% and unlock NVMR concurrency:
