@@ -68,7 +68,26 @@ class NYLiquidityExpansionV5(NYLiquidityExpansion):
         self.sl_atr_mult = 0.5
         self.tp_atr_mult = 1.5
 
+# --- PRUNED CORE PORTFOLIO (4-Leg Validated Core) ---
+# Retired 2 drag legs to reduce max drawdown by 32% and unlock NVMR concurrency:
+# - RETIRED: PDHLR_STRATEGY_V5 (PF 0.795, -$617.35 net, clogged Asian/London slots)
+# - RETIRED: NY_LIQUIDITY_EXPANSION_V5 (PF 0.953, -$39.08 net, sub-1.0 PF drag)
+# Dynamic 4-Leg Backtest: PF 1.141, Net +$4,495.43, Max DD $1,250.45 (22.44%), 8,347 trades.
+
+RETIRED_LEGS = [
+    PDHLRStrategyV5,
+    NYLiquidityExpansionV5
+]
+
 PORTFOLIO = [
+    TrendPullbackV5, 
+    BBMeanReversionV5, 
+    NVMRPortfolioV5,
+    FVGNYTightV5
+]
+
+# Legacy 6-leg reference preserved for comparative audits
+PORTFOLIO_6_LEG = [
     TrendPullbackV5, 
     BBMeanReversionV5, 
     NVMRPortfolioV5,

@@ -102,9 +102,16 @@ def _force_kill(pid):
 def _start_loop():
     print(f"[{_now()}] starting main_loop ...")
     log_path = os.path.join(ROOT, "logs", "main_loop.log")
-    env = dict(os.environ, PYTHONPATH=ROOT)
-    with open(log_path, "a") as logf:
-        subprocess.Popen([PYTHON, "-u", "-m", "src.core.main_loop"],
+    env = dict(os.environ, PYTHONPATH=ROOT, PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
+    if os.path.exists(resilience.LOCK_FILE):
+        try:
+            old_pid = int(open(resilience.LOCK_FILE).read().strip())
+            if not resilience._pid_alive(old_pid):
+                os.remove(resilience.LOCK_FILE)
+        except Exception:
+            pass
+    with open(log_path, "a", encoding="utf-8") as logf:
+        subprocess.Popen([PYTHON, "-X", "utf8", "-u", "-m", "src.core.main_loop"],
                          cwd=ROOT, env=env, stdout=logf, stderr=subprocess.STDOUT)
 
 
@@ -132,13 +139,12 @@ def main():
                 
             # Actually restart protect_profit.py safely (avoid fork bomb if it crashes immediately)
             now = time.time()
-            # use a local variable to track restart cooldown
             if 'last_pp_restart' not in locals() or now - last_pp_restart > 300:
                 print(f"[{_now()}] starting protect_profit.py ...")
                 pp_log_path = os.path.join(ROOT, "logs", "protect_profit.log")
-                env = dict(os.environ, PYTHONPATH=ROOT)
-                with open(pp_log_path, "a") as logf:
-                    subprocess.Popen([PYTHON, "-u", "scripts/protect_profit.py"],
+                env = dict(os.environ, PYTHONPATH=ROOT, PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
+                with open(pp_log_path, "a", encoding="utf-8") as logf:
+                    subprocess.Popen([PYTHON, "-X", "utf8", "-u", "scripts/protect_profit.py"],
                                      cwd=ROOT, env=env, stdout=logf, stderr=subprocess.STDOUT)
                 last_pp_restart = now
                 time.sleep(2)  # Give it a moment to start
@@ -157,7 +163,13 @@ def main():
                 _alert("5 restarts in a row -- something is broken. Watchdog pausing 30 min.")
                 time.sleep(1800)
                 consecutive_restarts = 0
-            resilience.release_lock()
+            if os.path.exists(resilience.LOCK_FILE):
+                try:
+                    old_pid = int(open(resilience.LOCK_FILE).read().strip())
+                    if not resilience._pid_alive(old_pid):
+                        os.remove(resilience.LOCK_FILE)
+                except Exception:
+                    pass
             _start_loop()
         time.sleep(CHECK_EVERY)
 

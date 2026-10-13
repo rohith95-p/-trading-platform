@@ -89,31 +89,35 @@ class TestPortfolioConfiguration:
     """Tests for current live portfolio composition."""
     
     def test_portfolio_strategy_count(self):
-        """Current portfolio must match documented configuration."""
-        from src.strategies.portfolio_v5_6_leg import PORTFOLIO as PORTFOLIO_V5
+        """Current portfolio must match documented 4-leg configuration."""
+        from src.strategies.portfolio_v5_6_leg import PORTFOLIO
         
-        assert len(PORTFOLIO_V5) == 6, (
-            f"PORTFOLIO_V5 has {len(PORTFOLIO_V5)} strategies, expected 6."
+        assert len(PORTFOLIO) == 4, (
+            f"PORTFOLIO has {len(PORTFOLIO)} strategies, expected 4."
         )
     
     def test_portfolio_strategy_names(self):
-        """Verify expected strategies are in the portfolio."""
-        from src.strategies.portfolio_v5_6_leg import PORTFOLIO as PORTFOLIO_V5
+        """Verify expected active strategies are in the pruned portfolio."""
+        from src.strategies.portfolio_v5_6_leg import PORTFOLIO
         
-        strategy_names = [cls().name for cls in PORTFOLIO_V5]
+        strategy_names = [cls().name for cls in PORTFOLIO]
         expected = {
             'TREND_PULLBACK_V5',
             'BB_MEAN_REVERSION_V5',
             'NVMR_TARGET_10_V5',
-            'FVG_NY_TIGHT_V5',
-            'PDHLR_STRATEGY_V5',
-            'NY_LIQUIDITY_EXPANSION_V5'
+            'FVG_NY_TIGHT_V5'
         }
         actual = set(strategy_names)
         
         assert actual == expected, (
             f"Portfolio strategies: {actual}, expected: {expected}"
         )
+
+    def test_legacy_6_leg_preserved(self):
+        """Ensure legacy 6-leg strategies are preserved for auditing and not lost."""
+        from src.strategies.portfolio_v5_6_leg import PORTFOLIO_6_LEG, RETIRED_LEGS
+        assert len(PORTFOLIO_6_LEG) == 6
+        assert len(RETIRED_LEGS) == 2
 
 
 if __name__ == "__main__":

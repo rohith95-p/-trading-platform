@@ -17,14 +17,22 @@ IST = timezone(timedelta(hours=5, minutes=30))
 
 def get_strategy_name(ticket, log_file_path):
     """
-    Find strategy name by matching closed trade to nearest preceding order.
-    Since closed trades don't store strategy (bug in main_loop.py line 597),
-    we match by timestamp proximity.
+    Find strategy name by querying MT5 deal comments, or falling back
+    to log matching.
     """
+    try:
+        if mt5.initialize():
+            deals = mt5.history_deals_get(position=ticket)
+            if deals:
+                for d in deals:
+                    if d.comment and not d.comment.startswith("[tp") and not d.comment.startswith("[sl") and d.comment != "protect_profit":
+                        return d.comment
+    except Exception:
+        pass
+
     if not log_file_path.exists():
         return "Unknown"
     
-    # Build list of all orders with their timestamps and strategies
     orders = []
     closed_time = None
     
@@ -34,8 +42,6 @@ def get_strategy_name(ticket, log_file_path):
                 continue
             try:
                 entry = json.loads(line)
-                
-                # Store order entries
                 if entry.get("kind") == "order":
                     orders.append({
                         'ts': entry.get('ts'),
@@ -43,20 +49,14 @@ def get_strategy_name(ticket, log_file_path):
                         'direction': entry.get('direction'),
                         'price': entry.get('price')
                     })
-                
-                # Find our closed trade's timestamp
                 if entry.get("kind") == "closed" and entry.get("ticket") == ticket:
                     closed_time = entry.get('ts')
-            except:
+            except Exception:
                 continue
     
-    # If we found the closed time, find the nearest preceding order
     if closed_time and orders:
-        # Find orders that happened before this close (within 60 minutes)
-        candidates = [o for o in orders if o['ts'] < closed_time and (closed_time - o['ts']) < 3600]
-        
+        candidates = [o for o in orders if o['ts'] <= closed_time and (closed_time - o['ts']) < 86400]
         if candidates:
-            # Return the most recent order before the close
             nearest = max(candidates, key=lambda x: x['ts'])
             return nearest['strategy']
     

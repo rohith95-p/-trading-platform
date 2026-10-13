@@ -21,7 +21,7 @@ class SizingLadder:
     LADDER = [
         # Phase 1: Survival mode (highest risk, most constrained)
         (0.0,    0.01, 1, 0.01),    # < $100: 1 position only, survive
-        (100.0,  0.01, 1, 0.01),    # $100-200: still 1 position, 4-9% risk
+        (100.0,  0.01, 2, 0.02),    # $100-200: 2 positions, max 0.02 exposure
         
         # Phase 2: Growth begins
         (200.0,  0.01, 2, 0.02),    # $200-400: 2 positions, 2-4% risk

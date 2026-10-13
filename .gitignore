@@ -86,5 +86,6 @@ research/data/*.npy
 # reports/LAST_WEEK_ANALYSIS_AND_RISK_ASSESSMENT.md
 # reports/PATH_TO_10_USD_PER_DAY.md
 
-# Lock files
+# Lock & runtime control files
 *.lock
+STOP

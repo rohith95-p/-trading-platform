@@ -1875,5 +1875,143 @@
         }
       ]
     }
+  },
+  {
+    "fingerprint": "14b5467a4f969b25",
+    "recorded_at": "2026-10-12T03:28:21.328250+00:00",
+    "source": "simulate_4leg_portfolio.py",
+    "result": {
+      "trades": 8347,
+      "win_rate": 28.6,
+      "gross_profit": 36335.81,
+      "gross_loss": 31840.39,
+      "net_pl": 4495.43,
+      "profit_factor": 1.141,
+      "expectancy": 0.5386,
+      "avg_win": 15.22,
+      "avg_loss": 5.34,
+      "payoff_ratio": 2.85,
+      "max_drawdown": 1250.45,
+      "max_drawdown_pct": 22.44,
+      "max_drawdown_duration_days": 362.3,
+      "recovery_factor": 3.595,
+      "max_consec_losses": 37,
+      "calmar_ratio": 507.01,
+      "sortino_ratio": 0.135,
+      "omega_ratio": 1.141,
+      "by_strategy": {
+        "TREND_PULLBACK_V5": {
+          "trades": 4592,
+          "wins": 1271,
+          "net_pl": 1437.12,
+          "gross_profit": 17511.64,
+          "gross_loss": 16074.51,
+          "win_rate": 27.7,
+          "profit_factor": 1.089
+        },
+        "NVMR_TARGET_10_V5": {
+          "trades": 780,
+          "wins": 235,
+          "net_pl": 805.12,
+          "gross_profit": 4412.03,
+          "gross_loss": 3606.91,
+          "win_rate": 30.1,
+          "profit_factor": 1.223
+        },
+        "FVG_NY_TIGHT_V5": {
+          "trades": 2225,
+          "wins": 639,
+          "net_pl": 1037.36,
+          "gross_profit": 10356.1,
+          "gross_loss": 9318.75,
+          "win_rate": 28.7,
+          "profit_factor": 1.111
+        },
+        "BB_MEAN_REVERSION_V5": {
+          "trades": 750,
+          "wins": 242,
+          "net_pl": 1215.83,
+          "gross_profit": 4056.05,
+          "gross_loss": 2840.22,
+          "win_rate": 32.3,
+          "profit_factor": 1.428
+        }
+      },
+      "start_balance": 105.74,
+      "end_balance": 4601.17
+    },
+    "notes": "Pruned 4-leg core portfolio (retired PDHLR_STRATEGY_V5 and NY_LIQUIDITY_EXPANSION_V5, unblocking NVMR concurrency slots)",
+    "config": {
+      "symbol": "XAUUSDm",
+      "fixed_lot_size": 0.02,
+      "max_concurrent_positions": 2,
+      "max_same_direction_positions": 2,
+      "max_total_volume": 0.04,
+      "enable_trailing": false,
+      "enable_pyramiding": false,
+      "enable_d1_gate": true,
+      "direction_gate": "d1_ema20",
+      "daily_loss_limit_pct": 0.06,
+      "trading_window_ist": [
+        6.0,
+        21.5
+      ],
+      "risk_rules_enforced": true,
+      "macro_override_active": false,
+      "strategies": [
+        {
+          "name": "BB_MEAN_REVERSION_V5",
+          "magic": 5002,
+          "candidate_id": "",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 1.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "FVG_NY_TIGHT_V5",
+          "magic": 5005,
+          "candidate_id": "XAU-092",
+          "session": [
+            17.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 1.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "NVMR_TARGET_10_V5",
+          "magic": 5003,
+          "candidate_id": "",
+          "session": [
+            0.0,
+            24.0
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 1.5,
+          "edge_trigger": false,
+          "execute_immediately": true
+        },
+        {
+          "name": "TREND_PULLBACK_V5",
+          "magic": 5001,
+          "candidate_id": "",
+          "session": [
+            11.5,
+            21.5
+          ],
+          "sl_atr_mult": 0.5,
+          "tp_atr_mult": 1.5,
+          "edge_trigger": true,
+          "execute_immediately": true
+        }
+      ]
+    }
   }
 ]

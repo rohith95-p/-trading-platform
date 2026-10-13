@@ -27,6 +27,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+import time as _time
 
 try:
     from dotenv import load_dotenv
@@ -38,7 +39,7 @@ log = logging.getLogger(__name__)
 
 IST = timezone(timedelta(hours=5, minutes=30))
 ALERT_LOG = os.path.join("logs", "alerts.log")
-TIMEOUT = 8
+TIMEOUT = 15
 
 # Severity prefixes so a phone notification is triage-able at a glance.
 INFO, WARN, CRITICAL = "INFO", "WARN", "CRITICAL"
@@ -65,15 +66,19 @@ def _telegram(text: str) -> bool:
     chat = os.environ.get("ULTRA_ALERT_TELEGRAM_CHAT") or os.environ.get("TELEGRAM_CHAT_ID")
     if not token or not chat:
         return False
-    try:
-        data = urllib.parse.urlencode({"chat_id": chat, "text": text}).encode()
-        req = urllib.request.Request(
-            f"https://api.telegram.org/bot{token}/sendMessage", data=data)
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
-            return bool(200 <= getattr(r, 'status', 500) < 300)
-    except (urllib.error.URLError, OSError, ValueError) as e:
-        log.warning(f"telegram alert failed: {e}")
-        return False
+    data = urllib.parse.urlencode({"chat_id": chat, "text": text}).encode()
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{token}/sendMessage", data=data)
+    for attempt in range(2):
+        try:
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+                return bool(200 <= getattr(r, 'status', 500) < 300)
+        except (urllib.error.URLError, OSError, ValueError) as e:
+            if attempt == 0:
+                _time.sleep(1.0)
+                continue
+            log.warning(f"telegram alert failed: {e}")
+            return False
 
 
 def _webhook(text: str, severity: str) -> bool:

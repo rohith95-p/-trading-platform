@@ -25,8 +25,8 @@ from datetime import datetime, timezone, timedelta
 IST = timezone(timedelta(hours=5, minutes=30))
 SYMBOL = "XAUUSDm"
 POLL = 20
-GIVEBACK_PEAK = 4.0
-GIVEBACK_FLOOR = 1.5
+GIVEBACK_PEAK = 6.0   # only protect once peak profit >= $6
+GIVEBACK_FLOOR = 1.0  # close if profit falls back below $1 (was $1.5 -- too tight)
 MIN_GREEN = 0.5      # only act when at least this much in profit
 COOLDOWN_MIN = 45    # after a reversal close, block that leg from re-entering
 
