@@ -101,15 +101,17 @@ class TestPortfolioConfiguration:
     
     def test_portfolio_strategy_count(self):
         """Current portfolio must match documented 4-leg configuration."""
-        from src.strategies.portfolio_v5_6_leg import PORTFOLIO
+        from src.strategies.portfolio_v5_core import PORTFOLIO
+        from src.strategies.portfolio_v5_6_leg import PORTFOLIO as SHIM_PORTFOLIO
         
         assert len(PORTFOLIO) == 4, (
             f"PORTFOLIO has {len(PORTFOLIO)} strategies, expected 4."
         )
+        assert PORTFOLIO == SHIM_PORTFOLIO, "portfolio_v5_6_leg shim must match portfolio_v5_core"
     
     def test_portfolio_strategy_names(self):
         """Verify expected active strategies are in the pruned portfolio."""
-        from src.strategies.portfolio_v5_6_leg import PORTFOLIO
+        from src.strategies.portfolio_v5_core import PORTFOLIO
         
         strategy_names = [cls().name for cls in PORTFOLIO]
         expected = {
@@ -126,14 +128,14 @@ class TestPortfolioConfiguration:
 
     def test_legacy_6_leg_preserved(self):
         """Ensure legacy 6-leg strategies are preserved for auditing and not lost."""
-        from src.strategies.portfolio_v5_6_leg import PORTFOLIO_6_LEG, RETIRED_LEGS
+        from src.strategies.portfolio_v5_core import PORTFOLIO_6_LEG, RETIRED_LEGS
         assert len(PORTFOLIO_6_LEG) == 6
         assert len(RETIRED_LEGS) == 2
 
     def test_main_loop_portfolio_matches(self):
-        """main_loop's PORTFOLIO_V5 must exactly match portfolio_v5_6_leg.PORTFOLIO."""
+        """main_loop's PORTFOLIO_V5 must exactly match portfolio_v5_core.PORTFOLIO."""
         from src.core.main_loop import PORTFOLIO_V5
-        from src.strategies.portfolio_v5_6_leg import PORTFOLIO
+        from src.strategies.portfolio_v5_core import PORTFOLIO
         assert PORTFOLIO_V5 == PORTFOLIO
 
     def test_live_strategies_sl_atr_mult_floor(self):
@@ -141,7 +143,7 @@ class TestPortfolioConfiguration:
         P0-2: Every live strategy's sl_atr_mult must be >= 0.3.
         Fails if anyone reintroduces physically unviable 0.1 ATR micro-stops.
         """
-        from src.strategies.portfolio_v5_6_leg import PORTFOLIO
+        from src.strategies.portfolio_v5_core import PORTFOLIO
         for cls in PORTFOLIO:
             inst = cls()
             assert hasattr(inst, "sl_atr_mult"), f"{inst.name} missing sl_atr_mult"
