@@ -264,7 +264,9 @@ class EngineConfig:
     # Behaviour switches (defaults reproduce the VALIDATED live config -- see
     # main_loop.py ENABLE_TRAILING / ENABLE_PYRAMIDING and the A/B test at
     # lines 82-96 proving both are net-negative at PF 0.592 / -$93.59).
-    dedup_per_candle: bool = False
+    # P0-3 fix: dedup_per_candle default set to True so the backtest engine
+    # reproduces live deduplication (at most one order per strategy per candle).
+    dedup_per_candle: bool = True
     max_concurrent: int = 2           # live validated with 2 concurrent positions
     max_same_direction: int = 2
     enable_pyramiding: bool = False   # net-negative; see main_loop.py ENABLE_PYRAMIDING

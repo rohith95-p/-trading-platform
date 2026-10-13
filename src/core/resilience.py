@@ -110,15 +110,18 @@ def heartbeat() -> None:
 # ---------------------------------------------------------------------------
 
 def save_state(last_fired_candle: dict, drawdown_shutdown: bool,
-               shutdown_date: Any) -> None:
+               shutdown_date: Any, executed_dedup_keys: Optional[list] = None) -> None:
     try:
+        data = {
+            "last_fired_candle": last_fired_candle,
+            "drawdown_shutdown": bool(drawdown_shutdown),
+            "shutdown_date": str(shutdown_date) if shutdown_date else None,
+            "saved_at": datetime.now(IST).isoformat(),
+        }
+        if executed_dedup_keys is not None:
+            data["executed_dedup_keys"] = executed_dedup_keys
         with open(STATE_FILE, "w") as f:
-            json.dump({
-                "last_fired_candle": last_fired_candle,
-                "drawdown_shutdown": bool(drawdown_shutdown),
-                "shutdown_date": str(shutdown_date) if shutdown_date else None,
-                "saved_at": datetime.now(IST).isoformat(),
-            }, f)
+            json.dump(data, f)
     except OSError:
         pass
 

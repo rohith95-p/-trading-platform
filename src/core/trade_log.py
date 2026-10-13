@@ -68,9 +68,11 @@ def signal(strategy: str, direction: str, action: str, reason: str = "", **ctx) 
 def order(strategy: str, direction: str, lots: float, price: Optional[float] = None,
           sl: Optional[float] = None, tp: Optional[float] = None,
           retcode: Optional[int] = None, ticket: Optional[int] = None,
-          comment: str = "", **ctx) -> None:
+          comment: str = "", dedup_key: Optional[str] = None,
+          bar_time: Optional[int] = None, **ctx) -> None:
     write(ORDER, strategy=strategy, direction=direction, lots=lots, price=price,
-          sl=sl, tp=tp, retcode=retcode, ticket=ticket, comment=comment, **ctx)
+          sl=sl, tp=tp, retcode=retcode, ticket=ticket, comment=comment,
+          dedup_key=dedup_key, bar_time=bar_time, **ctx)
 
 
 def position_closed(strategy: str, ticket: Optional[int], profit: float, **ctx) -> None:
@@ -89,7 +91,45 @@ def error(where: str, message: str, **ctx) -> None:
     write(ERROR, where=where, message=message, **ctx)
 
 
-# --- Reading back, for the weekly paper-test review ------------------------
+# --- Reading back, for the weekly paper-test review & dedup restart ---------
+
+def load_order_dedup_keys(days: int = 2) -> set[tuple[int, int, str]]:
+    """Scan recent trade logs and return set of (magic, bar_time, direction) tuples.
+    Persists across process restarts so duplicate fills can never occur."""
+    keys: set[tuple[int, int, str]] = set()
+    now = datetime.now(IST)
+    for d in range(days):
+        day = (now - timedelta(days=d)).date()
+        p = os.path.join(LOG_DIR, f"{day.isoformat()}.jsonl")
+        if not os.path.exists(p):
+            continue
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                    except ValueError:
+                        continue
+                    if rec.get("kind") == ORDER:
+                        magic = rec.get("magic")
+                        bar_time = rec.get("bar_time") or rec.get("candle")
+                        direction = rec.get("direction")
+                        if magic is not None and bar_time is not None and direction is not None:
+                            keys.add((int(magic), int(bar_time), str(direction).upper()))
+                        elif rec.get("dedup_key"):
+                            parts = str(rec["dedup_key"]).split(":")
+                            if len(parts) == 3:
+                                try:
+                                    keys.add((int(parts[0]), int(parts[1]), str(parts[2]).upper()))
+                                except ValueError:
+                                    pass
+        except Exception as e:
+            log.warning(f"Failed to read dedup keys from {p}: {e}")
+    return keys
+
 
 def read_range(start: datetime, end: datetime) -> List[Dict[str, Any]]:
     """All events with ts in [start, end), across daily files."""

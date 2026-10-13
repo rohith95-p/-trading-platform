@@ -50,6 +50,9 @@ from src.strategies.portfolio_v5_6_leg import PORTFOLIO as PORTFOLIO_V5  # 4 leg
 # IST offset
 IST = timezone(timedelta(hours=5, minutes=30))
 
+# P0-3: Global dedup set for (magic, bar_time, direction) to prevent duplicate fills
+EXECUTED_ORDERS_DEDUP: set = set()
+
 # ---------------------------------------------------------------------------
 # Logging (IST timestamps)
 # ---------------------------------------------------------------------------
@@ -198,11 +201,8 @@ def _run_guarded():
     drawdown_shutdown = False
     shutdown_date = None
 
-    # CRIT-1: the loop re-reads the same closed M15 candle every 60s, so an
-    # unchanged signal fires up to 15 times and opens duplicate positions one
-    # minute apart. Live evidence: 2026-08-25 06:23:47 and 06:24:44, both SHORT,
-    # -$27.81 and -$27.77. Record the candle each strategy last acted on and
-    # refuse to act on it twice.
+    # CRIT-1 / P0-3: Dedup mechanisms to ensure signals never re-fire on the same candle.
+    # Record the candle each strategy last acted on and refuse to act on it twice.
     last_fired_candle: dict = {s.name: None for s in strategies}
 
     # Restore loop state so a restart mid-candle can't re-fire a signal.
@@ -215,6 +215,19 @@ def _run_guarded():
         drawdown_shutdown = True
         shutdown_date = datetime.now(IST).date()
         log.info("STATE: daily drawdown shutdown restored for today.")
+
+    # P0-3: Restore (magic, bar_time, direction) dedup keys from trade log & state file
+    executed_orders_dedup = trade_log.load_order_dedup_keys()
+    if _saved.get("executed_dedup_keys"):
+        for item in _saved["executed_dedup_keys"]:
+            if isinstance(item, (list, tuple)) and len(item) == 3:
+                try:
+                    executed_orders_dedup.add((int(item[0]), int(item[1]), str(item[2]).upper()))
+                except (ValueError, TypeError):
+                    pass
+    EXECUTED_ORDERS_DEDUP.clear()
+    EXECUTED_ORDERS_DEDUP.update(executed_orders_dedup)
+    log.info(f"DEDUP: Initialized {len(executed_orders_dedup)} executed order dedup keys.")
 
     mt5_fail_count = 0
 
@@ -263,7 +276,8 @@ def _run_guarded():
                 current_date = now_ist.date()
             resilience.heartbeat()
             resilience.push_heartbeat_external()  # Phase 3.4: external uptime monitor ping
-            resilience.save_state(last_fired_candle, drawdown_shutdown, shutdown_date)
+            resilience.save_state(last_fired_candle, drawdown_shutdown, shutdown_date,
+                                  executed_dedup_keys=[list(k) for k in executed_orders_dedup])
 
             # Feed closed-trade results to the risk_rules streak breakers. Runs
             # every loop -- a stop can fill while the bot is in drawdown_shutdown.
@@ -440,9 +454,13 @@ def _run_guarded():
             # It is the deduplication key: it stays constant for 15 minutes.
             signal_candle = int(m15_rates[-2]["time"])
             
-            # Clear stale dedup entries older than 2 hours (8 candles) based on candle timestamp
+            # Clear stale dedup entries based on candle timestamp
             stale_cutoff = signal_candle - 7200
             last_fired_candle = {k: v for k, v in last_fired_candle.items() if v is not None and v >= stale_cutoff}
+            stale_order_cutoff = signal_candle - 86400  # 24 hours
+            executed_orders_dedup = {k for k in executed_orders_dedup if k[1] >= stale_order_cutoff}
+            EXECUTED_ORDERS_DEDUP.clear()
+            EXECUTED_ORDERS_DEDUP.update(executed_orders_dedup)
             
             actionable_signals = []
 
@@ -523,6 +541,7 @@ def _run_guarded():
                 _execute_signal(
                     best_signal, m15_rates, fetcher, risk, executor,
                     session_mult, session_name, best_strategy,
+                    executed_orders_dedup=executed_orders_dedup,
                 )
                 last_fired_candle[best_strategy.name] = signal_candle
                 
@@ -710,7 +729,7 @@ def _d1_bias_allows(signal, d1_bias, strategy_name: str) -> bool:
     return True
 
 
-def _execute_signal(signal, m15_rates, fetcher, risk, executor, session_mult, session_name, strategy=None):
+def _execute_signal(signal, m15_rates, fetcher, risk, executor, session_mult, session_name, strategy=None, executed_orders_dedup=None):
     """Calculate stops and execute a signal.
 
     `strategy` is optional so every existing caller keeps working unchanged.
@@ -777,6 +796,24 @@ def _execute_signal(signal, m15_rates, fetcher, risk, executor, session_mult, se
     except Exception as _e:  # shadow logging must never break execution
         log.debug(f"risk_rules shadow evaluation skipped: {_e}")
 
+    # P0-3: Strict deduplication before placing order: (strategy_magic, bar_time, direction)
+    bar_time = int(m15_rates[-2]["time"]) if m15_rates is not None and len(m15_rates) >= 2 else 0
+    dir_str = signal.direction_str.upper()
+    dedup_key = (int(signal.magic), bar_time, dir_str)
+
+    dedup_set = executed_orders_dedup if executed_orders_dedup is not None else EXECUTED_ORDERS_DEDUP
+    if dedup_key in dedup_set:
+        log.warning(
+            f"[{signal.strategy_name}] DUPLICATE ORDER BLOCKED by key {dedup_key} "
+            f"(order already placed for bar {bar_time}). Refusing duplicate fill."
+        )
+        trade_log.signal(
+            signal.strategy_name, signal.direction_str, "deduped",
+            f"duplicate order key {dedup_key}", candle=bar_time,
+            session=session_name
+        )
+        return None
+
     # Owner's rule: fixed 0.02 lots, no dynamic sizing. The 0.15 risk_pct sizer
     # put 0.02-0.03 lots on a ~$105 account (live, 2026-09-02). ExecutionHandler
     # also hard-caps this, but the call site now states the intent.
@@ -794,6 +831,8 @@ def _execute_signal(signal, m15_rates, fetcher, risk, executor, session_mult, se
         session=session_name,
     )
 
+    dedup_set.add(dedup_key)
+
     trade_log.order(
         strategy=signal.strategy_name, direction=signal.direction_str, lots=lot_size,
         price=price, sl=stops.sl, tp=stops.tp,
@@ -801,6 +840,8 @@ def _execute_signal(signal, m15_rates, fetcher, risk, executor, session_mult, se
         ticket=getattr(result, "order", None),
         atr=stops.atr, sl_atr_mult=sl_mult, tp_atr_mult=tp_mult,
         session=session_name, magic=signal.magic,
+        bar_time=bar_time,
+        dedup_key=f"{signal.magic}:{bar_time}:{dir_str}",
     )
     
     # Notify entry
