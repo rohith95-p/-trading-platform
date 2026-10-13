@@ -56,12 +56,16 @@ class TestPositionLimits:
         )
     
     def test_max_concurrent_positions(self):
-        """Concurrent position limit must match validated config."""
+        """Concurrent position limit must match validated config (2) across execution and risk."""
         from src.core.execution_handler import MAX_CONCURRENT_POSITIONS
+        from src.core.risk_manager import MAX_CONCURRENT_POSITIONS as RM_MAX_CONCURRENT_POSITIONS
         
         assert MAX_CONCURRENT_POSITIONS == 2, (
             f"MAX_CONCURRENT_POSITIONS is {MAX_CONCURRENT_POSITIONS}. "
             "Current portfolio validated with 2 positions max."
+        )
+        assert RM_MAX_CONCURRENT_POSITIONS == 2, (
+            f"RM_MAX_CONCURRENT_POSITIONS is {RM_MAX_CONCURRENT_POSITIONS}, expected 2."
         )
 
 

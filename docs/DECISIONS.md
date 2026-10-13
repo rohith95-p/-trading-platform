@@ -18,6 +18,7 @@ if it's decided, it's here, and it's not re-litigated without *new evidence*.
 
 | Date | Decision | Type | Rests on | Notes |
 |---|---|---|---|---|
+| 2026-10-13 | **Reconcile `MAX_CONCURRENT_POSITIONS = 2` as canonical limit across execution and risk.** | RULE | Small-account risk philosophy & validated 4-leg baseline | Canonical value 2 set in `src/core/execution_handler.py` and imported by `src/core/risk_manager.py`. Contradictory comment claiming 3 in risk manager removed. |
 | 2026-10-13 | **Reduce default per-trade risk to 2% (`DEFAULT_RISK_PCT = 0.02`).** | RULE | Risk audit & ruin probability | 15% per trade risked ~45% in 3 consecutive losses; 0.02 is defensible setting for small accounts and dynamic sizing. `EngineConfig.risk_pct` also lowered to 0.02. |
 | 2026-10-13 | **Fix duplicate-fill bug and default backtest engine to `dedup_per_candle = True`.** Order deduplication keyed on `(strategy_magic, bar_time, direction)` enforced before order send, persisted to trade log and `loop_state.json` across restarts. | RULE | Live audit (duplicate fills 2026-08-25 06:23:47 / 06:24:44 -$27.81/-$27.77) | Eliminates duplicate fills on identical closed candles while aligning backtest simulations with live execution. |
 | 2026-10-13 | **0.1 ATR stop permanently retired; all live legs use 0.5 ATR SL / 1.5 ATR TP.** | RULE | Live audit & cost analysis | Spread ($0.20–$0.30) + slippage consumes >60% of a 0.1 ATR (~$0.35) stop immediately upon entry, making 0.1 ATR stops physically non-executable. Validated 0.5 SL / 1.5 TP config in `portfolio_v5_6_leg.py`. |

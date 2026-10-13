@@ -49,9 +49,8 @@ DEFAULT_RISK_PCT = 0.02
 
 MAX_SPREAD_POINTS = 350         # ~$0.35 on XAUUSDm (digits=3, point=0.001)
 
-# NOTE: the enforced concurrent-position limit lives in ExecutionHandler and is
-# 3, not 2. The constant that used to sit here was never read by anything and
-# has been removed rather than left to contradict the code.
+# Canonical concurrent-position limit defined in ExecutionHandler (2 for small-account safety)
+from src.core.execution_handler import MAX_CONCURRENT_POSITIONS
 
 # Session definitions (IST hours)
 # London Open (GOLDEN):   11:30 - 15:30 IST  -> mult 1.5
