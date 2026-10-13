@@ -125,6 +125,26 @@ class TestPortfolioConfiguration:
         from src.strategies.portfolio_v5_6_leg import PORTFOLIO
         assert PORTFOLIO_V5 == PORTFOLIO
 
+    def test_live_strategies_sl_atr_mult_floor(self):
+        """
+        P0-2: Every live strategy's sl_atr_mult must be >= 0.3.
+        Fails if anyone reintroduces physically unviable 0.1 ATR micro-stops.
+        """
+        from src.strategies.portfolio_v5_6_leg import PORTFOLIO
+        for cls in PORTFOLIO:
+            inst = cls()
+            assert hasattr(inst, "sl_atr_mult"), f"{inst.name} missing sl_atr_mult"
+            assert inst.sl_atr_mult >= 0.3, (
+                f"{inst.name} has sl_atr_mult={inst.sl_atr_mult} < 0.3. "
+                "0.1 ATR stops are permanently retired due to spread/slippage."
+            )
+            assert inst.sl_atr_mult == 0.5, (
+                f"{inst.name} expected sl_atr_mult=0.5, got {inst.sl_atr_mult}"
+            )
+            assert inst.tp_atr_mult == 1.5, (
+                f"{inst.name} expected tp_atr_mult=1.5, got {inst.tp_atr_mult}"
+            )
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
