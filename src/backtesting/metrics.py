@@ -293,6 +293,68 @@ def bootstrap_expectancy(trades: Sequence[Any], n: int = 5000,
     }
 
 
+def bootstrap_ci_metrics(
+    trades: Sequence[Any],
+    n_resamples: int = 1000,
+    confidence_level: float = 0.95,
+    seed: int = 42,
+) -> Dict[str, Any]:
+    """Bootstrap confidence intervals for Profit Factor and Sortino Ratio (1000 resamples, 95% CI).
+
+    Resamples trade outcomes with replacement to construct empirical non-parametric
+    confidence intervals for Profit Factor and Sortino Ratio.
+    """
+    if len(trades) < 5:
+        return {}
+    rng = np.random.default_rng(seed)
+    pls = np.array([t.net_pl if hasattr(t, "net_pl") else float(t) for t in trades], dtype=float)
+    n = len(pls)
+    indices = rng.integers(0, n, size=(n_resamples, n))
+    resampled_pls = pls[indices]
+
+    # Profit Factor per resample
+    wins = np.where(resampled_pls > 0, resampled_pls, 0.0).sum(axis=1)
+    losses = -np.where(resampled_pls < 0, resampled_pls, 0.0).sum(axis=1)
+    pfs = np.divide(wins, losses, out=np.full(n_resamples, np.inf), where=losses > 0)
+
+    # Sortino Ratio per resample (mean / downside_std)
+    means = resampled_pls.mean(axis=1)
+    downside_stds = np.zeros(n_resamples)
+    for i in range(n_resamples):
+        downside = resampled_pls[i][resampled_pls[i] < 0]
+        downside_stds[i] = float(np.std(downside)) if len(downside) > 1 else 0.0
+    sortinos = np.divide(means, downside_stds, out=np.zeros(n_resamples), where=downside_stds > 0)
+
+    alpha_tail = (1.0 - confidence_level) / 2.0
+    p_low = alpha_tail * 100.0
+    p_high = (1.0 - alpha_tail) * 100.0
+
+    obs_wins = float(np.sum(np.maximum(pls, 0)))
+    obs_losses = float(np.sum(np.maximum(-pls, 0)))
+    obs_pf = round(obs_wins / obs_losses, 4) if obs_losses > 0 else float("inf")
+    obs_downside = pls[pls < 0]
+    obs_downside_std = float(np.std(obs_downside)) if len(obs_downside) > 1 else 0.0
+    obs_sortino = round(float(pls.mean()) / obs_downside_std, 4) if obs_downside_std > 0 else 0.0
+
+    return {
+        "n_trades": n,
+        "n_resamples": n_resamples,
+        "confidence_level": confidence_level,
+        "profit_factor": {
+            "observed": obs_pf,
+            "ci_lower": round(float(np.percentile(pfs, p_low)), 4),
+            "median": round(float(np.median(pfs)), 4),
+            "ci_upper": round(float(np.percentile(pfs, p_high)), 4),
+        },
+        "sortino_ratio": {
+            "observed": obs_sortino,
+            "ci_lower": round(float(np.percentile(sortinos, p_low)), 4),
+            "median": round(float(np.median(sortinos)), 4),
+            "ci_upper": round(float(np.percentile(sortinos, p_high)), 4),
+        },
+    }
+
+
 def monte_carlo_paths(trades: Sequence[Any], start_balance: float,
                       n: int = 5000, seed: int = 7) -> Dict[str, float]:
     """Reshuffle trade order to get a drawdown distribution.
