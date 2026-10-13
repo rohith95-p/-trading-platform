@@ -21,6 +21,7 @@ from datetime import datetime, timezone, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.core import resilience  # noqa: E402
 from src.core import alerts  # noqa: E402
+from src.core import trade_log  # noqa: E402
 
 IST = timezone(timedelta(hours=5, minutes=30))
 CHECK_EVERY = 30
@@ -36,10 +37,67 @@ def _now():
 
 
 def _alert(msg: str, severity: str = alerts.WARN):
-    """Real notification channel as of 2026-09-06 (IV.1). Configure via
-    ULTRA_ALERT_TELEGRAM_TOKEN/_CHAT or ULTRA_ALERT_WEBHOOK; without them this
-    still records to logs/alerts.log and stdout."""
+    """Notification channel. Sends via Telegram/webhook if configured, and records to logs/alerts.log."""
     alerts.send(msg, severity=severity, context={"source": "watchdog"})
+
+
+def _get_last_error_from_log(max_lines: int = 25) -> str:
+    """Read recent error / traceback lines from logs/main_loop.log."""
+    log_path = os.path.join(ROOT, "logs", "main_loop.log")
+    if not os.path.exists(log_path):
+        return "No main_loop.log found."
+    try:
+        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+        tail = [line.strip() for line in lines[-max_lines:] if line.strip()]
+        error_lines = [l for l in tail if "ERROR" in l or "Traceback" in l or "Exception" in l]
+        if error_lines:
+            return "\n".join(tail[-10:])
+        return "\n".join(tail[-5:]) if tail else "Log empty."
+    except Exception as e:
+        return f"Could not read log: {e}"
+
+
+def handle_main_loop_crash(consecutive_restarts: int, wait_seconds: int = 5) -> int:
+    """Handle main_loop crash: log traceback, alert, record in trade log, and restart.
+    Fires high-priority alert and exits non-zero if restart fails after 3 attempts.
+    """
+    consecutive_restarts += 1
+    traceback_snippet = _get_last_error_from_log()
+    log_msg = (
+        f"CRASH DETECTED: main_loop is down. Restart attempt #{consecutive_restarts}/3.\n"
+        f"Last log snippet:\n{traceback_snippet}"
+    )
+    print(f"[{_now()}] {log_msg}")
+
+    if consecutive_restarts >= 3:
+        fatal_msg = (
+            f"FATAL: main_loop restart failed after {consecutive_restarts} attempts! "
+            f"Watchdog terminating non-zero.\nTraceback snippet:\n{traceback_snippet}"
+        )
+        _alert(fatal_msg, severity=alerts.CRITICAL)
+        trade_log.lifecycle("watchdog_fatal_exit", attempts=consecutive_restarts, error=traceback_snippet)
+        sys.exit(1)
+
+    _alert(
+        f"main_loop crashed (attempt #{consecutive_restarts}/3) -- restarting in {wait_seconds}s.\n"
+        f"Traceback snippet:\n{traceback_snippet}",
+        severity=alerts.WARN,
+    )
+    trade_log.lifecycle("watchdog_restart", attempt=consecutive_restarts, error=traceback_snippet)
+
+    time.sleep(wait_seconds)
+
+    if os.path.exists(resilience.LOCK_FILE):
+        try:
+            old_pid = int(open(resilience.LOCK_FILE).read().strip())
+            if not resilience._pid_alive(old_pid):
+                os.remove(resilience.LOCK_FILE)
+        except Exception:
+            pass
+
+    _start_loop()
+    return consecutive_restarts
 
 
 def _protect_profit_alive() -> bool:
@@ -153,24 +211,13 @@ def main():
 
         if not _loop_alive():
             now = time.time()
-            if now - last_restart < 120:
-                consecutive_restarts += 1
-            else:
-                consecutive_restarts = 1
-            last_restart = now
-            _alert(f"main_loop down -- restart #{consecutive_restarts}")
-            if consecutive_restarts >= 5:
-                _alert("5 restarts in a row -- something is broken. Watchdog pausing 30 min.")
-                time.sleep(1800)
+            if now - last_restart > 300:
                 consecutive_restarts = 0
-            if os.path.exists(resilience.LOCK_FILE):
-                try:
-                    old_pid = int(open(resilience.LOCK_FILE).read().strip())
-                    if not resilience._pid_alive(old_pid):
-                        os.remove(resilience.LOCK_FILE)
-                except Exception:
-                    pass
-            _start_loop()
+            last_restart = now
+            consecutive_restarts = handle_main_loop_crash(consecutive_restarts, wait_seconds=5)
+        else:
+            if time.time() - last_restart > 300 and consecutive_restarts > 0:
+                consecutive_restarts = 0
         time.sleep(CHECK_EVERY)
 
 

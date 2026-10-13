@@ -1,0 +1,18 @@
+[Unit]
+Description=Ultra Core Algorithmic Trading Platform Watchdog
+After=network.target
+
+[Service]
+Type=simple
+User=trading
+WorkingDirectory=/projects/ultra_core
+Environment=PYTHONPATH=/projects/ultra_core
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/projects/ultra_core/venv/bin/python -u -m scripts.watchdog
+Restart=always
+RestartSec=10
+KillMode=mixed
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

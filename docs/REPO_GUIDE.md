@@ -39,15 +39,24 @@ Last updated: 2026-09-17. See §6 for known loose ends.
 
 | Command | What it does |
 |---|---|
-| `python -m src.core.main_loop` | **The bot.** Connects to MT5, runs `PORTFOLIO_V4`, trades within the hard rules. This is the only thing that touches the account. |
+| `python -m scripts.watchdog` | **Recommended Production Entry:** Launches and monitors `main_loop`, auto-restarts on crash, extracts tracebacks, records lifecycle events in trade log, and fires Telegram/webhook alerts. |
+| `python -m src.core.main_loop` | **Direct Bot Runner:** Connects to MT5, runs `PORTFOLIO_V5` (4-leg core), trades within the hard rules. |
 | `python -m scripts.fetch_history` | Re-download price bars from MT5 into `research/data/*.npy` (gitignored, regenerable). Do this first on a fresh clone. |
 | `python -m scripts.validation.part1_suite holdout` | The real out-of-sample edge test (2025-01-01 → 2026-05-20). Also: `walkforward montecarlo perturb randomentry regime cost ladder`. |
 | `python -m scripts.validation.aug_5legs [START] [END]` | Backtest the current legs over any window, live config, with per-leg breakdown. Defaults to August 2026. |
-| `python -m scripts.watchdog` | Restarts `main_loop` if it dies. Not auto-started; no alerting yet. |
+| `powershell -File scripts/ultra_core_watchdog_service.ps1 -Action Install` | Installs Watchdog as a Windows Scheduled Task (auto-starts on boot/logon). |
 | `python -m scripts.protect_profit` | Manual one-shot: move stops to lock in profit on open positions. Run by hand. |
 
 Everything under `scripts/` runs as `python -m scripts.<name>` from the repo
 root (they import `src.*`).
+
+### Auto-Start Watchdog Operation & Alerting
+
+The system includes a resilient watchdog (`scripts/watchdog.py`) wired to `src/core/alerts.py`:
+- **Crash Recovery:** If `main_loop` terminates or hangs (>5m heartbeat freeze), the watchdog logs the crash traceback, records a `watchdog_restart` event to `logs/trades/YYYY-MM-DD.jsonl`, dispatches a Telegram/webhook alert, waits 5s, and restarts `main_loop`.
+- **Fatal Guard:** If `main_loop` crashes 3 consecutive times, the watchdog fires a `CRITICAL` alert and terminates non-zero (`exit 1`) to prevent thrashing.
+- **Windows Auto-Start:** Run `powershell -ExecutionPolicy Bypass -File scripts/ultra_core_watchdog_service.ps1 -Action Install` to register it as an autostart task.
+- **Linux/VPS systemd:** Use `scripts/ultra-core-watchdog.service` for systemd service management.
 
 ---
 
