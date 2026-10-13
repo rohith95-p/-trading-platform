@@ -24,9 +24,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # MetaTrader5 is Windows-only; install the stub so imports don't crash
-          pip install -r requirements.txt || true
-          pip install pytest pytest-anyio
+          pip install -r requirements.txt
+          pip install pytest pytest-mock pytest-anyio
 
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short

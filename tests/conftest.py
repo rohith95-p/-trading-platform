@@ -29,6 +29,14 @@ if "MetaTrader5" not in sys.modules:
         _mt5.symbol_info_tick = lambda s: None
         _mt5.positions_get = lambda **kw: []
         _mt5.order_send = lambda r: None
+        _mt5.TIMEFRAME_M1 = 1
+        _mt5.TIMEFRAME_M5 = 5
+        _mt5.TIMEFRAME_M15 = 15
+        _mt5.TIMEFRAME_H1 = 16385
+        _mt5.TIMEFRAME_H4 = 16388
+        _mt5.TIMEFRAME_D1 = 16408
+        _mt5.copy_rates_from_pos = lambda *a, **kw: None
+        _mt5.copy_rates_range = lambda *a, **kw: None
         sys.modules["MetaTrader5"] = _mt5
 
 # Prevent any test from sending live network alerts, even if individual tests don't patch
