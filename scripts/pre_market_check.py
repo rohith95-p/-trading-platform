@@ -12,6 +12,12 @@ os.chdir(Path(__file__).resolve().parents[1])
 
 import MetaTrader5 as mt5
 
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 IST = timezone(timedelta(hours=5, minutes=30))
 
 def print_header(text):

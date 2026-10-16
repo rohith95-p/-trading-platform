@@ -2,25 +2,76 @@
 Quick Status - Fast snapshot without all the details
 For when you just want P&L and positions
 """
-import MetaTrader5 as mt5
+import os
+import sys
+import re
 from datetime import datetime
 
-mt5.initialize()
-mt5.login(198874999, '<REDACTED_PASSWORD>', 'Exness-MT5Trial11')
+# Windows console encoding fix
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
-acc = mt5.account_info()
-positions = mt5.positions_get()
-floating_pl = sum(p.profit for p in positions) if positions else 0.0
+mt5_connected = False
+acc = None
+positions = []
+try:
+    import MetaTrader5 as mt5
+    if mt5.initialize():
+        t_info = mt5.terminal_info()
+        mt5_connected = bool(t_info and getattr(t_info, "connected", False))
+        acc = mt5.account_info()
+        positions = mt5.positions_get() or []
+        mt5.shutdown()
+except Exception:
+    pass
 
-starting_balance = 154.58
-day_pl = acc.balance - starting_balance + floating_pl
+# Fallback to engine state files if MT5 direct connection is busy
+balance = None
+equity = None
+open_count = 0
+positions_detail = []
+if acc:
+    balance = acc.balance
+    equity = acc.equity
+    open_count = len(positions)
+else:
+    pos_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs", "positions.txt")
+    if os.path.exists(pos_file):
+        try:
+            with open(pos_file, "r") as f:
+                lines = [l.strip() for l in f.readlines() if l.strip()]
+            if lines:
+                m = re.search(r"bal\s+([\d\.]+)\s+eq\s+([\d\.]+)\s+open\s+(\d+)", lines[0])
+                if m:
+                    balance = float(m.group(1))
+                    equity = float(m.group(2))
+                    open_count = int(m.group(3))
+                positions_detail = lines[1:]
+        except Exception:
+            pass
+
+floating_pl = (equity - balance) if (equity is not None and balance is not None) else 0.0
 
 print(f"\n⚡ QUICK STATUS - {datetime.now().strftime('%H:%M:%S')}")
-print(f"Balance: ${acc.balance:.2f} | Day P&L: ${day_pl:+.2f} ({(day_pl/starting_balance*100):+.1f}%)")
-print(f"Open: {len(positions) if positions else 0} | Floating: ${floating_pl:+.2f}")
-if positions:
-    for p in positions:
-        print(f"  #{p.ticket}: {'BUY' if p.type==0 else 'SELL'} {p.volume} @ {p.price_open:.2f} → ${p.profit:+.2f}")
+print(f"Broker Connection: {'🟢 CONNECTED' if mt5_connected else '🔴 DISCONNECTED'}")
+if balance is not None:
+    print(f"Balance: ${balance:.2f} | Equity: ${equity:.2f} | Floating: ${floating_pl:+.2f}")
+else:
+    print("Balance: UNKNOWN (MT5 Offline)")
+print(f"Open Positions: {open_count}")
+for pd in positions_detail:
+    print(f"  {pd}")
+
+# Check heartbeat
+hb_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs", "heartbeat")
+if os.path.exists(hb_file):
+    try:
+        age = datetime.now().timestamp() - os.path.getmtime(hb_file)
+        print(f"Loop Engine: {'🟢 ACTIVE' if age <= 300 else '🔴 STALE'} ({age:.0f}s ago)")
+    except Exception:
+        pass
 print()
 
-mt5.shutdown()

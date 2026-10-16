@@ -4,9 +4,17 @@ Shows: P&L, Positions, Win Rate, PF, DD, Floating Profit, and more
 """
 import MetaTrader5 as mt5
 import json
+import os
 from datetime import datetime, timedelta
 from pathlib import Path
 import sys
+from typing import Any
+
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 def load_trades_today():
     """Load today's trades from logs"""
@@ -96,16 +104,23 @@ def calculate_stats(trades):
     net_pl = sum(t.get('pl', 0) for t in closed_trades)
     
     # Per-strategy breakdown
-    strategy_stats = {}
+    strategy_stats: dict[str, dict[str, Any]] = {}
     for t in closed_trades:
-        strat = t.get('strategy', 'UNKNOWN')
+        strat = str(t.get('strategy', 'UNKNOWN'))
         if strat not in strategy_stats:
-            strategy_stats[strat] = {'trades': 0, 'wins': 0, 'losses': 0, 'pl': 0, 'times': []}
+            strategy_stats[strat] = {
+                'trades': 0,
+                'wins': 0,
+                'losses': 0,
+                'pl': 0.0,
+                'win_rate': 0.0,
+                'times': []
+            }
         
         strategy_stats[strat]['trades'] += 1
-        strategy_stats[strat]['pl'] += t.get('pl', 0)
+        strategy_stats[strat]['pl'] += float(t.get('pl', 0.0))
         
-        if t.get('pl', 0) > 0:
+        if float(t.get('pl', 0.0)) > 0:
             strategy_stats[strat]['wins'] += 1
         else:
             strategy_stats[strat]['losses'] += 1
@@ -116,7 +131,7 @@ def calculate_stats(trades):
     
     # Calculate per-strategy win rate
     for strat, data in strategy_stats.items():
-        data['win_rate'] = (data['wins'] / data['trades'] * 100) if data['trades'] > 0 else 0
+        data['win_rate'] = float(data['wins'] / data['trades'] * 100) if data['trades'] > 0 else 0.0
     
     return {
         'total_trades': total_trades,
@@ -149,7 +164,8 @@ def main():
         print("❌ MT5 connection failed")
         return
     
-    if not mt5.login(198874999, '<REDACTED_PASSWORD>', 'Exness-MT5Trial11'):
+    _login = int(os.environ.get('MT5_LOGIN', '0'))
+    if not (_login and mt5.login(_login, os.environ.get('MT5_PASSWORD', ''), os.environ.get('MT5_SERVER', ''))):
         print("❌ MT5 login failed")
         mt5.shutdown()
         return

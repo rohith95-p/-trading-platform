@@ -17,12 +17,16 @@ handles those. Ctrl-C to stop.
     python -m scripts.protect_profit
 """
 import json
+import os
 import time
 import numpy as np
 import MetaTrader5 as mt5
 from datetime import datetime, timezone, timedelta
 
 IST = timezone(timedelta(hours=5, minutes=30))
+_LOGS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
+COOLDOWN_FILE = os.path.join(_LOGS, "cooldown.json")
+POSITIONS_FILE = os.path.join(_LOGS, "positions.txt")
 SYMBOL = "XAUUSDm"
 POLL = 20
 GIVEBACK_PEAK = 6.0   # only protect once peak profit >= $6
@@ -35,11 +39,11 @@ def _set_cooldown(leg_name):
     """Tell main_loop not to re-enter this leg for COOLDOWN_MIN minutes."""
     try:
         try:
-            cd = json.load(open("logs/cooldown.json"))
+            cd = json.load(open(COOLDOWN_FILE))
         except (OSError, ValueError):
             cd = {}
         cd[leg_name] = time.time() + COOLDOWN_MIN * 60
-        json.dump(cd, open("logs/cooldown.json", "w"))
+        json.dump(cd, open(COOLDOWN_FILE, "w"))
     except OSError:
         pass
 
@@ -109,7 +113,13 @@ def main():
             acc = mt5.account_info()
             # status file so other tools can read state without their own MT5 connection
             try:
-                lines = [f"{_ist()}  bal {acc.balance:.2f}  eq {acc.equity:.2f}  open {len(ps)}"]
+                tick = mt5.symbol_info_tick(SYMBOL)
+                t_info = mt5.terminal_info()
+                r_check = mt5.copy_rates_from_pos(SYMBOL, mt5.TIMEFRAME_M15, 0, 5)
+                last_candle_str = datetime.fromtimestamp(int(r_check["time"][-2]), tz=IST).strftime("%H:%M") if r_check is not None and len(r_check) >= 2 else "NONE"
+                conn_status = t_info.connected if t_info else False
+                bid_str = f"{tick.bid:.2f}" if tick else "NONE"
+                lines = [f"{_ist()}  bal {acc.balance:.2f}  eq {acc.equity:.2f}  open {len(ps)}  bid {bid_str}  last_M15 {last_candle_str}  conn {conn_status}"]
                 for p in ps:
                     d = "BUY" if p.type == mt5.ORDER_TYPE_BUY else "SELL"
                     lines.append(f"  #{p.ticket} {d} {p.volume} @ {p.price_open:.2f} "
@@ -117,9 +127,9 @@ def main():
                                  f"P/L {p.profit:+.2f} [{p.comment}]")
                 if ps:
                     lines.append(f"  combined {sum(p.profit for p in ps):+.2f}")
-                open("logs/positions.txt", "w").write("\n".join(lines) + "\n")
-            except Exception:
-                pass
+                open(POSITIONS_FILE, "w").write("\n".join(lines) + "\n")
+            except Exception as e:
+                open(POSITIONS_FILE, "w").write(f"ERROR in status: {e}\n")
             if not ps:
                 peak.clear()
             r = mt5.copy_rates_from_pos(SYMBOL, mt5.TIMEFRAME_M15, 0, 40)
