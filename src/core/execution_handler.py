@@ -64,6 +64,13 @@ class TradeRecord:
     atr: float
     session: str
     timestamp_ist: str
+    lots: float = 0.0
+    retcode: int = 10009  # TRADE_RETCODE_DONE: a record only exists for filled orders
+
+    @property
+    def order(self) -> int:
+        """Alias so callers can read this like an MT5 OrderSendResult."""
+        return self.ticket
 
 
 class ExecutionHandler:
@@ -292,6 +299,7 @@ class ExecutionHandler:
                     atr=atr,
                     session=session,
                     timestamp_ist=_ist_now(),
+                    lots=lot_size,
                 )
 
                 # Keep flat string for logs

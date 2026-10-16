@@ -54,3 +54,31 @@ def silence_all_alerts():
          patch("src.core.alerts._webhook", return_value=True), \
          patch("src.core.alerts.send", return_value=True) as mock_send:
         yield mock_send
+
+
+@pytest.fixture(autouse=True)
+def isolate_runtime_files(tmp_path):
+    """Keep every test away from the live bot's state and logs.
+
+    Tests used to append fake TEST_STRATEGY orders to logs/trades/*.jsonl and
+    could read/write the real risk_state.json, cooldown.json and alerts.log.
+    """
+    from src.core import trade_log, risk_rules, alerts
+    import os
+    patches = [
+        patch.object(trade_log, "LOG_DIR", str(tmp_path / "trades")),
+        patch.object(risk_rules, "STATE_PATH", str(tmp_path / "risk_state.json")),
+        patch.object(alerts, "ALERT_LOG", str(tmp_path / "alerts.log")),
+    ]
+    try:
+        from src.core import main_loop
+        patches.append(patch.object(main_loop, "_COOLDOWN_FILE", str(tmp_path / "cooldown.json")))
+    except Exception:
+        pass
+    for p in patches:
+        p.start()
+    try:
+        yield
+    finally:
+        for p in reversed(patches):
+            p.stop()

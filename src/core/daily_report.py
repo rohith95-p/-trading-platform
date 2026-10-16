@@ -6,7 +6,7 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 
-from src.core import alerts, risk_rules, news_filter
+from src.core import alerts, risk_rules, news_filter, trade_log
 
 log = logging.getLogger(__name__)
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -63,7 +63,7 @@ def generate_report(date_str: str) -> str:
     - Circuit breaker status
     - Next-24h news events
     """
-    log_dir = os.path.join("logs", "trades")
+    log_dir = trade_log.LOG_DIR
     log_path = os.path.join(log_dir, f"{date_str}.jsonl")
     trades = []
 
@@ -157,7 +157,7 @@ def send_daily_report(force: bool = False) -> None:
         date_str = (now - timedelta(days=1)).strftime("%Y-%m-%d")
 
     # Check if there was activity before sending, unless forced
-    log_path = os.path.join("logs", "trades", f"{date_str}.jsonl")
+    log_path = os.path.join(trade_log.LOG_DIR, f"{date_str}.jsonl")
     if not force and not os.path.exists(log_path):
         log.info(f"daily_report: No activity found for {date_str}, skipping report.")
         return

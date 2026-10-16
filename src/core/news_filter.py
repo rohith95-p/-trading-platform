@@ -34,7 +34,8 @@ UTC = timezone.utc
 
 # --- config ------------------------------------------------------------------
 NEWS_BLACKOUT_MINUTES = 15      # block ±this many minutes around each event
-NEWS_CALENDAR_PATH = os.path.join("docs", "plans", "news_calendar.json")
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+NEWS_CALENDAR_PATH = os.path.join(_ROOT, "docs", "plans", "news_calendar.json")
 ENABLE_NEWS_FILTER = True       # set False to bypass entirely (e.g. in tests)
 
 # ---------------------------------------------------------------------------

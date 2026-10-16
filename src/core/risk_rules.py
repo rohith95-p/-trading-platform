@@ -31,7 +31,8 @@ from typing import Optional, Tuple
 log = logging.getLogger(__name__)
 
 IST = timezone(timedelta(hours=5, minutes=30))
-STATE_PATH = os.path.join("logs", "risk_state.json")
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+STATE_PATH = os.path.join(_ROOT, "logs", "risk_state.json")
 
 # Master switch. See module docstring -- do not flip without re-validating.
 # 2026-10-09 audit fix: Risk controls must be enforced, not bypassable.

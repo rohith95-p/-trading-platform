@@ -112,9 +112,9 @@ def heartbeat() -> None:
 def save_state(last_fired_candle: dict, drawdown_shutdown: bool,
                shutdown_date: Any, executed_dedup_keys: Optional[list] = None) -> None:
     try:
-        data = {
+        data: dict[str, Any] = {
             "last_fired_candle": last_fired_candle,
-            "drawdown_shutdown": bool(drawdown_shutdown),
+            "drawdown_shutdown": drawdown_shutdown,
             "shutdown_date": str(shutdown_date) if shutdown_date else None,
             "saved_at": datetime.now(IST).isoformat(),
         }
@@ -126,12 +126,14 @@ def save_state(last_fired_candle: dict, drawdown_shutdown: bool,
         pass
 
 
-def load_state() -> dict:
+def load_state() -> dict[str, Any]:
     try:
         with open(STATE_FILE) as f:
             data = json.load(f)
-        log.info(f"STATE: restored from {data.get('saved_at')}")
-        return data
+        if isinstance(data, dict):
+            log.info(f"STATE: restored from {data.get('saved_at')}")
+            return data
+        return {}
     except (OSError, ValueError):
         return {}
 
@@ -171,11 +173,37 @@ def startup_safety_check(mt5: Any, symbol: str) -> bool:
     return ok
 
 
+def check_connection_and_freshness(mt5: Any, rates: Any = None) -> tuple[bool, str]:
+    """Check both MT5 terminal connection and rate feed freshness.
+    Returns (is_healthy, reason_str).
+    """
+    try:
+        t_info = mt5.terminal_info()
+        if t_info is None:
+            return False, "MT5 terminal_info() is None (terminal not responding)"
+        if not getattr(t_info, "connected", False):
+            return False, "MT5 terminal is disconnected from broker (connected=False)"
+    except Exception as e:
+        return False, f"MT5 terminal_info check exception: {e}"
+
+    if rates is not None and len(rates) > 0:
+        try:
+            last_bar_time = int(rates["time"][-1])
+            age_sec = time.time() - last_bar_time
+            # During active market hours (weekday), if last bar is older than 25 minutes, it's stale
+            if age_sec > 25 * 60:
+                return False, f"MT5 candle feed is STALE: last candle is {age_sec / 60:.1f} minutes old"
+        except Exception as e:
+            return False, f"Rates freshness check exception: {e}"
+
+    return True, "OK"
+
+
 # ---------------------------------------------------------------------------
 # MT5 reconnect
 # ---------------------------------------------------------------------------
 
-def note_fetch_result(mt5: Any, got_data: bool, fail_count: int) -> int:
+def note_fetch_result(mt5: Any, got_data: bool, fail_count: int, reason: str = "") -> int:
     """Track consecutive failed data fetches; reconnect after 3.
 
     Returns the updated fail count (0 once data flows again).
@@ -184,7 +212,13 @@ def note_fetch_result(mt5: Any, got_data: bool, fail_count: int) -> int:
         return 0
     fail_count += 1
     if fail_count == 3 or (fail_count > 3 and fail_count % 5 == 0):
-        log.warning(f"MT5: {fail_count} consecutive empty fetches -- reconnecting.")
+        msg = f"MT5: {fail_count} consecutive empty/stale fetches ({reason or 'no data'}) -- attempting reconnect."
+        log.warning(msg)
+        try:
+            from src.core import alerts
+            alerts.send(f"⚠️ {msg}", severity=alerts.CRITICAL)
+        except Exception:
+            pass
         try:
             mt5.shutdown()
         except Exception:

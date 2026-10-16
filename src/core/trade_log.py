@@ -25,7 +25,8 @@ from typing import Any, Dict, List, Optional
 log = logging.getLogger(__name__)
 
 IST = timezone(timedelta(hours=5, minutes=30))
-LOG_DIR = os.path.join("logs", "trades")
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+LOG_DIR = os.path.join(_ROOT, "logs", "trades")
 
 # Event kinds, so readers can filter without string-guessing.
 SIGNAL = "signal"            # a strategy produced (or was denied) a signal

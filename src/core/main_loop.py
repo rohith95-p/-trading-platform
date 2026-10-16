@@ -375,9 +375,12 @@ def _run_guarded():
             m15_rates = fetcher.get_m15_rates(250)
             m5_rates = fetcher.get_m5_rates(100)
 
-            got_data = m15_rates is not None and len(m15_rates) >= 200
-            mt5_fail_count = resilience.note_fetch_result(mt5, got_data, mt5_fail_count)
+            conn_ok, conn_reason = resilience.check_connection_and_freshness(mt5, m15_rates)
+            got_data = conn_ok and m15_rates is not None and len(m15_rates) >= 200
+            mt5_fail_count = resilience.note_fetch_result(mt5, got_data, mt5_fail_count, reason=conn_reason)
             if not got_data:
+                if not conn_ok:
+                    log.warning(f"LIVENESS CHECK FAILED: {conn_reason}. Skipping signal evaluation.")
                 _time.sleep(LOOP_INTERVAL)
                 continue
 
@@ -411,7 +414,7 @@ def _run_guarded():
                     # close was barely above EMA20 (BULLISH) but the day opened
                     # and immediately sold off 100+ pts.
                     # ----------------------------------------------------------
-                    _D1_INTRADAY_OVERRIDE_MULT = 2.0   # tune: 1.5 = more sensitive
+                    _D1_INTRADAY_OVERRIDE_MULT = 1.0   # >=1.0x ATR intraday move overrides previous day's stale close
                     if d1_bias is not None and len(d1_closes) >= 15:
                         _d1_atr_arr = np.abs(np.diff(d1_closes[-15:]))
                         _d1_atr = float(np.median(_d1_atr_arr)) if len(_d1_atr_arr) else 0.0
@@ -572,7 +575,7 @@ def _run_guarded():
         _time.sleep(LOOP_INTERVAL)
 
 
-_COOLDOWN_FILE = "logs/cooldown.json"
+_COOLDOWN_FILE = os.path.join(resilience._LOGS, "cooldown.json")
 
 
 def _leg_in_cooldown(name: str) -> bool:
@@ -626,10 +629,17 @@ def _record_closed_trades(fetcher, known_tickets):
             if not deals:
                 still_pending.add(ticket)
                 continue
-            pl = sum((d.profit + d.swap + d.commission) for d in deals
-                     if d.entry == mt5.DEAL_ENTRY_OUT)
+            out_deals = [d for d in deals if d.entry == mt5.DEAL_ENTRY_OUT]
+            if not out_deals:
+                # Position still open / exit deal not yet visible: retry next loop
+                # rather than recording a phantom $0 "win" that resets the streak.
+                still_pending.add(ticket)
+                continue
+            pl = sum((d.profit + d.swap + d.commission) for d in out_deals)
+            in_deals = [d for d in deals if d.entry == mt5.DEAL_ENTRY_IN]
+            strat_name = (in_deals[0].comment if in_deals else deals[0].comment) or "Unknown"
             state = risk_rules.record_trade_result(pl, state=state)
-            trade_log.position_closed(strategy="", ticket=ticket, profit=round(pl, 2),
+            trade_log.position_closed(strategy=strat_name, ticket=ticket, profit=round(pl, 2),
                                       consecutive_losses=state.consecutive_losses,
                                       day_losing_trades=state.day_losing_trades,
                                       streak_pause_active=state.pause_until_ts > _time.time(),
@@ -638,7 +648,6 @@ def _record_closed_trades(fetcher, known_tickets):
             # Notify exit
             from src.core import alerts
             icon = "✅" if pl > 0 else "❌"
-            strat_name = deals[0].comment if deals else "Unknown"
             
             _acct = mt5.account_info()
             bal_str = f"${_acct.balance:.2f}" if _acct else "Unknown"
@@ -680,7 +689,7 @@ def _check_vi3_tripwire(fetcher):
         if not deals:
             return
             
-        magics = {3012, 3013, 3022, 3011, 3014}
+        magics = {int(cls().magic) for cls in PORTFOLIO_V5}
         pls = []
         for d in deals:
             if d.symbol == fetcher.symbol and d.magic in magics and d.entry == mt5.DEAL_ENTRY_OUT:
@@ -833,8 +842,16 @@ def _execute_signal(signal, m15_rates, fetcher, risk, executor, session_mult, se
 
     dedup_set.add(dedup_key)
 
+    if result is None:
+        # Vetoed, blocked or rejected: no order exists, so none is logged as one.
+        trade_log.signal(signal.strategy_name, signal.direction_str, "blocked",
+                         "order not placed (veto/cap/broker reject)", candle=bar_time,
+                         session=session_name)
+        return None
+
     trade_log.order(
-        strategy=signal.strategy_name, direction=signal.direction_str, lots=lot_size,
+        strategy=signal.strategy_name, direction=signal.direction_str,
+        lots=getattr(result, "lots", lot_size),
         price=price, sl=stops.sl, tp=stops.tp,
         retcode=getattr(result, "retcode", None),
         ticket=getattr(result, "order", None),

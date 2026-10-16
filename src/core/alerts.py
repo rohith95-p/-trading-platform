@@ -38,7 +38,8 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 IST = timezone(timedelta(hours=5, minutes=30))
-ALERT_LOG = os.path.join("logs", "alerts.log")
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ALERT_LOG = os.path.join(_ROOT, "logs", "alerts.log")
 TIMEOUT = 15
 
 # Severity prefixes so a phone notification is triage-able at a glance.

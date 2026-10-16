@@ -23,7 +23,8 @@ from typing import Any, Dict, List, Optional
 
 from src.core.system_config import SystemConfig
 
-LEDGER_PATH = os.path.join("research", "validation_ledger.json")
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+LEDGER_PATH = os.path.join(_ROOT, "research", "validation_ledger.json")
 
 
 def _load() -> List[Dict[str, Any]]:
