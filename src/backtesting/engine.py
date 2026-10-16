@@ -311,6 +311,9 @@ class EngineConfig:
     daily_loss_limit_pct: float = 0.06
     load_macro_rules: bool = False               # markdown-driven bias, off for reproducibility
 
+    # Coarse-mode realism: test a new position against its own entry bar.
+    walk_entry_bar_coarse: bool = True
+
     warmup_bars: int = 260
     min_tradeable_balance: float = 5.0
     # Margin. Verified live: leverage 200 on XAUUSDm, contract 100 oz, so one
@@ -1088,6 +1091,15 @@ class BacktestEngine:
                                             tp_atr_mult=getattr(best_s, "tp_atr_mult", None))
                         if opened is not None:
                             fired_on[best_s.name] = bar_open
+                            # Coarse (no-M1) bars: the 15 minutes right after entry
+                            # are the one bar where a 0.5xATR stop is most likely to
+                            # be hit. Walk the new position through this same bar,
+                            # stop-first on ambiguity, instead of skipping it.
+                            if coarse and cfg.walk_entry_bar_coarse:
+                                hit = self._walk_minute(opened, bar, ts, point, True,
+                                                        is_m15_close=is_m15_close)
+                                if hit is not None:
+                                    self._close(opened, hit[0], ts, hit[1])
 
                 # 6. Pyramiding, then management -- the order main_loop uses.
                 if spread_ok and cfg.enable_pyramiding:
